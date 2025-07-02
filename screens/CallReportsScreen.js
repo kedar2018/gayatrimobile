@@ -59,58 +59,59 @@ useEffect(() => {
     if (stored) setTrackingTour(JSON.parse(stored));
   };
 
-  const startTour = async (call) => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Location permission required');
-        return;
-      }
-
-      const current = await Location.getCurrentPositionAsync({});
-      const user_id = await AsyncStorage.getItem('user_id');
-
-      const res = await axios.post(`http://192.34.58.213/gayatri/api/tour_conveyances`, {
-        user_id,
-        call_report_id: call.id
-      });
-
-      const tour_id = res.data.tour_conveyance_id;
-      const destLat = call.customer_detail?.latitude;
-      const destLng = call.customer_detail?.longitude;
 
 
-await startBackgroundTracking(
-  tour_id,
-  current.coords.latitude,
-  current.coords.longitude,
-  destLat,
-  destLng,
-  async (stoppedTourId, distance) => {
-    setTrackingTour(null);
-    await AsyncStorage.removeItem('tracking_tour');
-    setTourDistances(prev => ({ ...prev, [call.id]: distance }));
-    Alert.alert("Auto-Stopped", `Tour stopped automatically. Distance: ${distance} km`);
-  }
-);
-
-
-
-
-
-
-
-
-      const tourData = { tour_id, call_id: call.id };
-      setTrackingTour(tourData);
-      await AsyncStorage.setItem('tracking_tour', JSON.stringify(tourData));
-
-      Alert.alert("Tour started.");
-    } catch (err) {
-      console.error("Start Tour error:", err);
-      Alert.alert("Error", err.message || "Unknown error");
+const startTour = async (call) => {
+  try {
+    if (trackingTour?.tour_id) {
+      Alert.alert("Tour already active", "Please stop the current tour before starting a new one.");
+      return;
     }
-  };
+
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Location permission required');
+      return;
+    }
+
+    const current = await Location.getCurrentPositionAsync({});
+    const user_id = await AsyncStorage.getItem('user_id');
+
+    const res = await axios.post(`http://192.34.58.213/gayatri/api/tour_conveyances`, {
+      user_id,
+      call_report_id: call.id
+    });
+
+    const tour_id = res.data.tour_conveyance_id;
+    const destLat = call.customer_detail?.latitude;
+    const destLng = call.customer_detail?.longitude;
+
+    await startBackgroundTracking(
+      tour_id,
+      current.coords.latitude,
+      current.coords.longitude,
+      destLat,
+      destLng,
+      async (stoppedTourId, distance) => {
+        setTrackingTour(null);
+        await AsyncStorage.removeItem('tracking_tour');
+        setTourDistances(prev => ({ ...prev, [call.id]: distance }));
+        Alert.alert("Auto-Stopped", `Tour stopped automatically. Distance: ${distance} km`);
+      }
+    );
+
+    const tourData = { tour_id, call_id: call.id };
+    setTrackingTour(tourData);
+    await AsyncStorage.setItem('tracking_tour', JSON.stringify(tourData));
+
+    Alert.alert("Tour started.");
+  } catch (err) {
+    console.error("Start Tour error:", err);
+    Alert.alert("Error", err.message || "Unknown error");
+  }
+};
+
+
 
   const stopTour = async (call) => {
     try {
