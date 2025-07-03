@@ -35,7 +35,7 @@ export async function startBackgroundTracking(
   await Location.startLocationUpdatesAsync(TASK_NAME, {
     accuracy: Location.Accuracy.High,
     timeInterval: 300000,
-    distanceInterval: 200,
+    distanceInterval: 100,
     foregroundService: {
       notificationTitle: 'Tracking Tour',
       notificationBody: 'Recording location in background',
@@ -94,24 +94,25 @@ TaskManager.defineTask(TASK_NAME, async ({ data, error }) => {
       if (dist < 100) {
         console.log("✅ Within 100 meters — auto-stopping tour");
 
-        await axios.post('http://192.34.58.213/gayatri/api/log_location_stop', {
-          tour_conveyance_id: tourId,
-          latitude,
-          longitude,
-          user_id
-        });
+   const stopRes = await axios.post('http://192.34.58.213/gayatri/api/log_location_stop', {
+  tour_conveyance_id: tourId,
+  latitude,
+  longitude,
+  user_id
+});
 
-        await stopBackgroundTracking();
-        await AsyncStorage.removeItem('tracking_tour');
+await stopBackgroundTracking();
+await AsyncStorage.removeItem('tracking_tour');
+     const serverDistance = Number(stopRes.data?.distance_km || 0).toFixed(2);
 
-        if (typeof onArrivalCallback === 'function') {
-          onArrivalCallback(tourId, (dist / 1000).toFixed(2));
-        }
+if (typeof onArrivalCallback === 'function') {
+  onArrivalCallback(tourId, serverDistance);
+}
 
-	TourEventEmitter.emit('tourAutoStopped', {
-  	tourId,
-  	distance: dist.toFixed(2)
-	});
+TourEventEmitter.emit('tourAutoStopped', {
+  tourId,
+  distance: serverDistance
+});
 
 
       }
