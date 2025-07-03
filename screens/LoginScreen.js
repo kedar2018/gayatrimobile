@@ -48,7 +48,7 @@ export default function LoginScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.inner}>
           <Text style={styles.title}>Engineer Login</Text>
-          <TextInput style={styles.input} placeholder="Email" keyboardType="email-address" autoCapitalize="none" onChangeText={setEmail} />
+          <TextInput style={styles.input} placeholder="Email" placeholderTextColor="#888" keyboardType="email-address" autoCapitalize="none" onChangeText={setEmail}   selectionColor="#004080" underlineColorAndroid="transparent" />
           <TextInput style={styles.input} placeholder="Password" secureTextEntry onChangeText={setPassword} />
           <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={submitting}>
             {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Login</Text>}
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   scrollContainer: { flexGrow: 1 },
   inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 20 },
   title: { fontSize: 26, fontWeight: 'bold', color: '#004080', textAlign: 'center', marginBottom: 30 },
-  input: { backgroundColor: '#fff', padding: 12, borderRadius: 10, marginBottom: 15, fontSize: 16, borderColor: '#ccc', borderWidth: 1 },
+  input: { backgroundColor: '#fff', padding: 12, borderRadius: 10, marginBottom: 15, fontSize: 16, borderColor: '#ccc', borderWidth: 1 ,  color: '#000' },
   button: { backgroundColor: '#004080', paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
 });

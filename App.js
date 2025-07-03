@@ -31,7 +31,7 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="CallReports" component={CallReportsScreen} />
-      <Tab.Screen name="History" component={HistoryScreen} />
+      {/*<Tab.Screen name="History" component={HistoryScreen} />*/}
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
