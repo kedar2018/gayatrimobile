@@ -12,12 +12,15 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { startBackgroundTracking, stopBackgroundTracking } from '../utils/location';
 import { TourEventEmitter } from '../utils/location';
 
+
 export default function CallReportsScreen() {
   const [calls, setCalls] = useState([]);
   const [trackingTour, setTrackingTour] = useState(null);
   const [tourDistances, setTourDistances] = useState({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [startingTour, setStartingTour] = useState(false);
+  const [stoppingTour, setStoppingTour] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -63,10 +66,13 @@ useEffect(() => {
 
 const startTour = async (call) => {
   try {
+    if (startingTour) return; // 🔒 prevent double-tap
+
     if (trackingTour?.tour_id) {
       Alert.alert("Tour already active", "Please stop the current tour before starting a new one.");
       return;
     }
+  setStartingTour(true); // 🚩 Block repeated taps
 
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
@@ -108,6 +114,8 @@ const startTour = async (call) => {
   } catch (err) {
     console.error("Start Tour error:", err);
     Alert.alert("Error", err.message || "Unknown error");
+  }finally {
+    setStartingTour(false); // ✅ Allow new attempts
   }
 };
 
@@ -115,8 +123,12 @@ const startTour = async (call) => {
 
   const stopTour = async (call) => {
     try {
+    setStoppingTour(true); // ✅ start loading
+
       if (!trackingTour?.tour_id) {
         Alert.alert("No active tour to stop.");
+      setStoppingTour(false);
+
         return;
       }
 
@@ -141,7 +153,9 @@ const startTour = async (call) => {
     } catch (err) {
       console.error("Stop Tour error:", err);
       Alert.alert("Stop Error", err.message || "Unknown error");
-    }
+    }finally {
+    setStoppingTour(false); // ✅ stop loading
+  }
   };
 
   const renderItem = ({ item }) => (
@@ -167,15 +181,43 @@ const startTour = async (call) => {
         <Text style={styles.distanceText}>Distance: {tourDistances[item.id]} km</Text>
       )}
 
-      {trackingTour?.call_id === item.id ? (
-        <TouchableOpacity style={styles.stopButton} onPress={() => stopTour(item)}>
-          <Text style={styles.buttonText}>Stop Tour</Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity style={styles.startButton} onPress={() => startTour(item)}>
-          <Text style={styles.buttonText}>Start Tour</Text>
-        </TouchableOpacity>
-      )}
+
+
+{trackingTour?.call_id === item.id ? (
+
+
+<TouchableOpacity
+  style={[styles.stopButton, stoppingTour && styles.disabledButton]}
+  onPress={() => stopTour(item)}
+  disabled={stoppingTour}
+>
+  {stoppingTour ? (
+    <ActivityIndicator color="#fff" />
+  ) : (
+    <Text style={styles.buttonText}>Stop Tour</Text>
+  )}
+</TouchableOpacity>
+
+
+) : (
+  <TouchableOpacity
+    style={[styles.startButton, startingTour && styles.disabledButton]}
+    onPress={() => startTour(item)}
+    disabled={startingTour}
+  >
+    {startingTour ? (
+      <ActivityIndicator color="#fff" />
+    ) : (
+      <Text style={styles.buttonText}>Start Tour</Text>
+    )}
+  </TouchableOpacity>
+)}
+
+
+
+
+
+
 
       {trackingTour?.call_id === item.id ? (
         <Text style={styles.statusActive}>🟢 Tour Active</Text>
@@ -222,5 +264,10 @@ const styles = StyleSheet.create({
   distanceText: { marginTop: 8, fontStyle: 'italic', color: '#555' },
   statusActive: { marginTop: 8, fontWeight: 'bold', color: 'green' },
   statusDone: { marginTop: 8, fontWeight: 'bold', color: 'red' },
-  statusPending: { marginTop: 8, fontWeight: 'bold', color: '#888' }
+  statusPending: { marginTop: 8, fontWeight: 'bold', color: '#888' },
+disabledButton: {
+  backgroundColor: '#aaa'
+}
+
+
 });
