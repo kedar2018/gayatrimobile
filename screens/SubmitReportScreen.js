@@ -111,14 +111,6 @@ export default function SubmitCallReportScreen({ route, navigation }) {
         multiline
       />
 
-      <Text style={styles.label}>Feedback Rating (1 to 5) *</Text>
-      <TextInput
-        style={styles.input}
-        value={feedbackRating}
-        onChangeText={setFeedbackRating}
-        placeholder="e.g. 5"
-        keyboardType="numeric"
-      />
 
 <Text style={styles.label}>Status *</Text>
 <View style={styles.pickerWrapper}>
