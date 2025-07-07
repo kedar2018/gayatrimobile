@@ -12,8 +12,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { startBackgroundTracking, stopBackgroundTracking } from '../utils/location';
 import { TourEventEmitter } from '../utils/location';
 
-
-export default function CallReportsScreen() {
+export default function CallReportsScreen({ navigation }) {
   const [calls, setCalls] = useState([]);
   const [trackingTour, setTrackingTour] = useState(null);
   const [tourDistances, setTourDistances] = useState({});
@@ -226,6 +225,13 @@ const startTour = async (call) => {
       ) : (
         <Text style={styles.statusPending}>⚪ Not Started</Text>
       )}
+
+<TouchableOpacity
+  style={styles.reportButton}
+  onPress={() => navigation.navigate('SubmitCallReport', { callReportId: item.id })}
+>
+  <Text style={styles.reportButtonText}>Submit Report</Text>
+</TouchableOpacity>
     </View>
   );
 
@@ -265,9 +271,21 @@ const styles = StyleSheet.create({
   statusActive: { marginTop: 8, fontWeight: 'bold', color: 'green' },
   statusDone: { marginTop: 8, fontWeight: 'bold', color: 'red' },
   statusPending: { marginTop: 8, fontWeight: 'bold', color: '#888' },
-disabledButton: {
-  backgroundColor: '#aaa'
+  disabledButton: {
+    backgroundColor: '#aaa'
+  },
+reportButton: {
+  backgroundColor: '#007bff',
+  padding: 10,
+  borderRadius: 5,
+  marginTop: 10,
+},
+reportButtonText: {
+  color: 'white',
+  textAlign: 'center',
+  fontWeight: 'bold',
 }
+
 
 
 });

@@ -9,6 +9,7 @@ import LoginScreen from './screens/LoginScreen';
 import CallReportsScreen from './screens/CallReportsScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import HistoryScreen from './screens/HistoryScreen';
+import SubmitCallReportScreen from './screens/SubmitReportScreen'; // Adjust path if needed
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -45,6 +46,8 @@ export default function App() {
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="MainTabs" component={MainTabs} />
+	<Stack.Screen name="SubmitCallReport" component={SubmitCallReportScreen} />
+
       </Stack.Navigator>
     </NavigationContainer>
   );
