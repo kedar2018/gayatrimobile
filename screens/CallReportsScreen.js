@@ -111,6 +111,10 @@ console.log(trackingreturnTour);
 
 const startReturnJourney = async (call) => {
   try {
+if (trackingTour?.tour_id) {
+      Alert.alert("Tour already active", "Please stop the current tour before starting a new one.");
+      return;
+    }
     const user_id = await AsyncStorage.getItem('user_id');
    const current = await Location.getCurrentPositionAsync({});
     const res = await axios.post('http://192.34.58.213/gayatri/api/tour_location/start_return', {

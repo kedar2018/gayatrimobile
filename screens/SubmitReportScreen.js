@@ -54,7 +54,7 @@ export default function SubmitCallReportScreen({ route, navigation }) {
   };
 
   const submitReport = async () => {
-    if (!actionTaken || !status || !feedbackRating) {
+    if (!actionTaken || !status ) {
       Alert.alert('Validation Error', 'All fields except signcopy are required.');
       return;
     }
