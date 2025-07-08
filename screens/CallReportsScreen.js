@@ -112,7 +112,7 @@ console.log(trackingreturnTour);
 const startReturnJourney = async (call) => {
   try {
     const user_id = await AsyncStorage.getItem('user_id');
-
+   const current = await Location.getCurrentPositionAsync({});
     const res = await axios.post('http://192.34.58.213/gayatri/api/tour_location/start_return', {
       user_id,
       call_report_id: call.id,
@@ -120,7 +120,7 @@ const startReturnJourney = async (call) => {
 
     if (res.data.success) {
       const tour_id = res.data.tour_conveyance_id;
-    console.log("success data");
+      console.log("success data");
       // Save tracking tour info
       const trackingInfo = {
         tour_id,
@@ -133,7 +133,14 @@ const startReturnJourney = async (call) => {
       setTrackingreturnTour(trackingInfo);
       await AsyncStorage.setItem('tracking_tour_return', JSON.stringify(trackingInfo));
 
-      await startBackgroundTracking(tour_id);
+  
+   
+  await startBackgroundTracking(
+    tour_id,
+    current.coords.latitude,
+    current.coords.longitude
+    );
+
       Alert.alert("Return journey started");
     } else {
       Alert.alert("Start failed", res.data.message || "Try again");

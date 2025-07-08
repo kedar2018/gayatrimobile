@@ -84,6 +84,7 @@ TaskManager.defineTask(TASK_NAME, async ({ data, error }) => {
       longitude,
       user_id
     });
+    console.log("from background tracking location sent");
 
     console.log(`📤 Location sent: ${latitude}, ${longitude}`);
 
