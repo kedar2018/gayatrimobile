@@ -104,6 +104,8 @@ console.log(trackingreturnTour);
     Alert.alert("Stop Error", err.message || "Unknown error");
   } finally {
     setStoppingTour(false); // ✅ Hide loader
+    setTrackingreturnTour(false);
+
   }
 };
 
@@ -115,6 +117,10 @@ if (trackingTour?.tour_id) {
       Alert.alert("Tour already active", "Please stop the current tour before starting a new one.");
       return;
     }
+if(trackingreturnTour?.tour_id){
+      Alert.alert("Tour already active", "Please stop the current tour before starting a new one.");
+return;
+}
     const user_id = await AsyncStorage.getItem('user_id');
    const current = await Location.getCurrentPositionAsync({});
     const res = await axios.post('http://192.34.58.213/gayatri/api/tour_location/start_return', {
@@ -164,6 +170,10 @@ const startTour = async (call) => {
       Alert.alert("Tour already active", "Please stop the current tour before starting a new one.");
       return;
     }
+if(trackingreturnTour?.tour_id){ 
+      Alert.alert("Tour already active", "Please stop the current tour before starting a new one.");
+return;
+}
   setStartingTour(true); // 🚩 Block repeated taps
 
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -323,12 +333,17 @@ const startTour = async (call) => {
 
 {item.submitted && !trackingreturnTour?.call_id && (
   <TouchableOpacity
-    style={[styles.button, { backgroundColor: 'green' }]}
+    style={[styles.startButton, startingTour && styles.disabledButton]}
+    disabled={startingTour}
+
     onPress={() => startReturnJourney(item)}
   >
     <Text style={styles.buttonText}>Start Return Journey</Text>
   </TouchableOpacity>
 )}
+
+
+
 
 {trackingreturnTour?.call_id === item.id && (
   <TouchableOpacity
