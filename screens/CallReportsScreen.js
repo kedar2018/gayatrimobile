@@ -343,8 +343,8 @@ return;
     </View>
   ) : (
     <TouchableOpacity
-      style={[styles.startButton, (startingTour || trackingTour?.call_id) && styles.disabledButton]}
-      disabled={startingTour || trackingTour?.call_id}
+      style={[styles.startButton, (startingTour || !!trackingTour?.call_id) && styles.disabledButton]}
+      disabled={startingTour || !!trackingTour?.call_id}
       onPress={() => startReturnJourney(item)}
     >
       <Text style={styles.buttonText}>Start Return Journey</Text>
