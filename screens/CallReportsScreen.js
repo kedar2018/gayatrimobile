@@ -21,6 +21,8 @@ export default function CallReportsScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [startingTour, setStartingTour] = useState(false);
   const [stoppingTour, setStoppingTour] = useState(false);
+  const [startingretTour, setStartingretTour] = useState(false);
+
 
   useFocusEffect(
     useCallback(() => {
@@ -121,6 +123,7 @@ if(trackingreturnTour?.tour_id){
       Alert.alert("Tour already active", "Please stop the current tour before starting a new one.");
 return;
 }
+setStartingretTour(true);
     const user_id = await AsyncStorage.getItem('user_id');
    const current = await Location.getCurrentPositionAsync({});
     const res = await axios.post('http://192.34.58.213/gayatri/api/tour_location/start_return', {
@@ -158,7 +161,9 @@ return;
   } catch (err) {
     console.error("Start Return Journey Error:", err);
     Alert.alert("Error", err.message || "Failed to start return journey");
-  }
+  }finally{
+setStartingretTour(false);
+}
 };
 
 
@@ -332,14 +337,19 @@ return;
 
 
 {item.submitted && !trackingreturnTour?.call_id && (
-  <TouchableOpacity
-    style={[styles.startButton, startingTour && styles.disabledButton]}
-    disabled={startingTour}
-
-    onPress={() => startReturnJourney(item)}
-  >
-    <Text style={styles.buttonText}>Start Return Journey</Text>
-  </TouchableOpacity>
+  startingretTour ? (
+    <View style={[styles.startButton, styles.disabledButton]}>
+      <ActivityIndicator size="small" color="#ffffff" />
+    </View>
+  ) : (
+    <TouchableOpacity
+      style={[styles.startButton, (startingTour || trackingTour?.call_id) && styles.disabledButton]}
+      disabled={startingTour || trackingTour?.call_id}
+      onPress={() => startReturnJourney(item)}
+    >
+      <Text style={styles.buttonText}>Start Return Journey</Text>
+    </TouchableOpacity>
+  )
 )}
 
 
