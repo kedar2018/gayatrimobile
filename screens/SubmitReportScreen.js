@@ -14,6 +14,7 @@ export default function SubmitCallReportScreen({ route, navigation }) {
   const [status, setStatus] = useState('');
   const [image, setImage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [km, setKm] = useState('');
 
   const askPermissions = async () => {
     const camera = await ImagePicker.requestCameraPermissionsAsync();
@@ -54,7 +55,7 @@ export default function SubmitCallReportScreen({ route, navigation }) {
   };
 
   const submitReport = async () => {
-    if (!actionTaken || !status ) {
+    if (!actionTaken || !status || !km || isNaN(km)) {
       Alert.alert('Validation Error', 'All fields except signcopy are required.');
       return;
     }
@@ -67,6 +68,7 @@ export default function SubmitCallReportScreen({ route, navigation }) {
     formData.append('call_report[action_taken]', actionTaken);
     formData.append('call_report[feedback_rating]', feedbackRating);
     formData.append('call_report[status]', status);
+    formData.append('call_report[km]',km);
 
     if (image) {
       formData.append('call_report[signed_copy]', {
@@ -105,6 +107,8 @@ export default function SubmitCallReportScreen({ route, navigation }) {
       <Text style={styles.label}>Action Taken *</Text>
       <TextInput
         style={styles.input}
+	  placeholderTextColor="#666"  // ✅ Darker placeholder
+
         value={actionTaken}
         onChangeText={setActionTaken}
         placeholder="Describe what was done"
@@ -118,12 +122,22 @@ export default function SubmitCallReportScreen({ route, navigation }) {
     selectedValue={status}
     onValueChange={(itemValue) => setStatus(itemValue)}
   >
-    <Picker.Item label="Select status" value="" />
-    <Picker.Item label="Pending" value="Pending" />
-    <Picker.Item label="In Progress" value="In Progress" />
-    <Picker.Item label="Completed" value="Completed" />
+    <Picker.Item color="#999" label="Select status" value="" />
+    <Picker.Item color="#999" label="Pending" value="Pending" />
+    <Picker.Item color="#999" label="In Progress" value="In Progress" />
+    <Picker.Item color="#999" label="Completed" value="Completed" />
   </Picker>
 </View>
+
+      <Text style={styles.label}>Distance Travelled (km)</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="e.g. 12.5"
+        placeholderTextColor="#666"  // ✅ Darker placeholder
+        value={km}
+        onChangeText={setKm}
+        keyboardType="numeric"
+      />
 
       <View style={{ marginVertical: 10 }}>
         <Button title="Capture Signcopy with Camera" onPress={captureWithCamera} />
@@ -152,14 +166,17 @@ const styles = StyleSheet.create({
     marginTop: 15,
     fontWeight: 'bold',
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    minHeight: 50,
-    borderRadius: 5,
-    marginTop: 5,
-  },
+
+input: {
+  borderWidth: 1,
+  borderColor: '#ccc',
+  backgroundColor: '#fff', // Light background
+  color: '#000',           // Text color
+  padding: 10,
+  borderRadius: 8,
+  marginBottom: 20,
+},
+
   preview: {
     width: '100%',
     height: 200,
@@ -172,7 +189,12 @@ pickerWrapper: {
   borderRadius: 5,
   marginTop: 5,
   marginBottom: 10,
+},
+picker: {
+  height: 50,
+  color: "#000" // darker text if selected
 }
+
 
 });
 

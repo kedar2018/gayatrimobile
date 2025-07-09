@@ -6,10 +6,12 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import SplashScreen from './screens/SplashScreen';
 import LoginScreen from './screens/LoginScreen';
-import CallReportsScreen from './screens/CallReportsScreen';
+import CallReportsScreen from './screens/CallReportsScreen'; //old screen not in used
 import ProfileScreen from './screens/ProfileScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import SubmitCallReportScreen from './screens/SubmitReportScreen'; // Adjust path if needed
+import CallReportsDropdownScreen from './screens/CallReportsDropdownScreen';
+
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -22,7 +24,7 @@ function MainTabs() {
         headerShown: false,
         tabBarIcon: ({ color, size }) => {
           let iconName;
-          if (route.name === 'CallReports') iconName = 'assignment';
+          if (route.name === 'CallReportsDropdown') iconName = 'assignment';
           else if (route.name === 'History') iconName = 'history';
           else if (route.name === 'Profile') iconName = 'person';
           return <MaterialIcons name={iconName} size={size} color={color} />;
@@ -31,7 +33,8 @@ function MainTabs() {
         tabBarInactiveTintColor: 'gray',
       })}
     >
-      <Tab.Screen name="CallReports" component={CallReportsScreen} />
+      {/*<Tab.Screen name="CallReports" component={CallReportsScreen} />*/}
+      <Tab.Screen name="CallReportsDropdown" component={CallReportsDropdownScreen}/>
       {/*<Tab.Screen name="History" component={HistoryScreen} />*/}
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
