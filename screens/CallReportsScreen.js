@@ -22,7 +22,7 @@ export default function CallReportsScreen({ navigation }) {
   const [startingTour, setStartingTour] = useState(false);
   const [stoppingTour, setStoppingTour] = useState(false);
   const [startingretTour, setStartingretTour] = useState(false);
-
+  const [stopingretTour, setStopingretTour] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -74,8 +74,8 @@ const restoreTrackingReturnState = async () => {
 
 const stopReturnJourney = async (call) => {
   try {
-    setStoppingTour(true); // ✅ Show loader
-
+    setStoppingTour(true); // ✅ Show loader check in future
+    setStopingretTour(true)
     if (!trackingreturnTour?.tour_id) {
       Alert.alert("No active return journey to stop.");
       setStoppingTour(false);
@@ -107,7 +107,7 @@ console.log(trackingreturnTour);
   } finally {
     setStoppingTour(false); // ✅ Hide loader
     setTrackingreturnTour(false);
-
+    setStopingretTour(false)
   }
 };
 
@@ -308,9 +308,9 @@ return;
 
 ) : (
   <TouchableOpacity
-    style={[styles.startButton, startingTour && styles.disabledButton]}
+      style={[styles.startButton, (startingTour || startingretTour   ) && styles.disabledButton]}
+      disabled={startingTour || !!trackingTour?.call_id}
     onPress={() => startTour(item)}
-    disabled={startingTour}
   >
     {startingTour ? (
       <ActivityIndicator color="#fff" />
@@ -353,15 +353,21 @@ return;
 )}
 
 
-
-
 {trackingreturnTour?.call_id === item.id && (
+
+  stopingretTour ? (
+  <View style={[styles.startButton, styles.disabledButton]}>
+      <ActivityIndicator size="small" color="#ffffff" />
+    </View>
+    ) : (
   <TouchableOpacity
     style={[styles.button, { backgroundColor: 'red' }]}
     onPress={() => stopReturnJourney(item)}
   >
     <Text style={styles.buttonText}>Stop Return Journey</Text>
   </TouchableOpacity>
+  )
+
 )}
 
 
@@ -427,3 +433,4 @@ reportButtonText: {
 
 
 });
+
