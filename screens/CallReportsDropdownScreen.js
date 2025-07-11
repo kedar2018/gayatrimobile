@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+//import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, ActivityIndicator, Button, Alert, ScrollView, RefreshControl, TouchableOpacity, Linking, Dimensions
 } from 'react-native';
@@ -7,7 +8,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
-
+import * as BackgroundFetch from 'expo-background-fetch';
+import * as TaskManager from 'expo-task-manager';
 
 const CallReportsDropdownScreen = ({ navigation }) => {
   const [caseList, setCaseList] = useState([]);
@@ -16,6 +18,24 @@ const CallReportsDropdownScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const screenHeight = Dimensions.get('window').height;
+  const TASK_NAME = 'background-voice-alert-task';
+
+
+const registerBackgroundVoiceAlert = async () => {
+  const isRegistered = await TaskManager.isTaskRegisteredAsync(TASK_NAME);
+  if (!isRegistered) {
+    await BackgroundFetch.registerTaskAsync(TASK_NAME, {
+      minimumInterval: 1800, // 30 minutes in seconds
+      stopOnTerminate: false,
+      startOnBoot: true,
+    });
+    console.log('✅ Background voice alert task registered.');
+  }
+};
+
+useEffect(() => {
+  registerBackgroundVoiceAlert();
+}, []);
 
 const playVoiceAlert = async () => {
   try {
@@ -30,22 +50,63 @@ const playVoiceAlert = async () => {
 
   useEffect(() => {
     fetchCallReports();
+    registerBackgroundVoiceAlert(); // for background
   }, []);
 
-
+/*
 useEffect(() => {
   if (selectedReport && selectedReport.age > 5) {
     playVoiceAlert();
   }
 }, [selectedReport]);
+*/
+
+const intervalRef = useRef(null);
+
+const startWarningInterval = () => {
+  if (intervalRef.current) clearInterval(intervalRef.current);
+
+  intervalRef.current = setInterval(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    if (hour >= 9 && hour < 18) {
+      playVoiceAlert();
+    }
+  }, 30 * 60 * 1000); // every 30 minutes
+
+  // Optional: Play once immediately
+  const hour = new Date().getHours();
+  if (hour >= 9 && hour < 18) {
+    playVoiceAlert();
+  }
+};
+
+useEffect(() => {
+  return () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+  };
+}, []);
+
+
+
+
+
 
   const fetchCallReports = async () => {
     try {
       const userId = await AsyncStorage.getItem('user_id');
       const res = await axios.get(`http://192.34.58.213/gayatri/api/call_reports?engineer_id=${userId}`);
-      setCaseList(res.data);
+      const fetchedCalls = res.data;
+
+      setCaseList(fetchedCalls);
       setLoading(false);
       setRefreshing(false); // turn off refresh
+     // Start 30-min voice alert loop if any report is older than 3 days
+     const hasOldCall = fetchedCalls.some(report => report.age > 3);
+     if (hasOldCall) {
+       startWarningInterval();
+     }
+
     } catch (error) {
       Alert.alert('Error', 'Failed to fetch call reports');
       setLoading(false);
