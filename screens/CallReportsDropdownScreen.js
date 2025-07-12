@@ -174,7 +174,7 @@ useEffect(() => {
           <Text style={styles.phoneText}> {selectedReport.customer_detail.mobile_number}</Text>
         </TouchableOpacity>
       )}
-
+	          <Text style={styles.detailText}>Status: {selectedReport.status}</Text>
 
           <Button title="Submit Report" onPress={() => navigation.navigate('SubmitCallReport', { callReportId: selectedReport.id })} />
         </View>
