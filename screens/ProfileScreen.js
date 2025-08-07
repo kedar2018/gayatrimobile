@@ -1,21 +1,38 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+
+
 export default function ProfileScreen({ navigation }) {
+  const [userName, setUserName] = useState('');
+
   const handleLogout = async () => {
     await AsyncStorage.clear();
     navigation.replace('Login');
   };
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>👋 Welcome, Engineer</Text>
-      <TouchableOpacity style={styles.button} onPress={handleLogout}>
-        <Text style={styles.buttonText}>Logout</Text>
-      </TouchableOpacity>
-    </View>
-  );
+
+  useEffect(() => {
+    const fetchUserName = async () => {
+      const storedName = await AsyncStorage.getItem('user_name');
+      if (storedName) {
+        setUserName(storedName);
+      }
+    };
+
+    fetchUserName();
+  }, []);
+
+
+return (
+  <View style={styles.container}>
+    <Text style={styles.title}>👋 Welcome, {userName || 'Engineer'}</Text>
+    <TouchableOpacity style={styles.button} onPress={handleLogout}>
+      <Text style={styles.buttonText}>Logout</Text>
+    </TouchableOpacity>
+  </View>
+);
 }
 
 const styles = StyleSheet.create({

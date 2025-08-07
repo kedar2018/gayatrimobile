@@ -33,6 +33,24 @@ export default function LoginScreen({ navigation }) {
       await AsyncStorage.setItem('user_name', name || '');
       navigation.replace('MainTabs');
     } catch (err) {
+        console.log('Login Error:', err); // 👈 This shows error in the Expo console
+
+
+  // More detailed breakdown:
+  if (err.response) {
+    // Server responded with a status other than 2xx
+    console.log('Status:', err.response.status);
+    console.log('Data:', err.response.data);
+    console.log('Headers:', err.response.headers);
+  } else if (err.request) {
+    // Request was made but no response received
+    console.log('Request:', err.request);
+  } else {
+    // Something happened in setting up the request
+    console.log('Error Message:', err.message);
+  }
+
+
       Alert.alert('Login failed', 'Invalid email or password');
     } finally {
       setSubmitting(false);

@@ -39,9 +39,6 @@ const registerBackgroundVoiceAlert = async () => {
   }
 };
 
-useEffect(() => {
-  registerBackgroundVoiceAlert();
-}, []);
 
 const playVoiceAlert = async () => {
   try {
