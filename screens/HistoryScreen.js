@@ -61,7 +61,29 @@ export default function HistoryScreen() {
               <Text>👤 Customer: {item.customer_name}</Text>
               <Text>📱 Mobile: {item.mobile_number}</Text>
               <Text>🏙 City: {item.city}</Text>
-              <Text>✅ Status: {item.submitted ? 'Submitted' : 'Not Submitted'}</Text>
+   <Text>📌 Status: 
+    
+<Text
+  style={{
+    color:
+      item.status === "Completed"
+        ? "green"
+        : item.status === "Pending"
+        ? "orange"
+        : "gray",
+    fontWeight: "bold",
+  }}
+>
+  {item.status}
+</Text>
+</Text>
+
+    <Text>
+      📝 Submitted:{" "}
+      <Text style={{ color: item.submitted ? 'green' : 'red', fontWeight: 'bold' }}>
+        {item.submitted ? "Yes" : "No"}
+      </Text>
+    </Text>
               <Text>🔢 Serial Number: {item.serial_number}</Text>
               <Text>📆 Age: {item.age} days</Text>
             </View>
