@@ -15,7 +15,7 @@ export default function CallListScreen({ navigation }) {
 
   const fetchCalls = async () => {
     const user_id = await AsyncStorage.getItem('user_id');
-    const res = await axios.get(`http://192.34.58.213/gayatri/api/call_reports?engineer_id=${user_id}`);
+    const res = await axios.get(`http://134.199.178.17/gayatri/api/call_reports?engineer_id=${user_id}`);
     setCalls(res.data);
   };
 
@@ -33,7 +33,7 @@ export default function CallListScreen({ navigation }) {
       const user_id = await AsyncStorage.getItem('user_id');
       console.log("User ID from storage:", user_id);
 
-      const res = await axios.post(`http://192.34.58.213/gayatri/api/tour_conveyances`, {
+      const res = await axios.post(`http://134.199.178.17/gayatri/api/tour_conveyances`, {
         user_id,
         call_report_id: call.id
       });
@@ -56,7 +56,7 @@ export default function CallListScreen({ navigation }) {
       const current = await Location.getCurrentPositionAsync({});
 
       const user_id = await AsyncStorage.getItem('user_id');
-      await axios.post(`http://192.34.58.213/gayatri/api/log_location`, {
+      await axios.post(`http://134.199.178.17/gayatri/api/log_location`, {
         tour_conveyance_id: tour_id,
         latitude: current.coords.latitude,
         longitude: current.coords.longitude,

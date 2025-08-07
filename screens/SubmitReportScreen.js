@@ -79,7 +79,7 @@ export default function SubmitCallReportScreen({ route, navigation }) {
     }
 
     try {
-      const response = await fetch(`http://192.34.58.213/gayatri/api/call_reports/${callReportId}/submit_report/`, {
+      const response = await fetch(`http://134.199.178.17/gayatri/api/call_reports/${callReportId}/submit_report/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'multipart/form-data',

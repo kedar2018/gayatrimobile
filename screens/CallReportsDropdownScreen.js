@@ -95,7 +95,7 @@ useEffect(() => {
   const fetchCallReports = async () => {
     try {
       const userId = await AsyncStorage.getItem('user_id');
-      const res = await axios.get(`http://192.34.58.213/gayatri/api/call_reports?engineer_id=${userId}`);
+      const res = await axios.get(`http://134.199.178.17/gayatri/api/call_reports?engineer_id=${userId}`);
       const fetchedCalls = res.data;
 
       setCaseList(fetchedCalls);
@@ -181,6 +181,8 @@ useEffect(() => {
       )}
     </ScrollView>
   );
+
+      
 };
 
 export default CallReportsDropdownScreen;

@@ -27,7 +27,7 @@ export default function LoginScreen({ navigation }) {
 
     setSubmitting(true);
     try {
-      const res = await axios.post('http://192.34.58.213/gayatri/api/login', { email, password });
+      const res = await axios.post('http://134.199.178.17/gayatri/api/login', { email, password });
       const { user_id, name } = res.data;
       await AsyncStorage.setItem('user_id', user_id.toString());
       await AsyncStorage.setItem('user_name', name || '');

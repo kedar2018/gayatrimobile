@@ -20,7 +20,7 @@ export default function HistoryScreen() {
     const userId = await AsyncStorage.getItem('user_id');
     try {
       const res = await axios.get(
-        `http://192.34.58.213/gayatri/api/call_reports/${userId}/history`
+        `http://134.199.178.17/gayatri/api/call_reports/${userId}/history`
       );
       setHistoryReports(res.data);
     } catch (error) {
