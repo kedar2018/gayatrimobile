@@ -10,6 +10,11 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
+//import RequestPartScreen from './screens/RequestPartScreen';
+//import PartRequestList from './screens/PartRequestList';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
+
 
 const CallReportsDropdownScreen = ({ navigation }) => {
   const [caseList, setCaseList] = useState([]);
@@ -19,6 +24,7 @@ const CallReportsDropdownScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const screenHeight = Dimensions.get('window').height;
   const TASK_NAME = 'background-voice-alert-task';
+  const [partRequestCounts, setPartRequestCounts] = useState({});
 
 
 const registerBackgroundVoiceAlert = async () => {
@@ -49,9 +55,17 @@ const playVoiceAlert = async () => {
 };
 
   useEffect(() => {
-    fetchCallReports();
+    //fetchCallReports();
     registerBackgroundVoiceAlert(); // for background
   }, []);
+
+useFocusEffect(
+  useCallback(() => {
+    //fetchReports();  // this will refetch and update counts
+    fetchCallReports();
+  }, [])
+);
+
 
 /*
 useEffect(() => {
@@ -89,7 +103,18 @@ useEffect(() => {
 
 
 
-
+const fetchPartRequests = async (callReports) => {
+  const counts = {};
+  for (let call of callReports) {
+    try {
+      const res = await axios.get(`http://192.34.58.213/gayatri/api/call_reports/${call.id}/part_requests`);
+      counts[call.id] = res.data.length;
+    } catch (error) {
+      counts[call.id] = 0;
+    }
+  }
+  setPartRequestCounts(counts);
+};
 
 
   const fetchCallReports = async () => {
@@ -99,6 +124,8 @@ useEffect(() => {
       const fetchedCalls = res.data;
 
       setCaseList(fetchedCalls);
+      fetchPartRequests(res.data);  // <- fetch part counts
+
       setLoading(false);
       setRefreshing(false); // turn off refresh
      // Start 30-min voice alert loop if any report is older than 3 days
@@ -135,12 +162,15 @@ useEffect(() => {
     return <ActivityIndicator size="large" style={styles.loader} />;
   }
 
-  return (
-    <ScrollView style={styles.container}
+ return (
+    <ScrollView
+      style={styles.container}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }>
+      }
+    >
       <Text style={styles.label}>Select a Case ID</Text>
+
       <View style={styles.pickerContainer}>
         <Picker
           selectedValue={selectedCaseId}
@@ -155,78 +185,172 @@ useEffect(() => {
       </View>
 
       {selectedReport && (
-        <View style={styles.detailsBox}>
-          <Text style={styles.detailText}>Serial No: {selectedReport.serial_number}</Text>
-                  <Text style={styles.detailText}>Age: {selectedReport.age}</Text>
-	  <Text style={styles.detailText}>Customer Name: {selectedReport.customer_detail?.customer_name}</Text>
-          <Text style={styles.address}>Address: {selectedReport.customer_detail?.address}</Text>
+        <View style={styles.card}>
+          <Text style={styles.detailText}>🔢 Serial No: {selectedReport.serial_number}</Text>
+          <Text style={styles.detailText}>📆 Age: {selectedReport.age} days</Text>
+          <Text style={styles.detailText}>👤 Customer: {selectedReport.customer_detail?.customer_name}</Text>
+          <Text style={styles.address}>🏠 {selectedReport.customer_detail?.address}</Text>
 
-      {selectedReport.customer_detail?.phone_number && (
-        <TouchableOpacity onPress={() => Linking.openURL(`tel:${selectedReport.customer_detail.phone_number}`)} style={styles.row}>
-          <MaterialIcons name="phone" size={20} color="#004080" />
-          <Text style={styles.phoneText}> {selectedReport.customer_detail.phone_number}</Text>
-        </TouchableOpacity>
+          {selectedReport.customer_detail?.phone_number && (
+            <TouchableOpacity
+              onPress={() => Linking.openURL(`tel:${selectedReport.customer_detail.phone_number}`)}
+              style={styles.row}
+            >
+              <MaterialIcons name="phone" size={20} color="#004080" />
+              <Text style={styles.phoneText}> {selectedReport.customer_detail.phone_number}</Text>
+            </TouchableOpacity>
+          )}
+
+          {selectedReport.customer_detail?.mobile_number && (
+            <TouchableOpacity
+              onPress={() => Linking.openURL(`tel:${selectedReport.customer_detail.mobile_number}`)}
+              style={styles.row}
+            >
+              <MaterialIcons name="smartphone" size={20} color="#004080" />
+              <Text style={styles.phoneText}> {selectedReport.customer_detail.mobile_number}</Text>
+            </TouchableOpacity>
+          )}
+
+          <Text style={styles.detailText}>📌 Status: {selectedReport.status}</Text>
+
+
+<TouchableOpacity
+  style={styles.button}
+  onPress={() => navigation.navigate('RequestPart', { callReportId: selectedReport.id })}
+>
+  <View style={styles.buttonContent}>
+    <MaterialIcons name="build" size={20} color="#ffffff" />
+    <Text style={styles.buttonText}> Request Part</Text>
+  </View>
+</TouchableOpacity>
+
+<TouchableOpacity
+  style={styles.button}
+  onPress={() => navigation.navigate('PartRequestList', { callReportId: selectedReport.id })}
+>
+  <View style={styles.buttonContent}>
+    <MaterialIcons name="inventory" size={20} color="#ffffff" />
+    <Text style={styles.buttonText}>
+      View Parts
+      {partRequestCounts[selectedReport.id] > 0 && (
+        <Text style={styles.badge}> ({partRequestCounts[selectedReport.id]})</Text>
       )}
+    </Text>
+  </View>
+</TouchableOpacity>
 
-      {selectedReport.customer_detail?.mobile_number && (
-        <TouchableOpacity onPress={() => Linking.openURL(`tel:${selectedReport.customer_detail.mobile_number}`)} style={styles.row}>
-          <MaterialIcons name="smartphone" size={20} color="#004080" />
-          <Text style={styles.phoneText}> {selectedReport.customer_detail.mobile_number}</Text>
-        </TouchableOpacity>
-      )}
-	          <Text style={styles.detailText}>Status: {selectedReport.status}</Text>
 
-          <Button title="Submit Report" onPress={() => navigation.navigate('SubmitCallReport', { callReportId: selectedReport.id })} />
+
+
+          <View style={styles.buttonWrapper}>
+            <Button
+              title="Submit Report"
+              color="#004080"
+              onPress={() =>
+                navigation.navigate('SubmitCallReport', {
+                  callReportId: selectedReport.id,
+                })
+              }
+            />
+          </View>
         </View>
       )}
     </ScrollView>
   );
+
+
+
+
 };
 
 export default CallReportsDropdownScreen;
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     padding: 16,
-    backgroundColor: '#f5f6fa',
-  },
-  loader: {
-    marginTop: 50,
+    backgroundColor: '#f2f4f7',
   },
   label: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: 'bold',
     marginBottom: 8,
+    color: '#004080',
   },
-  detailsBox: {
-    padding: 16,
+  pickerContainer: {
     borderWidth: 1,
-    borderColor: '#dcdde1',
-    borderRadius: 10,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    marginBottom: 16,
+    backgroundColor: '#fff'
+  },
+  picker: {
+    height: 50,
+    width: '100%',
+    color: '#444'
+  },
+  card: {
     backgroundColor: '#fff',
-    marginBottom: 20,
+    padding: 18,
+    borderRadius: 10,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    marginBottom: 16,
   },
   detailText: {
-    fontSize: 16,
+    fontSize: 15,
+    marginBottom: 6,
+    color: '#333',
+  },
+  address: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    marginBottom: 10,
+    color: '#444',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 6,
   },
-pickerContainer: {
-  borderWidth: 1,
-  borderColor: '#ccc',
-  borderRadius: 10,
-  marginBottom: 20,
-  backgroundColor: '#fff',
-  overflow: 'hidden',
-  elevation: 2, // for Android shadow
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.2,
-  shadowRadius: 3,
+  phoneText: {
+    fontSize: 15,
+    color: '#004080',
+  },
+  buttonWrapper: {
+    marginTop: 10,
+  },
+buttonRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  marginTop: 10
 },
-picker: {
-  height: 50,
-  width: '100%',
-  color: '#333',
-  paddingHorizontal: 10,
+button: {
+  backgroundColor: '#007bff',
+  padding: 10,
+  borderRadius: 5,
+  marginRight: 5,
+  marginTop: 5
+},
+buttonText: {
+  color: 'white',
+  fontSize: 14
+},
+badge: {
+  backgroundColor: 'red',
+  color: 'white',
+  fontSize: 12,
+  borderRadius: 10,
+  paddingHorizontal: 6,
+  marginLeft: 4
+},
+buttonContent: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center'
 }
+
+
 });

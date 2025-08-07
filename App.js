@@ -11,7 +11,10 @@ import ProfileScreen from './screens/ProfileScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import SubmitCallReportScreen from './screens/SubmitReportScreen'; // Adjust path if needed
 import CallReportsDropdownScreen from './screens/CallReportsDropdownScreen';
-
+import LeaveScreen from './screens/LeaveScreen';
+import AttendanceScreen from './screens/AttendanceScreen';
+import RequestPartScreen from './screens/RequestPartScreen';
+import PartRequestList from './screens/PartRequestList';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -36,7 +39,13 @@ function MainTabs() {
       {/*<Tab.Screen name="CallReports" component={CallReportsScreen} />*/}
       <Tab.Screen name="CallReportsDropdown" component={CallReportsDropdownScreen}/>
       <Tab.Screen name="History" component={HistoryScreen} />
+      <Tab.Screen name="Leave" component={LeaveScreen} />
+	<Tab.Screen name="Attendance" component={AttendanceScreen} />
+<Tab.Screen name="RequestPart" component={RequestPartScreen} options={{ tabBarButton: () => null, tabBarVisible: false }} />
+<Tab.Screen name="PartRequestList" component={PartRequestList} options={{ tabBarButton: () => null, tabBarVisible: false }} />
+
       <Tab.Screen name="Profile" component={ProfileScreen} />
+
     </Tab.Navigator>
   );
 }
