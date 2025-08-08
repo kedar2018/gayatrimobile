@@ -100,7 +100,7 @@ useEffect(() => {
 
 
 
-const fetchPartRequests = async (callReports) => {
+/*const fetchPartRequests = async (callReports) => {
   const counts = {};
   for (let call of callReports) {
     try {
@@ -112,7 +112,7 @@ const fetchPartRequests = async (callReports) => {
   }
   setPartRequestCounts(counts);
 };
-
+*/
 
   const fetchCallReports = async () => {
     try {
@@ -121,7 +121,7 @@ const fetchPartRequests = async (callReports) => {
       const fetchedCalls = res.data;
 
       setCaseList(fetchedCalls);
-      fetchPartRequests(res.data);  // <- fetch part counts
+      //fetchPartRequests(res.data);  // <- fetch part counts
 
       setLoading(false);
       setRefreshing(false); // turn off refresh
@@ -210,35 +210,7 @@ const fetchPartRequests = async (callReports) => {
 
           <Text style={styles.detailText}>📌 Status: {selectedReport.status}</Text>
 
-
-<TouchableOpacity
-  style={styles.button}
-  onPress={() => navigation.navigate('RequestPart', { callReportId: selectedReport.id })}
->
-  <View style={styles.buttonContent}>
-    <MaterialIcons name="build" size={20} color="#ffffff" />
-    <Text style={styles.buttonText}> Request Part</Text>
-  </View>
-</TouchableOpacity>
-
-<TouchableOpacity
-  style={styles.button}
-  onPress={() => navigation.navigate('PartRequestList', { callReportId: selectedReport.id })}
->
-  <View style={styles.buttonContent}>
-    <MaterialIcons name="inventory" size={20} color="#ffffff" />
-    <Text style={styles.buttonText}>
-      View Parts
-      {partRequestCounts[selectedReport.id] > 0 && (
-        <Text style={styles.badge}> ({partRequestCounts[selectedReport.id]})</Text>
-      )}
-    </Text>
-  </View>
-</TouchableOpacity>
-
-
-
-
+ 
           <View style={styles.buttonWrapper}>
             <Button
               title="Submit Report"
@@ -254,8 +226,6 @@ const fetchPartRequests = async (callReports) => {
       )}
     </ScrollView>
   );
-
-
 };
 
 export default CallReportsDropdownScreen;
