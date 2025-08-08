@@ -68,7 +68,7 @@ useEffect(() => {
     fetchOptions();
   }, []);
 
-  useEffect(() => {
+/*  useEffect(() => {
     const fetchUserId = async () => {
       const id = await AsyncStorage.getItem('user_id');
       console.log(`setting user id ${id}`);
@@ -76,7 +76,7 @@ useEffect(() => {
     };
     fetchUserId();
   }, []);
-
+*/
   useEffect(() => {
     if (userId) {
       fetchEntries();
@@ -153,13 +153,27 @@ useEffect(() => {
     });
   };
 
-  const renderItem = ({ item }) => (
-    <View style={styles.entryItem}>
-      <Text>{item.date} • {item.ccr_id}</Text>
-      <Text>{item.from_location} → {item.to_location}</Text>
-      <Text>{item.distance_km} km</Text>
-    </View>
-  );
+
+
+const renderItem = ({ item }) => (
+  <View style={styles.entryItem}>
+    <Text style={styles.entryDate}>📅 {item.date} | 🆔 {item.request_number}</Text>
+
+    <Text style={styles.entryRow}>🧾 CCR No: {item.ccr_id} | 🏗 Project: {item.project}</Text>
+
+    <Text style={styles.entryRow}>⏱ {item.start_time} → {item.arrived_time}</Text>
+
+    <Text style={styles.entryRow}>🚗 Mode: {item.mode}</Text>
+
+    <Text style={styles.entryRow}>📍 {item.from_location} → {item.to_location}</Text>
+
+    <Text style={styles.entryRow}>📏 {item.distance_km} km | 💰 ₹{item.expense_rs}</Text>
+  </View>
+);
+
+
+
+
 
   return (
     <View style={styles.container}>
@@ -309,12 +323,28 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
   },
-  entryItem: {
-    padding: 10,
-    backgroundColor: '#f2f2f2',
-    borderRadius: 6,
-    marginBottom: 10,
-  },
+
+entryItem: {
+  backgroundColor: '#f2f2f2',
+  padding: 10,
+  marginVertical: 6,
+  marginHorizontal: 12,
+  borderRadius: 8,
+  elevation: 1,
+},
+
+entryDate: {
+  fontSize: 13,
+  fontWeight: '600',
+  color: '#333',
+  marginBottom: 4,
+},
+
+entryRow: {
+  fontSize: 12,
+  color: '#555',
+  marginBottom: 2,
+},
   form: {
     marginTop: 20,
     maxHeight: '90%',
