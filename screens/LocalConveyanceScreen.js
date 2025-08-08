@@ -156,19 +156,38 @@ useEffect(() => {
 
 
 const renderItem = ({ item }) => (
-  <View style={styles.entryItem}>
-    <Text style={styles.entryDate}>📅 {item.date} | 🆔 {item.request_number}</Text>
+  <TouchableOpacity
+    style={styles.card}
+    onPress={() => {
+      // Optional: navigate or show details
+      console.log('Tapped:', item.request_number);
+    }}
+  >
+    <Text style={styles.cardHeader}>
+      📅 {item.date}   |   🆔 {item.request_number}
+    </Text>
 
-    <Text style={styles.entryRow}>🧾 CCR No: {item.ccr_id} | 🏗 Project: {item.project}</Text>
+    <Text style={styles.cardLine}>
+      🧾 CCR: {item.ccr_id}    |    🏗 {item.project}
+    </Text>
 
-    <Text style={styles.entryRow}>⏱ {item.start_time} → {item.arrived_time}</Text>
+    <Text style={styles.cardLine}>
+      ⏱ {item.start_time} → {item.arrived_time}
+    </Text>
 
-    <Text style={styles.entryRow}>🚗 Mode: {item.mode}</Text>
+    <Text style={styles.cardLine}>
+      🚙 {item.mode}
+    </Text>
 
-    <Text style={styles.entryRow}>📍 {item.from_location} → {item.to_location}</Text>
+    <Text style={styles.cardLine}>
+      📍 {item.from_location} → {item.to_location}
+    </Text>
 
-    <Text style={styles.entryRow}>📏 {item.distance_km} km | 💰 ₹{item.expense_rs}</Text>
-  </View>
+    <View style={styles.cardFooter}>
+      <Text style={styles.footerText}>📏 {item.distance_km} km</Text>
+      <Text style={styles.footerText}>💰 ₹{item.expense_rs}</Text>
+    </View>
+  </TouchableOpacity>
 );
 
 
@@ -311,6 +330,8 @@ const renderItem = ({ item }) => (
 
 export default LocalConveyanceScreen;
 
+//const isDarkMode = useColorScheme() === 'dark'; // optional
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -387,5 +408,40 @@ entryRow: {
     color: '#fff',
     fontWeight: 'bold',
   },
+  card: {
+    backgroundColor:  '#ffffff',
+    padding: 12,
+    marginHorizontal: 12,
+    marginVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor:  '#ccc',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardHeader: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111111',
+    marginBottom: 4,
+  },
+  cardLine: {
+    fontSize: 12,
+    color:  '#333',
+    marginBottom: 2,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  footerText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color:  '#000',
+  },
+
 });
 
