@@ -13,6 +13,11 @@ import {
 import axios from 'axios';
 import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Modal from 'react-native-modal';
+import ModalDropdown from '../components/ModalDropdown'; // Adjust path accordingly
+
+
+
 
 const API_URL = 'http://134.199.178.17/gayatri';
 
@@ -25,6 +30,23 @@ const LocalConveyanceScreen = () => {
   const [projectOptions, setProjectOptions] = useState([]);
   const [modeOptions, setModeOptions] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
+  const [isCcrModalVisible, setCcrModalVisible] = useState(false);
+  const [selectedCcr, setSelectedCcr] = useState('');
+
+//  const ccrOptions = ['CCR001', 'CCR002', 'CCR003']; // Replace with your actual fetched list
+
+const handleCcrSelect = (ccr) => {
+  setSelectedCcr(ccr);
+  setFormData(prev => ({ ...prev, ccr_id: ccr }));
+  setCcrModalVisible(false);
+};
+
+// Map your options to show `case_id` as label
+const mappedCcrOptions = ccrList.map(item => ({
+  ...item,
+  label: item.case_id, // you can customize this
+}));
+
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -218,18 +240,29 @@ const renderItem = ({ item }) => (
         onChangeText={(val) => setFormData({ ...formData, request_number: val })}
         style={styles.input}
       />
+ 
 
-      <Text style={styles.label}>📋 CCR Number</Text>
-      <Picker
-        selectedValue={formData.ccr_id}
-        onValueChange={(val) => setFormData({ ...formData, ccr_id: val })}
-        style={styles.input}
-      >
-        <Picker.Item label="Select CCR Number" value="" />
-        {ccrList.map((ccr) => (
-          <Picker.Item key={ccr.id} label={ccr.case_id} value={ccr.id} />
-        ))}
-      </Picker>
+<TouchableOpacity
+  onPress={() => setCcrModalVisible(true)}
+  style={styles.dropdownButton}
+>
+  <Text style={styles.dropdownButtonText}>
+    {selectedCcr ? selectedCcr.case_id : 'Select CCR Number'}
+  </Text>
+</TouchableOpacity>
+
+<ModalDropdown
+  visible={isCcrModalVisible}
+  options={mappedCcrOptions}
+  labelKey="label"
+  onSelect={(item) => {
+    setSelectedCcr(item); // display label
+    setFormData(prev => ({ ...prev, call_report_id: item.id })); // store id
+  }}
+  onClose={() => setCcrModalVisible(false)}
+/>
+
+
 
       <Text style={styles.label}>🏗 Project</Text>
       <Picker
@@ -513,6 +546,40 @@ input_user: {
   marginBottom: 10,
   color: '#888',
 },
+dropdownButton: {
+  padding: 12,
+  borderWidth: 1,
+  borderColor: '#ccc',
+  borderRadius: 6,
+  marginVertical: 10,
+  backgroundColor: '#fff',
+},
+
+dropdownButtonText: {
+  fontSize: 16,
+},
+
+modalContent: {
+  backgroundColor: 'white',
+  padding: 20,
+  borderRadius: 10,
+},
+
+modalItem: {
+  paddingVertical: 10,
+  borderBottomWidth: 1,
+  borderColor: '#eee',
+},
+dropdownButton: {
+  borderWidth: 1,
+  borderColor: '#ccc',
+  padding: 12,
+  borderRadius: 5,
+  marginVertical: 10,
+},
+dropdownButtonText: {
+  fontSize: 16,
+}
 
 });
 
