@@ -206,118 +206,121 @@ const renderItem = ({ item }) => (
         }
       />
 
-      {formVisible && (
-        <ScrollView style={styles.form} contentContainerStyle={styles.formContent}>
-          <Text style={styles.label}>Request ID / SO No.</Text>
-          <TextInput
-            placeholder="Enter Request No"
-            value={formData.request_number}
-            onChangeText={(val) => setFormData({ ...formData, request_number: val })}
-            style={styles.input}
-          />
+     {formVisible && (
+  <ScrollView style={styles.form} contentContainerStyle={styles.formContent}>
+    <View style={styles.formCard}>
+      <Text style={styles.cardTitle}>📝 Add New Entry</Text>
 
-          <Text style={styles.label}>CCR Number</Text>
-          <Picker
-            selectedValue={formData.ccr_id}
-            onValueChange={(val) => setFormData({ ...formData, ccr_id: val })}
-            style={styles.input}
-          >
-            <Picker.Item label="Select CCR Number" value="" />
-            {ccrList.map((ccr) => (
-              <Picker.Item key={ccr.id} label={ccr.case_id} value={ccr.id} />
-            ))}
-          </Picker>
+      <Text style={styles.label}>🆔 Request ID / SO No.</Text>
+      <TextInput
+        placeholder="Enter Request No"
+        value={formData.request_number}
+        onChangeText={(val) => setFormData({ ...formData, request_number: val })}
+        style={styles.input}
+      />
 
-          <Text style={styles.label}>Project</Text>
-          <Picker
-            selectedValue={formData.project}
-            onValueChange={(val) => setFormData({ ...formData, project: val })}
-            style={styles.input}
-          >
-            <Picker.Item label="Select Project" value="" />
-            {projectOptions.map((item) => (
-              <Picker.Item key={item.id} label={item.value} value={item.value} />
-            ))}
-          </Picker>
+      <Text style={styles.label}>📋 CCR Number</Text>
+      <Picker
+        selectedValue={formData.ccr_id}
+        onValueChange={(val) => setFormData({ ...formData, ccr_id: val })}
+        style={styles.input}
+      >
+        <Picker.Item label="Select CCR Number" value="" />
+        {ccrList.map((ccr) => (
+          <Picker.Item key={ccr.id} label={ccr.case_id} value={ccr.id} />
+        ))}
+      </Picker>
 
-          <Text style={styles.label}>Start Time</Text>
-          <TextInput
-            placeholder="e.g. 10:00 AM"
-            value={formData.start_time}
-            onChangeText={(val) => setFormData({ ...formData, start_time: val })}
-            style={styles.input}
-          />
+      <Text style={styles.label}>🏗 Project</Text>
+      <Picker
+        selectedValue={formData.project}
+        onValueChange={(val) => setFormData({ ...formData, project: val })}
+        style={styles.input}
+      >
+        <Picker.Item label="Select Project" value="" />
+        {projectOptions.map((item) => (
+          <Picker.Item key={item.id} label={item.value} value={item.value} />
+        ))}
+      </Picker>
 
-          <Text style={styles.label}>Arrived Time</Text>
-          <TextInput
-            placeholder="e.g. 11:00 AM"
-            value={formData.arrived_time}
-            onChangeText={(val) => setFormData({ ...formData, arrived_time: val })}
-            style={styles.input}
-          />
+      <Text style={styles.label}>⏰ Start Time</Text>
+      <TextInput
+        placeholder="e.g. 10:00 AM"
+        value={formData.start_time}
+        onChangeText={(val) => setFormData({ ...formData, start_time: val })}
+        style={styles.input}
+      />
 
-          <Text style={styles.label}>Mode</Text>
-          <Picker
-            selectedValue={formData.mode}
-            onValueChange={(val) => setFormData({ ...formData, mode: val })}
-            style={styles.input}
-          >
-            <Picker.Item label="Select Mode" value="" />
-            {modeOptions.map((item) => (
-              <Picker.Item key={item.id} label={item.value} value={item.value} />
-            ))}
-          </Picker>
+      <Text style={styles.label}>🕓 Arrived Time</Text>
+      <TextInput
+        placeholder="e.g. 11:00 AM"
+        value={formData.arrived_time}
+        onChangeText={(val) => setFormData({ ...formData, arrived_time: val })}
+        style={styles.input}
+      />
 
-          <Text style={styles.label}>From Location</Text>
-          <Picker
-            selectedValue={formData.from_location}
-            onValueChange={(val) => setFormData({ ...formData, from_location: val })}
-            style={styles.input}
-          >
-            <Picker.Item label="From Location" value="" />
-            {locationOptions.map((item) => (
-              <Picker.Item key={item.id} label={item.value} value={item.value} />
-            ))}
-          </Picker>
+      <Text style={styles.label}>🚗 Mode</Text>
+      <Picker
+        selectedValue={formData.mode}
+        onValueChange={(val) => setFormData({ ...formData, mode: val })}
+        style={styles.input}
+      >
+        <Picker.Item label="Select Mode" value="" />
+        {modeOptions.map((item) => (
+          <Picker.Item key={item.id} label={item.value} value={item.value} />
+        ))}
+      </Picker>
 
-          <Text style={styles.label}>To Location</Text>
-          <Picker
-            selectedValue={formData.to_location}
-            onValueChange={(val) => setFormData({ ...formData, to_location: val })}
-            style={styles.input}
-          >
-            <Picker.Item label="To Location" value="" />
-            {locationOptions.map((item) => (
-              <Picker.Item key={item.id} label={item.value} value={item.value} />
-            ))}
-          </Picker>
+      <Text style={styles.label}>📍 From Location</Text>
+      <Picker
+        selectedValue={formData.from_location}
+        onValueChange={(val) => setFormData({ ...formData, from_location: val })}
+        style={styles.input}
+      >
+        <Picker.Item label="From Location" value="" />
+        {locationOptions.map((item) => (
+          <Picker.Item key={item.id} label={item.value} value={item.value} />
+        ))}
+      </Picker>
 
-          <Text style={styles.label}>Distance (km)</Text>
-          <TextInput
-            placeholder="e.g. 12.5"
-            keyboardType="numeric"
-            value={formData.distance_km}
-            onChangeText={(val) => setFormData({ ...formData, distance_km: val })}
-            style={styles.input}
-          />
-<TextInput
-  value={userId}
-  editable={false}
-  style={[styles.input_user]}
-/>
-          <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-            <Text style={styles.btnText}>Submit</Text>
-          </TouchableOpacity>
+      <Text style={styles.label}>📍 To Location</Text>
+      <Picker
+        selectedValue={formData.to_location}
+        onValueChange={(val) => setFormData({ ...formData, to_location: val })}
+        style={styles.input}
+      >
+        <Picker.Item label="To Location" value="" />
+        {locationOptions.map((item) => (
+          <Picker.Item key={item.id} label={item.value} value={item.value} />
+        ))}
+      </Picker>
 
+      <Text style={styles.label}>📏 Distance (km)</Text>
+      <TextInput
+        placeholder="e.g. 12.5"
+        keyboardType="numeric"
+        value={formData.distance_km}
+        onChangeText={(val) => setFormData({ ...formData, distance_km: val })}
+        style={styles.input}
+      />
 
+      <Text style={styles.label}>👤 User ID</Text>
+      <TextInput
+        value={userId}
+        editable={false}
+        style={styles.input_user}
+      />
 
+      <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
+        <Text style={styles.btnText}>✅ Submit</Text>
+      </TouchableOpacity>
 
-
-          <TouchableOpacity style={styles.addBtn} onPress={() => setFormVisible(false)}>
-            <Text style={styles.btnText}>Cancel</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      )}
+      <TouchableOpacity style={styles.cancelBtn} onPress={() => setFormVisible(false)}>
+        <Text style={styles.btnText}>❌ Cancel</Text>
+      </TouchableOpacity>
+    </View>
+  </ScrollView>
+)}
 
       {!formVisible && (
         <TouchableOpacity style={styles.addBtn} onPress={() => setFormVisible(true)}>
@@ -476,6 +479,41 @@ input_user: {
   marginBottom: 10,
   color: '#888',
 },
+formCard: {
+  backgroundColor: '#fff',
+  padding: 16,
+  borderRadius: 10,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 4,
+  elevation: 3,
+  marginBottom: 20,
+},
+
+cardTitle: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  marginBottom: 12,
+  color: '#333',
+},
+
+cancelBtn: {
+  backgroundColor: '#ccc',
+  padding: 12,
+  borderRadius: 6,
+  alignItems: 'center',
+  marginTop: 10,
+},
+
+input_user: {
+  backgroundColor: '#eee',
+  padding: 10,
+  borderRadius: 6,
+  marginBottom: 10,
+  color: '#888',
+},
 
 });
+
 
