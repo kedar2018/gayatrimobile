@@ -442,6 +442,40 @@ entryRow: {
     fontWeight: '500',
     color:  '#000',
   },
+formCard: {
+  backgroundColor: '#fff',
+  padding: 16,
+  borderRadius: 10,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 4,
+  elevation: 3,
+  marginBottom: 20,
+},
+
+cardTitle: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  marginBottom: 12,
+  color: '#333',
+},
+
+cancelBtn: {
+  backgroundColor: '#ccc',
+  padding: 12,
+  borderRadius: 6,
+  alignItems: 'center',
+  marginTop: 10,
+},
+
+input_user: {
+  backgroundColor: '#eee',
+  padding: 10,
+  borderRadius: 6,
+  marginBottom: 10,
+  color: '#888',
+},
 
 });
 
