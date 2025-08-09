@@ -281,11 +281,11 @@ const formatForRails = (date) => {
       const res = await axios.get(`${API_URL}/api/fetch_ccr_list?engineer_id=${userId}`);
       setCcrList(res.data);
 
-setDropdownOptions(prev => ({
+/*setDropdownOptions(prev => ({
   ...prev, // keep previous keys like project, mode, from_location, etc.
   ccr: res.data.map(item => item.case_id), // overwrite/replace only ccr
 }));
-
+*/
     } catch (err) {
       console.log('CCR List Error:', err);
     }
@@ -373,9 +373,10 @@ const renderItem = ({ item }) => (
       />
 
      {formVisible && (
+      <View style={styles.formOverlay}>
   <ScrollView style={styles.form} contentContainerStyle={styles.formContent}>
     <View style={styles.formCard}>
-      <Text style={styles.cardTitle}>📝 Add New Entry</Text>
+      <Text style={styles.cardTitle}>📝 Add NewLocal Conveyancey</Text>
 
       <Text style={styles.label}>🆔 Request ID / SO No.</Text>
       <TextInput
@@ -385,13 +386,6 @@ const renderItem = ({ item }) => (
         style={styles.input}
       />
  
-
-
-
-
-
-
-
 <DateTimeSelector
   label="⏰ Start Time"
   value={formData.start_time}
@@ -403,9 +397,6 @@ const renderItem = ({ item }) => (
   value={formData.arrived_time}
   onChange={(val) => setFormData({ ...formData, arrived_time: val })}
 />
-
-
-
 
       <Text style={styles.label}>📏 Distance (km)</Text>
       <TextInput
@@ -458,6 +449,8 @@ console.log(`the key is ${key}`),
       </TouchableOpacity>
     </View>
   </ScrollView>
+    </View>
+
 )}
 
       {!formVisible && (
@@ -688,7 +681,18 @@ dropdownButton: {
 },
 dropdownButtonText: {
   fontSize: 16,
-}
+},
+formOverlay: {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(255,255,255,0.95)', // slightly transparent background
+  padding: 16,
+  zIndex: 999, // ensures it’s above the list
+},
+
 
 });
 
