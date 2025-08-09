@@ -243,12 +243,14 @@ const fetchOptions = async () => {
     const res = await axios.get(`${API_URL}/api/static_options`);
     const data = res.data;
 
-    setDropdownOptions({
-      project: data.project?.length ? data.project : dropdownOptions.project,
-      mode: data.mode?.length ? data.mode : dropdownOptions.mode,
-      from_location: data.location?.length ? data.location : dropdownOptions.from_location,
-      to_location: data.location?.length ? data.location : dropdownOptions.to_location,
-    });
+setDropdownOptions({
+  project: data.project?.length ? data.project : dropdownOptions.project,
+  mode: data.mode?.length ? data.mode : dropdownOptions.mode,
+  from_location: data.location?.length ? data.location : dropdownOptions.from_location,
+  to_location: data.location?.length ? data.location : dropdownOptions.to_location,
+  ccr: ccrList?.length ? ccrList.map(item => item.case_id) : dropdownOptions.ccr,
+});
+
 
   } catch (error) {
     console.error('Error fetching static options', error);
