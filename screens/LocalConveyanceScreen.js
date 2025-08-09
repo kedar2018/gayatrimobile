@@ -9,12 +9,14 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
+  Platform,
 } from 'react-native';
 import axios from 'axios';
 import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Modal from 'react-native-modal';
 import ModalDropdown from '../components/ModalDropdown'; // Adjust path accordingly
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 
 
@@ -47,12 +49,13 @@ const handleCcrSelect = (ccr) => {
   setCcrModalVisible(false);
 };
 
-// Map your options to show `case_id` as label
+/*
+// 1️⃣ Map the list so each item has `label` for the dropdown to show
 const mappedCcrOptions = ccrList.map(item => ({
   ...item,
-  label: item.case_id, // you can customize this
+  label: item.case_id, // what user sees
 }));
-
+*/
 
   
     const handleSelect = (key, value) => {
@@ -78,6 +81,84 @@ const mappedCcrOptions = ccrList.map(item => ({
     distance_km: '',
     user_id: '',
   });
+
+
+
+// Reusable date+time selector
+const DateTimeSelector = ({ label, value, onChange }) => {
+  const [step, setStep] = useState(null); // "date" | "time" | null
+  const [tempDate, setTempDate] = useState(value ? new Date(value) : new Date());
+
+  const handleDatePicked = (event, selectedDate) => {
+    if (event.type === 'dismissed') {
+      setStep(null);
+      return;
+    }
+    const currentDate = selectedDate || tempDate;
+    setTempDate(currentDate);
+    setStep('time'); // now show time picker
+  };
+
+  const handleTimePicked = (event, selectedTime) => {
+    if (event.type === 'dismissed') {
+      setStep(null);
+      return;
+    }
+    const dateWithTime = new Date(tempDate);
+    dateWithTime.setHours(selectedTime.getHours());
+    dateWithTime.setMinutes(selectedTime.getMinutes());
+
+    setTempDate(dateWithTime);
+    setStep(null);
+
+    // Send ISO format to parent (Rails-friendly)
+    onChange(dateWithTime.toISOString());
+  };
+
+  return (
+    <View style={{ marginBottom: 15 }}>
+      <Text style={{ fontWeight: 'bold', marginBottom: 5 }}>{label}</Text>
+
+      <TouchableOpacity
+        style={{
+          padding: 12,
+          borderWidth: 1,
+          borderColor: '#ccc',
+          borderRadius: 6,
+        }}
+        onPress={() => setStep('date')}
+      >
+        <Text>
+          {value
+            ? new Date(value).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+            : 'Select Date & Time'}
+        </Text>
+      </TouchableOpacity>
+
+      {step === 'date' && (
+        <DateTimePicker
+          value={tempDate}
+          mode="date"
+          display="default"
+          onChange={handleDatePicked}
+        />
+      )}
+
+      {step === 'time' && (
+        <DateTimePicker
+          value={tempDate}
+          mode="time"
+          display="default"
+          onChange={handleTimePicked}
+        />
+      )}
+    </View>
+  );
+};
+
+
+
+
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -152,6 +233,7 @@ const [dropdownOptions, setDropdownOptions] = useState({
   mode: ['Auto', 'Bike', 'Walk', 'Train'],
   from_location: ['Pune Office', 'Mumbai HQ', 'Nashik Depot'],
   to_location: ['Mumbai HQ', 'Nashik Depot', 'Customer Site'],
+  ccr: ['ccr1', 'ccr2']
 });
 
 
@@ -174,6 +256,13 @@ const fetchOptions = async () => {
 };
 
 
+// Format date to Rails-friendly format
+const formatForRails = (date) => {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
+         `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+};
+
   const fetchEntries = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/tour_conveyances`, {
@@ -189,6 +278,12 @@ const fetchOptions = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/fetch_ccr_list?engineer_id=${userId}`);
       setCcrList(res.data);
+
+setDropdownOptions(prev => ({
+  ...prev, // keep previous keys like project, mode, from_location, etc.
+  ccr: res.data.map(item => item.case_id), // overwrite/replace only ccr
+}));
+
     } catch (err) {
       console.log('CCR List Error:', err);
     }
@@ -291,47 +386,25 @@ const renderItem = ({ item }) => (
 
 
 
-<TouchableOpacity
-  onPress={() => setCcrModalVisible(true)}
-  style={styles.dropdownButton}
->
-  <Text style={styles.dropdownButtonText}>
-    {selectedCcr ? selectedCcr.case_id : 'Select CCR Number'}
-  </Text>
-</TouchableOpacity>
 
-<ModalDropdown
-  visible={isCcrModalVisible}
-  options={mappedCcrOptions}
-  labelKey="label"
-  onSelect={(item) => {
-    setSelectedCcr(item); // display label
-    setFormData(prev => ({ ...prev, call_report_id: item.id })); // store id
-  }}
-  onClose={() => setCcrModalVisible(false)}
+
+
+
+<DateTimeSelector
+  label="⏰ Start Time"
+  value={formData.start_time}
+  onChange={(val) => setFormData({ ...formData, start_time: val })}
+/>
+
+<DateTimeSelector
+  label="🕓 Arrived Time"
+  value={formData.arrived_time}
+  onChange={(val) => setFormData({ ...formData, arrived_time: val })}
 />
 
 
 
-    
-      <Text style={styles.label}>⏰ Start Time</Text>
-      <TextInput
-        placeholder="e.g. 10:00 AM"
-        value={formData.start_time}
-        onChangeText={(val) => setFormData({ ...formData, start_time: val })}
-        style={styles.input}
-      />
 
-      <Text style={styles.label}>🕓 Arrived Time</Text>
-      <TextInput
-        placeholder="e.g. 11:00 AM"
-        value={formData.arrived_time}
-        onChangeText={(val) => setFormData({ ...formData, arrived_time: val })}
-        style={styles.input}
-      />
-
-   
-  
       <Text style={styles.label}>📏 Distance (km)</Text>
       <TextInput
         placeholder="e.g. 12.5"
@@ -342,7 +415,7 @@ const renderItem = ({ item }) => (
       />
 
 
-{['project', 'mode', 'from_location', 'to_location'].map((key) => (
+{['ccr', 'project', 'mode', 'from_location', 'to_location'].map((key) => (
 //console.log(key);
 console.log(`the key is ${key}`),
         <View key={key}>
@@ -367,7 +440,7 @@ console.log(`the key is ${key}`),
         onClose={closeDropdown}
       />
 
-      <Text style={styles.label}>👤 User ID</Text>
+      <Text style={styles.input_user}>👤 User ID</Text>
       <TextInput
         value={userId}
         editable={false}
@@ -593,6 +666,10 @@ modalContent: {
   backgroundColor: 'white',
   padding: 20,
   borderRadius: 10,
+},
+
+input_user: {
+  display: 'none',
 },
 
 modalItem: {
