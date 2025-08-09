@@ -32,8 +32,14 @@ const LocalConveyanceScreen = () => {
   const [locationOptions, setLocationOptions] = useState([]);
   const [isCcrModalVisible, setCcrModalVisible] = useState(false);
   const [selectedCcr, setSelectedCcr] = useState('');
+  const [activeDropdown, setActiveDropdown] = useState(null);
 
 //  const ccrOptions = ['CCR001', 'CCR002', 'CCR003']; // Replace with your actual fetched list
+
+  const openDropdown = (key) => setActiveDropdown(key);
+  const closeDropdown = () => setActiveDropdown(null);
+
+
 
 const handleCcrSelect = (ccr) => {
   setSelectedCcr(ccr);
@@ -46,6 +52,17 @@ const mappedCcrOptions = ccrList.map(item => ({
   ...item,
   label: item.case_id, // you can customize this
 }));
+
+
+  
+    const handleSelect = (key, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+    closeDropdown();
+  };
+
 
 
   const [formData, setFormData] = useState({
@@ -106,7 +123,7 @@ useEffect(() => {
     }
   }, [userId]);
 
-  const fetchOptions = async () => {
+/*  const fetchOptions = async () => {
     try {
       const [projectRes, modeRes, locationRes] = await Promise.all([
         axios.get(`${API_URL}/api/static_options`, {
@@ -122,10 +139,40 @@ useEffect(() => {
       setProjectOptions(projectRes.data);
       setModeOptions(modeRes.data);
       setLocationOptions(locationRes.data);
+
     } catch (error) {
       console.error('Error fetching static options', error);
     }
-  };
+  };*/
+
+
+// 1. Default dropdown options (offline safe)
+const [dropdownOptions, setDropdownOptions] = useState({
+  project: ['Alpha Project', 'Beta Launch', 'Support Visit'],
+  mode: ['Auto', 'Bike', 'Walk', 'Train'],
+  from_location: ['Pune Office', 'Mumbai HQ', 'Nashik Depot'],
+  to_location: ['Mumbai HQ', 'Nashik Depot', 'Customer Site'],
+});
+
+
+// 2. Fetch and update if API responds
+const fetchOptions = async () => {
+  try {
+    const res = await axios.get(`${API_URL}/api/static_options`);
+    const data = res.data;
+
+    setDropdownOptions({
+      project: data.project?.length ? data.project : dropdownOptions.project,
+      mode: data.mode?.length ? data.mode : dropdownOptions.mode,
+      from_location: data.location?.length ? data.location : dropdownOptions.from_location,
+      to_location: data.location?.length ? data.location : dropdownOptions.to_location,
+    });
+
+  } catch (error) {
+    console.error('Error fetching static options', error);
+  }
+};
+
 
   const fetchEntries = async () => {
     try {
@@ -242,6 +289,8 @@ const renderItem = ({ item }) => (
       />
  
 
+
+
 <TouchableOpacity
   onPress={() => setCcrModalVisible(true)}
   style={styles.dropdownButton}
@@ -264,18 +313,7 @@ const renderItem = ({ item }) => (
 
 
 
-      <Text style={styles.label}>🏗 Project</Text>
-      <Picker
-        selectedValue={formData.project}
-        onValueChange={(val) => setFormData({ ...formData, project: val })}
-        style={styles.input}
-      >
-        <Picker.Item label="Select Project" value="" />
-        {projectOptions.map((item) => (
-          <Picker.Item key={item.id} label={item.value} value={item.value} />
-        ))}
-      </Picker>
-
+    
       <Text style={styles.label}>⏰ Start Time</Text>
       <TextInput
         placeholder="e.g. 10:00 AM"
@@ -292,42 +330,8 @@ const renderItem = ({ item }) => (
         style={styles.input}
       />
 
-      <Text style={styles.label}>🚗 Mode</Text>
-      <Picker
-        selectedValue={formData.mode}
-        onValueChange={(val) => setFormData({ ...formData, mode: val })}
-        style={styles.input}
-      >
-        <Picker.Item label="Select Mode" value="" />
-        {modeOptions.map((item) => (
-          <Picker.Item key={item.id} label={item.value} value={item.value} />
-        ))}
-      </Picker>
-
-      <Text style={styles.label}>📍 From Location</Text>
-      <Picker
-        selectedValue={formData.from_location}
-        onValueChange={(val) => setFormData({ ...formData, from_location: val })}
-        style={styles.input}
-      >
-        <Picker.Item label="From Location" value="" />
-        {locationOptions.map((item) => (
-          <Picker.Item key={item.id} label={item.value} value={item.value} />
-        ))}
-      </Picker>
-
-      <Text style={styles.label}>📍 To Location</Text>
-      <Picker
-        selectedValue={formData.to_location}
-        onValueChange={(val) => setFormData({ ...formData, to_location: val })}
-        style={styles.input}
-      >
-        <Picker.Item label="To Location" value="" />
-        {locationOptions.map((item) => (
-          <Picker.Item key={item.id} label={item.value} value={item.value} />
-        ))}
-      </Picker>
-
+   
+  
       <Text style={styles.label}>📏 Distance (km)</Text>
       <TextInput
         placeholder="e.g. 12.5"
@@ -335,6 +339,30 @@ const renderItem = ({ item }) => (
         value={formData.distance_km}
         onChangeText={(val) => setFormData({ ...formData, distance_km: val })}
         style={styles.input}
+      />
+
+
+{['project', 'mode', 'from_location', 'to_location'].map((key) => (
+        <View key={key}>
+          <Text style={styles.label}>{key.replace('_', ' ').toUpperCase()}</Text>
+          <TouchableOpacity
+            style={styles.dropdownButton}
+            onPress={() => openDropdown(key)}
+          >
+            <Text style={styles.dropdownButtonText}>
+              {formData[key] || `Select ${key.replace('_', ' ')}`}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+
+      {/* Shared Modal Dropdown for all 4 fields */}
+      <ModalDropdown
+        visible={!!activeDropdown}
+        options={dropdownOptions[activeDropdown] || []}
+        labelKey="" // Not needed since these are plain strings
+        onSelect={(item) => handleSelect(activeDropdown, item)}
+        onClose={closeDropdown}
       />
 
       <Text style={styles.label}>👤 User ID</Text>
