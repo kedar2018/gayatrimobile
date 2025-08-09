@@ -45,7 +45,7 @@ const LocalConveyanceScreen = () => {
 
 const handleCcrSelect = (ccr) => {
   setSelectedCcr(ccr);
-  setFormData(prev => ({ ...prev, ccr_id: ccr }));
+  setFormData(prev => ({ ...prev, ccr_no: ccr }));
   setCcrModalVisible(false);
 };
 
@@ -70,8 +70,8 @@ const mappedCcrOptions = ccrList.map(item => ({
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
-    request_number: '',
-    ccr_id: '',
+    request_id: '',
+    ccr_no: '',
     project: '',
     start_time: '',
     arrived_time: '',
@@ -307,8 +307,8 @@ const formatForRails = (date) => {
   const resetForm = () => {
     setFormData({
       date: new Date().toISOString().split('T')[0],
-      request_number: '',
-      ccr_id: '',
+      request_id: '',
+      ccr_no: '',
       project: '',
       start_time: '',
       arrived_time: '',
@@ -326,15 +326,15 @@ const renderItem = ({ item }) => (
     style={styles.card}
     onPress={() => {
       // Optional: navigate or show details
-      console.log('Tapped:', item.request_number);
+      console.log('Tapped:', item.request_id);
     }}
   >
     <Text style={styles.cardHeader}>
-      📅 {item.date}   |   🆔 {item.request_number}
+      📅 {item.date}   |   🆔 {item.request_id}
     </Text>
 
     <Text style={styles.cardLine}>
-      🧾 CCR: {item.ccr_id}    |    🏗 {item.project}
+      🧾 CCR: {item.ccr_no}    |    🏗 {item.project}
     </Text>
 
     <Text style={styles.cardLine}>
@@ -381,8 +381,8 @@ const renderItem = ({ item }) => (
       <Text style={styles.label}>🆔 Request ID / SO No.</Text>
       <TextInput
         placeholder="Enter Request No"
-        value={formData.request_number}
-        onChangeText={(val) => setFormData({ ...formData, request_number: val })}
+        value={formData.request_id}
+        onChangeText={(val) => setFormData({ ...formData, request_id: val })}
         style={styles.input}
       />
  
