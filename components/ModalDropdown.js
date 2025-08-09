@@ -24,7 +24,7 @@ const ModalDropdown = ({
               }}
               style={styles.item}
             >
-              <Text style={styles.text}>{item[labelKey]}</Text>
+              <Text style={styles.text}>{item}</Text>
             </TouchableOpacity>
           )}
         />

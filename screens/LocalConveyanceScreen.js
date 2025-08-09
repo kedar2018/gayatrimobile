@@ -343,6 +343,8 @@ const renderItem = ({ item }) => (
 
 
 {['project', 'mode', 'from_location', 'to_location'].map((key) => (
+//console.log(key);
+console.log(`the key is ${key}`),
         <View key={key}>
           <Text style={styles.label}>{key.replace('_', ' ').toUpperCase()}</Text>
           <TouchableOpacity
