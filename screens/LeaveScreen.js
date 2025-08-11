@@ -30,7 +30,7 @@ export default function LeaveScreen() {
     const userId = await AsyncStorage.getItem('user_id');
     try {
       const res = await axios.get(
-        `http://192.34.58.213/gayatri/api/leave_applications?user_id=${userId}`
+        `http://134.199.178.17/gayatri/api/leave_applications?user_id=${userId}`
       );
       setLeaves(res.data);
     } catch (error) {
@@ -46,7 +46,7 @@ export default function LeaveScreen() {
 
     const userId = await AsyncStorage.getItem('user_id');
     try {
-      await axios.post(`http://192.34.58.213/gayatri/api/leave_applications`, {
+      await axios.post(`http://134.199.178.17/gayatri/api/leave_applications`, {
         user_id: userId,
         leave_type: leaveType,
         from_date: fromDate.toISOString().split('T')[0],
