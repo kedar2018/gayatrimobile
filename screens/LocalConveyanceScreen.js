@@ -17,7 +17,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Modal from 'react-native-modal';
 import ModalDropdown from '../components/ModalDropdown'; // Adjust path accordingly
 import DateTimePicker from '@react-native-community/datetimepicker';
-
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import ZoomableItem from '../components/ZoomableItem';
 
 
 
@@ -36,8 +38,7 @@ const LocalConveyanceScreen = () => {
   const [selectedCcr, setSelectedCcr] = useState('');
   const [activeDropdown, setActiveDropdown] = useState(null);
 
-//  const ccrOptions = ['CCR001', 'CCR002', 'CCR003']; // Replace with your actual fetched list
-
+ 
   const openDropdown = (key) => setActiveDropdown(key);
   const closeDropdown = () => setActiveDropdown(null);
 
@@ -49,15 +50,15 @@ const handleCcrSelect = (ccr) => {
   setCcrModalVisible(false);
 };
 
-/*
-// 1️⃣ Map the list so each item has `label` for the dropdown to show
-const mappedCcrOptions = ccrList.map(item => ({
-  ...item,
-  label: item.case_id, // what user sees
-}));
-*/
 
-  
+
+
+
+
+
+
+
+
     const handleSelect = (key, value) => {
     setFormData((prev) => ({
       ...prev,
@@ -162,7 +163,7 @@ const DateTimeSelector = ({ label, value, onChange }) => {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    Promise.all([fetchEntries(), fetchCcrList(), fetchOptions()]).finally(() =>
+    Promise.all([fetchAllData()]).finally(() =>
       setRefreshing(false)
     );
   }, [userId]);
@@ -182,50 +183,13 @@ useEffect(() => {
   loadUserId();
 }, []);
 
-
-
-  useEffect(() => {
-    fetchOptions();
-  }, []);
-
-/*  useEffect(() => {
-    const fetchUserId = async () => {
-      const id = await AsyncStorage.getItem('user_id');
-      console.log(`setting user id ${id}`);
-      if (id) setUserId(id);
-    };
-    fetchUserId();
-  }, []);
-*/
-  useEffect(() => {
+ useEffect(() => {
     if (userId) {
-      fetchEntries();
-      fetchCcrList();
+      fetchAllData();
     }
   }, [userId]);
 
-/*  const fetchOptions = async () => {
-    try {
-      const [projectRes, modeRes, locationRes] = await Promise.all([
-        axios.get(`${API_URL}/api/static_options`, {
-          params: { category: 'project' },
-        }),
-        axios.get(`${API_URL}/api/static_options`, {
-          params: { category: 'mode' },
-        }),
-        axios.get(`${API_URL}/api/static_options`, {
-          params: { category: 'location' },
-        }),
-      ]);
-      setProjectOptions(projectRes.data);
-      setModeOptions(modeRes.data);
-      setLocationOptions(locationRes.data);
-
-    } catch (error) {
-      console.error('Error fetching static options', error);
-    }
-  };*/
-
+ 
 
 // 1. Default dropdown options (offline safe)
 const [dropdownOptions, setDropdownOptions] = useState({
@@ -233,70 +197,60 @@ const [dropdownOptions, setDropdownOptions] = useState({
   mode: ['Auto', 'Bike', 'Walk', 'Train'],
   from_location: ['Pune Office', 'Mumbai HQ', 'Nashik Depot'],
   to_location: ['Mumbai HQ', 'Nashik Depot', 'Customer Site'],
-  ccr: ['ccr1', 'ccr2']
+  ccr_no: ['ccr1', 'ccr2']
 });
 
-
-// 2. Fetch and update if API responds
-const fetchOptions = async () => {
-  try {
-    const res = await axios.get(`${API_URL}/api/static_options`);
-    const data = res.data;
-
-setDropdownOptions({
-  project: data.project?.length ? data.project : dropdownOptions.project,
-  mode: data.mode?.length ? data.mode : dropdownOptions.mode,
-  from_location: data.location?.length ? data.location : dropdownOptions.from_location,
-  to_location: data.location?.length ? data.location : dropdownOptions.to_location,
-  ccr: ccrList?.length ? ccrList.map(item => item.case_id) : dropdownOptions.ccr,
-});
-
-
-  } catch (error) {
-    console.error('Error fetching static options', error);
-  }
-};
-
-
+ 
 // Format date to Rails-friendly format
 const formatForRails = (date) => {
   const pad = (n) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
          `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 };
+ 
 
-  const fetchEntries = async () => {
-    try {
-      const res = await axios.get(`${API_URL}/api/tour_conveyances`, {
-        params: { engineer_id: userId },
-      });
-      setEntries(res.data);
-    } catch (err) {
-      console.log('Fetch Error:', err);
-    }
-  };
+const fetchAllData = async () => {
+  try {
+    // Run all API calls in parallel
+    const [ccrRes, optionsRes, entriesRes] = await Promise.all([
+      axios.get(`${API_URL}/api/fetch_ccr_list`, { params: { engineer_id: userId } }),
+      axios.get(`${API_URL}/api/static_options`),
+      axios.get(`${API_URL}/api/tour_conveyances`, { params: { engineer_id: userId } }),
+    ]);
 
-  const fetchCcrList = async () => {
-    try {
-      const res = await axios.get(`${API_URL}/api/fetch_ccr_list?engineer_id=${userId}`);
-      setCcrList(res.data);
+    const ccrListData = ccrRes.data;
+    const data = optionsRes.data;
+    const entriesData = entriesRes.data;
 
-/*setDropdownOptions(prev => ({
-  ...prev, // keep previous keys like project, mode, from_location, etc.
-  ccr: res.data.map(item => item.case_id), // overwrite/replace only ccr
-}));
-*/
-    } catch (err) {
-      console.log('CCR List Error:', err);
-    }
-  };
+    // Update CCR list state
+    setCcrList(ccrListData);
+
+    // Update dropdown options
+    setDropdownOptions(prev => ({
+      ...prev,
+      project: data.project?.length ? data.project : prev.project,
+      mode: data.mode?.length ? data.mode : prev.mode,
+      from_location: data.location?.length ? data.location : prev.from_location,
+      to_location: data.location?.length ? data.location : prev.to_location,
+      ccr_no: ccrListData?.length ? ccrListData.map(item => item.case_id) : prev.ccr,
+    }));
+
+    // Update tour conveyance entries
+    setEntries(entriesData);
+
+  } catch (err) {
+    console.error('Error fetching all data:', err);
+  }
+};
+
+
 
   const handleSubmit = async () => {
     try {
       await axios.post(`${API_URL}/api/tour_conveyances`, formData);
       Alert.alert('Success', 'Entry added successfully');
       setFormVisible(false);
-      fetchEntries();
+      fetchAllData();
       resetForm();
     } catch (err) {
       console.log('Submit Error:', err);
@@ -365,7 +319,7 @@ const renderItem = ({ item }) => (
       <FlatList
         data={entries}
         keyExtractor={(item, index) => index.toString()}
-        renderItem={renderItem}
+        renderItem={({ item }) => <ZoomableItem text={item.case_id} />}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListHeaderComponent={
           <Text style={styles.title}>Local Conveyance Entries</Text>
@@ -382,6 +336,7 @@ const renderItem = ({ item }) => (
       <TextInput
         placeholder="Enter Request No"
         value={formData.request_id}
+        keyboardType="numeric"
         onChangeText={(val) => setFormData({ ...formData, request_id: val })}
         style={styles.input}
       />
@@ -408,7 +363,7 @@ const renderItem = ({ item }) => (
       />
 
 
-{['ccr', 'project', 'mode', 'from_location', 'to_location'].map((key) => (
+{['ccr_no', 'project', 'mode', 'from_location', 'to_location'].map((key) => (
 //console.log(key);
 console.log(`the key is ${key}`),
         <View key={key}>
@@ -692,8 +647,19 @@ formOverlay: {
   padding: 16,
   zIndex: 999, // ensures it’s above the list
 },
+  itemContainer: {
+    padding: 20,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginBottom: 10,
+    elevation: 2,
+  },
+  text: {
+    fontSize: 16,
+  },
 
 
 });
+
 
 
