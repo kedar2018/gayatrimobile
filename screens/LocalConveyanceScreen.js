@@ -18,7 +18,6 @@ import Modal from 'react-native-modal';
 import ModalDropdown from '../components/ModalDropdown'; // Adjust path accordingly
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import ZoomableItem from '../components/ZoomableItem';
 
 
