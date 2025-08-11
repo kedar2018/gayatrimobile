@@ -1,71 +1,112 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import Animated, { useAnimatedGestureHandler, useAnimatedStyle, useSharedValue, withDecay } from 'react-native-reanimated';
-import { PanGestureHandler, PinchGestureHandler } from 'react-native-gesture-handler';
+import React, { useRef } from 'react';
+import { Animated, StyleSheet, Text, View } from 'react-native';
+import {
+  PanGestureHandler,
+  PinchGestureHandler,
+  TapGestureHandler,
+} from 'react-native-gesture-handler';
 
 export default function ZoomableCard({ children }) {
-  const scale = useSharedValue(1);
-  const translationX = useSharedValue(0);
-  const translationY = useSharedValue(0);
+  const scale = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+  const lastScale = useRef(1);
+  const lastX = useRef(0);
+  const lastY = useRef(0);
 
-  // Handle pinch zoom
-  const pinchHandler = useAnimatedGestureHandler({
-    onActive: (event) => {
-      scale.value = Math.max(1, event.scale);
-    },
-    onEnd: () => {
-      if (scale.value < 1) {
-        scale.value = 1;
-      }
-    },
-  });
+  const pinchRef = useRef();
+  const panRef = useRef();
+  const doubleTapRef = useRef();
 
-  // Handle pan (only when zoomed)
-  const panHandler = useAnimatedGestureHandler({
-    onActive: (event) => {
-      if (scale.value > 1) {
-        translationX.value += event.translationX;
-        translationY.value += event.translationY;
-      }
-    },
-    onEnd: (event) => {
-      if (scale.value > 1) {
-        translationX.value = withDecay({ velocity: event.velocityX });
-        translationY.value = withDecay({ velocity: event.velocityY });
-      }
-    },
-  });
+  const onPinchEvent = Animated.event(
+    [{ nativeEvent: { scale: scale } }],
+    { useNativeDriver: false } // ✅ no nesting error
+  );
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { translateX: translationX.value },
-        { translateY: translationY.value },
-        { scale: scale.value }
-      ],
-    };
-  });
+  const onPinchStateChange = (event) => {
+    if (event.nativeEvent.oldState === 4) {
+      lastScale.current *= event.nativeEvent.scale;
+      scale.setValue(lastScale.current);
+    }
+  };
+
+  const onPanEvent = Animated.event(
+    [
+      {
+        nativeEvent: {
+          translationX: translateX,
+          translationY: translateY,
+        },
+      },
+    ],
+    { useNativeDriver: false }
+  );
+
+  const onPanStateChange = (event) => {
+    if (event.nativeEvent.oldState === 4) {
+      lastX.current += event.nativeEvent.translationX;
+      lastY.current += event.nativeEvent.translationY;
+      translateX.setValue(lastX.current);
+      translateY.setValue(lastY.current);
+    }
+  };
+
+  const onDoubleTap = () => {
+    lastScale.current = 1;
+    lastX.current = 0;
+    lastY.current = 0;
+    scale.setValue(1);
+    translateX.setValue(0);
+    translateY.setValue(0);
+  };
 
   return (
-    <PinchGestureHandler onGestureEvent={pinchHandler}>
-      <Animated.View style={styles.zoomableContainer}>
-        <PanGestureHandler
-          onGestureEvent={panHandler}
-          activeOffsetX={scale.value > 1 ? undefined : [-9999, 9999]}
-          activeOffsetY={scale.value > 1 ? undefined : [-9999, 9999]}
+    <TapGestureHandler
+      ref={doubleTapRef}
+      numberOfTaps={2}
+      onActivated={onDoubleTap}
+    >
+      <PanGestureHandler
+        ref={panRef}
+        simultaneousHandlers={[pinchRef, doubleTapRef]}
+        onGestureEvent={onPanEvent}
+        onHandlerStateChange={onPanStateChange}
+        activeOffsetX={[-10, 10]} // ✅ avoids accidental triggers
+        activeOffsetY={[-10, 10]}
+      >
+        <PinchGestureHandler
+          ref={pinchRef}
+          simultaneousHandlers={[panRef, doubleTapRef]}
+          onGestureEvent={onPinchEvent}
+          onHandlerStateChange={onPinchStateChange}
         >
-          <Animated.View style={animatedStyle}>
+          <Animated.View
+            style={[
+              styles.cardContainer,
+              {
+                transform: [
+                  { scale: scale },
+                  { translateX: translateX },
+                  { translateY: translateY },
+                ],
+              },
+            ]}
+          >
             {children}
           </Animated.View>
-        </PanGestureHandler>
-      </Animated.View>
-    </PinchGestureHandler>
+        </PinchGestureHandler>
+      </PanGestureHandler>
+    </TapGestureHandler>
   );
 }
 
 const styles = StyleSheet.create({
-  zoomableContainer: {
-    overflow: 'visible',
+  cardContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 8,
+    elevation: 3,
   },
 });
 

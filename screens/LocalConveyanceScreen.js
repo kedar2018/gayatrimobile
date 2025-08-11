@@ -19,7 +19,7 @@ import ModalDropdown from '../components/ModalDropdown'; // Adjust path accordin
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 //import ZoomableItem from '../components/ZoomableItem';
-import ZoomableCard from '../components/ZoomableCard'
+//import ZoomableCard from '../components/ZoomableCard'
 
 
 const API_URL = 'http://134.199.178.17/gayatri';
@@ -266,7 +266,6 @@ const fetchAllData = async () => {
 
 
 const renderItem = ({ item }) => (
-  <ZoomableCard>
   <TouchableOpacity
     style={styles.card}
     onPress={() => {
@@ -299,7 +298,6 @@ const renderItem = ({ item }) => (
       <Text style={styles.footerText}>💰 ₹{item.expense_rs}</Text>
     </View>
   </TouchableOpacity>
-  </ZoomableCard>
 );
 
   return (
@@ -308,15 +306,17 @@ console.log('Entries:', entries),
     <View style={styles.container}>
 
 
-<FlatList
-  data={entries}
-  keyExtractor={(item, index) => index.toString()}
-  renderItem={renderItem}
-  refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-  ListHeaderComponent={<Text style={styles.title}>Local Conveyance Entries</Text>}
-  removeClippedSubviews={false}
-  contentContainerStyle={{ paddingBottom: 50 }}
-/>
+    <FlatList
+      data={entries}
+      keyExtractor={(item, index) => index.toString()}
+      renderItem={renderItem}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+      ListHeaderComponent={
+        <Text style={styles.title}>Local Conveyance Entries</Text>
+      }
+    />
      {formVisible && (
       <View style={styles.formOverlay}>
   <ScrollView style={styles.form} contentContainerStyle={styles.formContent}>
@@ -648,7 +648,18 @@ formOverlay: {
   text: {
     fontSize: 16,
   },
-
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 10,
+    elevation: 2,
+  },
+  title: {
+    fontWeight: "bold",
+    fontSize: 16,
+    marginBottom: 5,
+  },
 });
 
 
