@@ -1,3 +1,4 @@
+//not in use
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { PinchGestureHandler } from 'react-native-gesture-handler';

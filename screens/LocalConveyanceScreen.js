@@ -18,8 +18,8 @@ import Modal from 'react-native-modal';
 import ModalDropdown from '../components/ModalDropdown'; // Adjust path accordingly
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import ZoomableItem from '../components/ZoomableItem';
-
+//import ZoomableItem from '../components/ZoomableItem';
+import ZoomableCard from '../components/ZoomableCard'
 
 
 const API_URL = 'http://134.199.178.17/gayatri';
@@ -48,15 +48,6 @@ const handleCcrSelect = (ccr) => {
   setFormData(prev => ({ ...prev, ccr_no: ccr }));
   setCcrModalVisible(false);
 };
-
-
-
-
-
-
-
-
-
 
     const handleSelect = (key, value) => {
     setFormData((prev) => ({
@@ -275,6 +266,7 @@ const fetchAllData = async () => {
 
 
 const renderItem = ({ item }) => (
+  <ZoomableCard>
   <TouchableOpacity
     style={styles.card}
     onPress={() => {
@@ -307,24 +299,24 @@ const renderItem = ({ item }) => (
       <Text style={styles.footerText}>💰 ₹{item.expense_rs}</Text>
     </View>
   </TouchableOpacity>
+  </ZoomableCard>
 );
 
-
-
-
-
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={entries}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item }) => <ZoomableItem text={item.case_id} />}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListHeaderComponent={
-          <Text style={styles.title}>Local Conveyance Entries</Text>
-        }
-      />
+console.log('Entries:', entries),
 
+    <View style={styles.container}>
+
+
+<FlatList
+  data={entries}
+  keyExtractor={(item, index) => index.toString()}
+  renderItem={renderItem}
+  refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+  ListHeaderComponent={<Text style={styles.title}>Local Conveyance Entries</Text>}
+  removeClippedSubviews={false}
+  contentContainerStyle={{ paddingBottom: 50 }}
+/>
      {formVisible && (
       <View style={styles.formOverlay}>
   <ScrollView style={styles.form} contentContainerStyle={styles.formContent}>
@@ -656,7 +648,6 @@ formOverlay: {
   text: {
     fontSize: 16,
   },
-
 
 });
 
