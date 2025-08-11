@@ -43,9 +43,9 @@ function MainTabs() {
       <Tab.Screen name="CallReportsDropdown" component={CallReportsDropdownScreen}/>
       <Tab.Screen name="Leave" component={LeaveScreen} />
 	    <Tab.Screen name="Attendance" component={AttendanceScreen} />
-      <Tab.Screen name="RequestPart" component={RequestPartScreen} options={{ tabBarButton: () => null, tabBarVisible: false }} />
+      {/*<Tab.Screen name="RequestPart" component={RequestPartScreen} options={{ tabBarButton: () => null, tabBarVisible: false }} />
       <Tab.Screen name="PartRequestList" component={PartRequestList} options={{ tabBarButton: () => null, tabBarVisible: false }} />
-
+     */}	
       <Tab.Screen name="Local Conveyance" component={LocalConveyanceScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
 

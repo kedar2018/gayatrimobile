@@ -63,80 +63,88 @@ export default function LeaveScreen() {
     }
   };
 
-  return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Apply for Leave</Text>
+return (
+  <FlatList
+    data={leaves}
+    keyExtractor={(item, index) => index.toString()}
+    ListHeaderComponent={
+      <>
+        <Text style={styles.title}>Apply for Leave</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Leave Type (Casual, Sick...)"
-        value={leaveType}
-        onChangeText={setLeaveType}
-      />
-
-      <Text style={styles.label}>From Date</Text>
-      <Button title={fromDate.toDateString()} onPress={() => setShowFromPicker(true)} />
-      {showFromPicker && (
-        <DateTimePicker
-          value={fromDate}
-          mode="date"
-          display="default"
-          onChange={(event, date) => {
-            setShowFromPicker(false);
-            if (date) setFromDate(date);
-          }}
+        <TextInput
+          style={styles.input}
+          placeholder="Leave Type (Casual, Sick...)"
+          value={leaveType}
+          onChangeText={setLeaveType}
         />
-      )}
 
-      <Text style={styles.label}>To Date</Text>
-      <Button title={toDate.toDateString()} onPress={() => setShowToPicker(true)} />
-      {showToPicker && (
-        <DateTimePicker
-          value={toDate}
-          mode="date"
-          display="default"
-          onChange={(event, date) => {
-            setShowToPicker(false);
-            if (date) setToDate(date);
-          }}
+        <Text style={styles.label}>From Date</Text>
+        <Button title={fromDate.toDateString()} onPress={() => setShowFromPicker(true)} />
+        {showFromPicker && (
+          <DateTimePicker
+            value={fromDate}
+            mode="date"
+            display="default"
+            onChange={(event, date) => {
+              setShowFromPicker(false);
+              if (date) setFromDate(date);
+            }}
+          />
+        )}
+
+        <Text style={styles.label}>To Date</Text>
+        <Button title={toDate.toDateString()} onPress={() => setShowToPicker(true)} />
+        {showToPicker && (
+          <DateTimePicker
+            value={toDate}
+            mode="date"
+            display="default"
+            onChange={(event, date) => {
+              setShowToPicker(false);
+              if (date) setToDate(date);
+            }}
+          />
+        )}
+
+        <TextInput
+          style={[styles.input, { height: 80 }]}
+          placeholder="Reason"
+          multiline
+          value={reason}
+          onChangeText={setReason}
         />
-      )}
 
-      <TextInput
-        style={[styles.input, { height: 80 }]}
-        placeholder="Reason"
-        multiline
-        value={reason}
-        onChangeText={setReason}
-      />
+        <View style={{ marginVertical: 10 }}>
+          <Button
+            title="Submit Leave Application"
+            color="#004080"
+            onPress={submitLeave}
+          />
+        </View>
 
-      <View style={{ marginVertical: 10 }}>
-        <Button title="Submit Leave Application" color="#004080" onPress={submitLeave} />
+        <Text style={styles.subTitle}>Your Previous Leaves</Text>
+        {leaves.length === 0 && (
+          <Text style={{ color: '#999', textAlign: 'center', marginTop: 10 }}>
+            No leave records found.
+          </Text>
+        )}
+      </>
+    }
+    renderItem={({ item }) => (
+      <View style={styles.card}>
+        <Text style={styles.cardText}>📝 {item.leave_type}</Text>
+        <Text style={styles.cardText}>📅 {item.from_date} to {item.to_date}</Text>
+        <Text style={styles.cardText}>📖 {item.reason}</Text>
+        <Text style={styles.cardText}>✅ Status: {item.status}</Text>
       </View>
+    )}
+  />
+);
 
-      <Text style={styles.subTitle}>Your Previous Leaves</Text>
-      {leaves.length === 0 ? (
-        <Text style={{ color: '#999', textAlign: 'center', marginTop: 10 }}>No leave records found.</Text>
-      ) : (
-        <FlatList
-          data={leaves}
-          keyExtractor={(item, index) => index.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <Text style={styles.cardText}>📝 {item.leave_type}</Text>
-              <Text style={styles.cardText}>📅 {item.from_date} to {item.to_date}</Text>
-              <Text style={styles.cardText}>📖 {item.reason}</Text>
-              <Text style={styles.cardText}>✅ Status: {item.status}</Text>
-            </View>
-          )}
-        />
-      )}
-    </ScrollView>
-  );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#f2f4f7' },
+  container: { padding: 25, backgroundColor: '#f2f4f7' },
   title: { fontSize: 20, fontWeight: 'bold', marginBottom: 15, color: '#004080' },
   subTitle: { fontSize: 18, fontWeight: 'bold', marginTop: 20, marginBottom: 10, color: '#004080' },
   label: { fontSize: 14, marginVertical: 8, color: '#555' },

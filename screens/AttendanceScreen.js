@@ -49,53 +49,52 @@ export default function AttendanceScreen() {
     }
   };
 
-  return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Log Attendance</Text>
+return (
+  <FlatList
+    data={logs}
+    keyExtractor={(item, index) => index.toString()}
+    ListHeaderComponent={
+      <>
+        <Text style={styles.title}>Log Attendance</Text>
 
-      <Text style={styles.label}>Hour</Text>
-      <View style={styles.pickerWrapper}>
-<Picker
-  selectedValue={hour}
-  onValueChange={(itemValue) => setHour(itemValue)}
-  style={{ height: 50, width: '100%' }}
->
-  {[...Array(24).keys()].map((h) => (
-    <Picker.Item key={h} label={`${h}:00`} value={h.toString()} />
-  ))}
-</Picker>
+        <Text style={styles.label}>Hour</Text>
+        <View style={styles.pickerWrapper}>
+          <Picker
+            selectedValue={hour}
+            onValueChange={(itemValue) => setHour(itemValue)}
+            style={{ height: 50, width: '100%' }}
+          >
+            {[...Array(24).keys()].map((h) => (
+              <Picker.Item key={h} label={`${h}:00`} value={h.toString()} />
+            ))}
+          </Picker>
+        </View>
 
-      </View>
-
-      <Text style={styles.label}>Task</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter task"
-        value={task}
-        onChangeText={setTask}
-      />
-
-      <Button title="Submit" color="#004080" onPress={submitAttendance} />
-
-      <Text style={styles.subTitle}>Your Attendance Logs</Text>
-      {logs.length === 0 ? (
-        <Text style={styles.noLogs}>No attendance yet.</Text>
-      ) : (
-        <FlatList
-          data={logs}
-          keyExtractor={(item, index) => index.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <Text>📅 {item.log_date}</Text>
-              <Text>⏱ {item.hour}:00</Text>
-              <Text>📝 {item.task}</Text>
-            </View>
-          )}
+        <Text style={styles.label}>Task</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter task"
+          value={task}
+          onChangeText={setTask}
         />
-      )}
-    </ScrollView>
-  );
-}
+
+        <Button title="Submit" color="#004080" onPress={submitAttendance} />
+
+        <Text style={styles.subTitle}>Your Attendance Logs</Text>
+        {logs.length === 0 && (
+          <Text style={styles.noLogs}>No attendance yet.</Text>
+        )}
+      </>
+    }
+    renderItem={({ item }) => (
+      <View style={styles.card}>
+        <Text>📅 {item.log_date}</Text>
+        <Text>⏱ {item.hour}:00</Text>
+        <Text>📝 {item.task}</Text>
+      </View>
+    )}
+  />
+);}
 
 const styles = StyleSheet.create({
   container: { padding: 16, backgroundColor: '#f2f4f7' },
