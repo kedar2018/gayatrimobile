@@ -12,8 +12,9 @@
       "backgroundColor": "#ffffff"
     },
     "android": {
-      "usesCleartextTraffic": true,
       "package": "com.kedar.calltracker",
+      "versionCode": 2,
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
