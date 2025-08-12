@@ -12,6 +12,7 @@
       "backgroundColor": "#ffffff"
     },
     "android": {
+      "usesCleartextTraffic": true,
       "package": "com.kedar.calltracker",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -33,6 +34,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.kedar.calltracker",
       "infoPlist": {
+ 	"NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        },
         "ITSAppUsesNonExemptEncryption": false
       }
     },

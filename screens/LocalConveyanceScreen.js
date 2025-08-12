@@ -42,13 +42,14 @@ const LocalConveyanceScreen = () => {
   const closeDropdown = () => setActiveDropdown(null);
 
 
-
+/* not is use
 const handleCcrSelect = (ccr) => {
   setSelectedCcr(ccr);
   setFormData(prev => ({ ...prev, ccr_no: ccr }));
   setCcrModalVisible(false);
 };
-
+*/
+/*
     const handleSelect = (key, value) => {
     setFormData((prev) => ({
       ...prev,
@@ -56,11 +57,33 @@ const handleCcrSelect = (ccr) => {
     }));
     closeDropdown();
   };
+*/
+
+const handleSelect = (key, value) => {
+  if (key === "ccr_no") {
+    const picked = Array.isArray(ccrList)
+      ? ccrList.find(r => String(r.case_id).trim() === String(value).trim())
+      : null;
+
+    setFormData(prev => ({
+      ...prev,
+      ccr_no: value || "",
+      call_report_id: picked?.id ?? null,         // <-- stash it
+    }));
+  } else {
+    setFormData(prev => ({ ...prev, [key]: value }));
+  }
+  closeDropdown();
+};
+
+
+
+
+
 
 
 
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
     request_id: '',
     ccr_no: '',
     project: '',
@@ -71,6 +94,7 @@ const handleCcrSelect = (ccr) => {
     to_location: '',
     distance_km: '',
     user_id: '',
+    call_report_id: null, // <-- needed
   });
 
 
@@ -148,18 +172,13 @@ const DateTimeSelector = ({ label, value, onChange }) => {
 };
 
 
-
-
-
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    Promise.all([fetchAllData()]).finally(() =>
+    Promise.all([loadUserId(),fetchAllData()]).finally(() =>
       setRefreshing(false)
     );
   }, [userId]);
 
-
-useEffect(() => {
   const loadUserId = async () => {
     const id = await AsyncStorage.getItem('user_id');
     if (id) {
@@ -170,6 +189,9 @@ useEffect(() => {
       }));
     }
   };
+
+
+useEffect(() => {
   loadUserId();
 }, []);
 
@@ -268,37 +290,68 @@ const fetchAllData = async () => {
 const renderItem = ({ item }) => (
   <TouchableOpacity
     style={styles.card}
-    onPress={() => {
-      // Optional: navigate or show details
-      console.log('Tapped:', item.request_id);
-    }}
+    activeOpacity={0.8}
+    onPress={() => console.log('Tapped:', item.request_id)}
+    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
   >
-    <Text style={styles.cardHeader}>
-      📅 {item.date}   |   🆔 {item.request_id}
+    {/* Header */}
+    <View style={styles.cardHeaderRow}>
+      <View style={[styles.chip, styles.chipPrimary]}>
+        <Text style={styles.chipText}>📅 {item.date || '—'}</Text>
+      </View>
+      <View style={styles.spacer} />
+      <View style={[styles.chip, styles.chipNeutral]}>
+        <Text style={styles.chipText}>🆔 {item.request_id || '—'}</Text>
+      </View>
+    </View>
+
+    {/* Title-ish row */}
+    <Text style={styles.cardTitle} numberOfLines={1}>
+      🧾 CCR {item.ccr_no || '—'} • 🏗 {item.project || '—'}
     </Text>
 
-    <Text style={styles.cardLine}>
-      🧾 CCR: {item.ccr_no}    |    🏗 {item.project}
-    </Text>
+    {/* Details grid */}
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>Time</Text>
+      <Text style={styles.infoValue} numberOfLines={1}>
+        {item.start_time || '—'} → {item.arrived_time || '—'}
+      </Text>
+    </View>
 
-    <Text style={styles.cardLine}>
-      ⏱ {item.start_time} → {item.arrived_time}
-    </Text>
+    <View style={styles.divider} />
 
-    <Text style={styles.cardLine}>
-      🚙 {item.mode}
-    </Text>
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>Mode</Text>
+      <Text style={styles.infoValue} numberOfLines={1}>
+        {item.mode || '—'}
+      </Text>
+    </View>
 
-    <Text style={styles.cardLine}>
-      📍 {item.from_location} → {item.to_location}
-    </Text>
+    <View style={styles.divider} />
 
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>Route</Text>
+      <Text
+        style={styles.infoValue}
+        numberOfLines={2}
+        ellipsizeMode="tail"
+      >
+        {item.from_location || '—'} → {item.to_location || '—'}
+      </Text>
+    </View>
+
+    {/* Footer */}
     <View style={styles.cardFooter}>
-      <Text style={styles.footerText}>📏 {item.distance_km} km</Text>
-      <Text style={styles.footerText}>💰 ₹{item.expense_rs}</Text>
+      <View style={[styles.badge, styles.badgeMeasure]}>
+        <Text style={styles.badgeText}>📏 {item.distance_km ?? '—'} km</Text>
+      </View>
+      <View style={[styles.badge, styles.badgeMoney]}>
+        <Text style={styles.badgeText}>💰 ₹{item.expense_rs ?? '—'}</Text>
+      </View>
     </View>
   </TouchableOpacity>
 );
+
 
   return (
 console.log('Entries:', entries),
@@ -327,7 +380,6 @@ console.log('Entries:', entries),
       <TextInput
         placeholder="Enter Request No"
         value={formData.request_id}
-        keyboardType="numeric"
         onChangeText={(val) => setFormData({ ...formData, request_id: val })}
         style={styles.input}
       />
@@ -660,6 +712,121 @@ formOverlay: {
     fontSize: 16,
     marginBottom: 5,
   },
+
+ container: {
+    flex: 1,
+    backgroundColor: '#f2f4f7',
+    paddingHorizontal: 14,
+    paddingTop: 6,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginVertical: 10,
+  },
+
+  // Card
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 14,
+    marginVertical: 6,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+
+  // Header chips
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  spacer: { flex: 1 },
+  chip: {
+    borderRadius: 999,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  chipPrimary: {
+    backgroundColor: '#e0f2fe',
+    borderWidth: 1,
+    borderColor: '#bae6fd',
+  },
+  chipNeutral: {
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  chipText: {
+    fontSize: 12,
+    color: '#0f172a',
+    fontWeight: '600',
+  },
+
+  // Title-ish
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
+  },
+
+  // Info rows
+  infoRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'flex-start',
+    paddingVertical: 6,
+  },
+  infoLabel: {
+    width: 64,
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  infoValue: {
+    flex: 1,
+    color: '#0f172a',
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#eef2f7',
+    marginLeft: 64, // align with value column
+  },
+
+  // Footer badges
+  cardFooter: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  badge: {
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  badgeMeasure: {
+    backgroundColor: '#ecfeff',
+    borderWidth: 1,
+    borderColor: '#cffafe',
+  },
+  badgeMoney: {
+    backgroundColor: '#ecfccb',
+    borderWidth: 1,
+    borderColor: '#d9f99d',
+  },
+  badgeText: {
+    fontSize: 13,
+    color: '#0f172a',
+    fontWeight: '700',
+  },
+
 });
 
 
