@@ -217,7 +217,7 @@ useEffect(() => {
               color="#004080"
               onPress={() =>
                 navigation.navigate('SubmitCallReport', {
-                  callReportId: selectedReport.id,
+                  report: selectedReport,
                 })
               }
             />

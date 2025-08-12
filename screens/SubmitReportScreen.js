@@ -113,20 +113,25 @@ export default function SubmitCallReportScreen({ route, navigation }) {
   );
 
   // Build summary rows from report
-  const rows = [
-    report.case_id ? { icon: "🧾", label: "CCR", value: String(report.case_id) } : null,
-    report.project ? { icon: "🏗️", label: "Project", value: report.project } : null,
-    report.serial_number ? { icon: "🔢", label: "Serial", value: report.serial_number } : null,
-    report.customer_name
-      ? { icon: "👤", label: "Customer", value: report.customer_name }
-      : null,
-    report.customer_detail
-      ? { icon: "📍", label: "Details", value: report.customer_detail }
-      : null,
-    report.mobile_number
-      ? { icon: "☎️", label: "Phone", value: report.mobile_number }
-      : null,
-  ].filter(Boolean);
+
+// --- put this inside your component, before building rows ---
+const cd = (report && typeof report.customer_detail === "object" && report.customer_detail) || {};
+
+const customerName = report.customer_name || cd.customer_name || cd.name || "";
+const phone       = report.mobile_number || cd.mobile_number || cd.phone_number || "";
+const address     = report.address || cd.address || "";
+const city        = report.city || cd.city || "";
+
+// Build rows ONLY with strings
+const rows = [
+  report.case_id ? { icon: "🧾", label: "CCR", value: String(report.case_id) } : null,
+  report.project ? { icon: "🏗️", label: "Project", value: String(report.project) } : null,
+  customerName    ? { icon: "👤", label: "Customer", value: String(customerName) } : null,
+  phone           ? { icon: "☎️", label: "Phone", value: String(phone) } : null,
+  (address || city)
+    ? { icon: "📍", label: "Address", value: [address, city].filter(Boolean).join(", ") }
+    : null,
+].filter(Boolean);
 
   const canSubmit = !submitting && actionTaken && status;
 
@@ -141,20 +146,16 @@ export default function SubmitCallReportScreen({ route, navigation }) {
       </View>
 
       {/* Summary card */}
-      {rows.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.summaryTitle}>Summary</Text>
-          {rows.map((r, idx) => (
-            <View key={idx} style={styles.summaryRow}>
-              <Text style={styles.summaryIcon}>{r.icon}</Text>
-              <Text style={styles.summaryLabel}>{r.label}</Text>
-              <Text style={styles.summaryValue} numberOfLines={2}>
-                {r.value}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
+
+
+
+{rows.map((r, idx) => (
+  <View key={idx} style={styles.summaryRow}>
+    <Text style={styles.summaryIcon}>{r.icon}</Text>
+    <Text style={styles.summaryLabel}>{r.label}</Text>
+    <Text style={styles.summaryValue} numberOfLines={2}>{r.value}</Text>
+  </View>
+))}
 
       {/* Action Taken */}
       <View style={styles.card}>
