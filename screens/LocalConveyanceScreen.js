@@ -354,11 +354,7 @@ const renderItem = ({ item }) => (
 
 
   return (
-console.log('Entries:', entries),
-
     <View style={styles.container}>
-
-
     <FlatList
       data={entries}
       keyExtractor={(item, index) => index.toString()}
@@ -407,8 +403,6 @@ console.log('Entries:', entries),
 
 
 {['ccr_no', 'project', 'mode', 'from_location', 'to_location'].map((key) => (
-//console.log(key);
-console.log(`the key is ${key}`),
         <View key={key}>
           <Text style={styles.label}>{key.replace('_', ' ').toUpperCase()}</Text>
           <TouchableOpacity
