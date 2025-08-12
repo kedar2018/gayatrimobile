@@ -1,26 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
-  View, Text, TextInput, Button, StyleSheet, Alert, Image, ScrollView
-} from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Picker } from '@react-native-picker/picker';
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Alert,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Platform,
+} from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function SubmitCallReportScreen({ route, navigation }) {
-  const { callReportId } = route.params;
+  const { report = {} } = route.params || {};
+  const callReportId = report?.id;
 
-  const [actionTaken, setActionTaken] = useState('');
-  const [feedbackRating, setFeedbackRating] = useState('');
-  const [status, setStatus] = useState('');
+  const [actionTaken, setActionTaken] = useState("");
+  const [status, setStatus] = useState(report?.status || "");
   const [image, setImage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [km, setKm] = useState('');
 
   const askPermissions = async () => {
     const camera = await ImagePicker.requestCameraPermissionsAsync();
     const media = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!camera.granted || !media.granted) {
-      Alert.alert('Permissions required', 'Please allow camera and media access.');
+      Alert.alert("Permissions required", "Please allow camera and media access.");
       return false;
     }
     return true;
@@ -29,172 +36,314 @@ export default function SubmitCallReportScreen({ route, navigation }) {
   const pickFromGallery = async () => {
     const ok = await askPermissions();
     if (!ok) return;
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.7,
     });
-
-    if (!result.canceled) {
-      setImage(result.assets[0]);
-    }
+    if (!result.canceled) setImage(result.assets[0]);
   };
 
   const captureWithCamera = async () => {
     const ok = await askPermissions();
     if (!ok) return;
-
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.7,
     });
-
-    if (!result.canceled) {
-      setImage(result.assets[0]);
-    }
+    if (!result.canceled) setImage(result.assets[0]);
   };
 
+  const removeImage = () => setImage(null);
+
   const submitReport = async () => {
-    if (!actionTaken || !status || !km || isNaN(km)) {
-      Alert.alert('Validation Error', 'All fields except signcopy are required.');
+    if (!actionTaken || !status) {
+      Alert.alert("Validation Error", "Action and Status are required.");
+      return;
+    }
+    if (!callReportId) {
+      Alert.alert("Error", "Missing Call Report ID.");
       return;
     }
 
-    setSubmitting(true);
-
-    const userId = await AsyncStorage.getItem('user_id');
-    const formData = new FormData();
-
-    formData.append('call_report[action_taken]', actionTaken);
-    formData.append('call_report[feedback_rating]', feedbackRating);
-    formData.append('call_report[status]', status);
-    formData.append('call_report[km]',km);
-
-    if (image) {
-      formData.append('call_report[signed_copy]', {
-        uri: image.uri,
-        name: 'signed_copy.jpg',
-        type: 'image/jpeg',
-      });
-    }
-
     try {
-      const response = await fetch(`http://134.199.178.17/gayatri/api/call_reports/${callReportId}/submit_report/`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        body: formData,
-      });
+      setSubmitting(true);
 
+      const userId = await AsyncStorage.getItem("user_id");
+      const formData = new FormData();
+      formData.append("call_report[action_taken]", actionTaken);
+      formData.append("call_report[status]", status);
+      formData.append("call_report[user_id]", userId || "");
+
+      if (image) {
+        formData.append("call_report[signed_copy]", {
+          uri: image.uri,
+          name: "signed_copy.jpg",
+          type: "image/jpeg",
+        });
+      }
+
+      const response = await fetch(
+        `http://134.199.178.17/gayatri/api/call_reports/${callReportId}/submit_report/`,
+        { method: "PATCH", body: formData }
+      );
       const json = await response.json();
-      setSubmitting(false);
 
       if (json.success) {
-        Alert.alert('Success', 'Call report submitted');
+        Alert.alert("Success", "Call report submitted");
         navigation.goBack();
       } else {
-        Alert.alert('Error', json.errors?.join(', ') || 'Submission failed');
+        Alert.alert("Error", json.errors?.join(", ") || "Submission failed");
       }
-    } catch (error) {
+    } catch (e) {
+      Alert.alert("Error", "Network error during submission");
+    } finally {
       setSubmitting(false);
-      Alert.alert('Error', 'Network error during submission');
     }
   };
 
+  const StatusChip = ({ label, value }) => (
+    <TouchableOpacity
+      onPress={() => setStatus(value)}
+      style={[styles.chip, status === value && styles.chipActive]}
+    >
+      <Text style={[styles.chipText, status === value && styles.chipTextActive]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  // Build summary rows from report
+  const rows = [
+    report.case_id ? { icon: "🧾", label: "CCR", value: String(report.case_id) } : null,
+    report.project ? { icon: "🏗️", label: "Project", value: report.project } : null,
+    report.serial_number ? { icon: "🔢", label: "Serial", value: report.serial_number } : null,
+    report.customer_name
+      ? { icon: "👤", label: "Customer", value: report.customer_name }
+      : null,
+    report.customer_detail
+      ? { icon: "📍", label: "Details", value: report.customer_detail }
+      : null,
+    report.mobile_number
+      ? { icon: "☎️", label: "Phone", value: report.mobile_number }
+      : null,
+  ].filter(Boolean);
+
+  const canSubmit = !submitting && actionTaken && status;
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Action Taken *</Text>
-      <TextInput
-        style={styles.input}
-	  placeholderTextColor="#666"  // ✅ Darker placeholder
-
-        value={actionTaken}
-        onChangeText={setActionTaken}
-        placeholder="Describe what was done"
-        multiline
-      />
-
-
-<Text style={styles.label}>Status *</Text>
-<View style={styles.pickerWrapper}>
-  <Picker
-    selectedValue={status}
-    onValueChange={(itemValue) => setStatus(itemValue)}
-  >
-    <Picker.Item color="#999" label="Select status" value="" />
-    <Picker.Item color="#999" label="Pending" value="Pending" />
-    <Picker.Item color="#999" label="In Progress" value="In Progress" />
-    <Picker.Item color="#999" label="Completed" value="Completed" />
-  </Picker>
-</View>
-
-      <Text style={styles.label}>Distance Travelled (km)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="e.g. 12.5"
-        placeholderTextColor="#666"  // ✅ Darker placeholder
-        value={km}
-        onChangeText={setKm}
-        keyboardType="numeric"
-      />
-
-      <View style={{ marginVertical: 10 }}>
-        <Button title="Capture Signcopy with Camera" onPress={captureWithCamera} />
-        <View style={{ height: 10 }} />
-        <Button title="Pick Signcopy from Gallery" onPress={pickFromGallery} />
+      {/* Header */}
+      <View style={styles.headerCard}>
+        <Text style={styles.headerTitle}>Submit Call Report</Text>
+        <Text style={styles.headerSubtitle}>
+          Call Report ID: {String(callReportId || "-")}
+        </Text>
       </View>
 
-      {image && <Image source={{ uri: image.uri }} style={styles.preview} />}
+      {/* Summary card */}
+      {rows.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.summaryTitle}>Summary</Text>
+          {rows.map((r, idx) => (
+            <View key={idx} style={styles.summaryRow}>
+              <Text style={styles.summaryIcon}>{r.icon}</Text>
+              <Text style={styles.summaryLabel}>{r.label}</Text>
+              <Text style={styles.summaryValue} numberOfLines={2}>
+                {r.value}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
 
-      <View style={{ marginTop: 20 }}>
-        <Button
-          title={submitting ? "Submitting..." : "Submit Call Report"}
-          onPress={submitReport}
-          disabled={submitting}
+      {/* Action Taken */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Action Taken *</Text>
+        <TextInput
+          style={styles.inputMultiline}
+          placeholder="Describe what was done"
+          placeholderTextColor="#666"
+          value={actionTaken}
+          onChangeText={setActionTaken}
+          multiline
         />
       </View>
+
+      {/* Status */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Status *</Text>
+        <View style={styles.chipsRow}>
+          <StatusChip label="Pending" value="Pending" />
+          <StatusChip label="In Progress" value="In Progress" />
+          <StatusChip label="Completed" value="Completed" />
+        </View>
+      </View>
+
+      {/* Image actions */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Signed Copy (optional)</Text>
+        <View style={styles.actionsRow}>
+          <TouchableOpacity style={styles.btnOutline} onPress={captureWithCamera}>
+            <Text style={styles.btnOutlineText}>📷 Capture</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.btnOutline} onPress={pickFromGallery}>
+            <Text style={styles.btnOutlineText}>🖼️ Gallery</Text>
+          </TouchableOpacity>
+        </View>
+
+        {image && (
+          <View style={styles.previewWrap}>
+            <Image source={{ uri: image.uri }} style={styles.preview} />
+            <TouchableOpacity style={styles.removeBadge} onPress={removeImage}>
+              <Text style={styles.removeBadgeText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      {/* Submit */}
+      <TouchableOpacity
+        style={[styles.btnPrimary, !canSubmit && styles.btnDisabled]}
+        onPress={submitReport}
+        disabled={!canSubmit}
+      >
+        {submitting ? (
+          <ActivityIndicator />
+        ) : (
+          <Text style={styles.btnPrimaryText}>Submit Call Report</Text>
+        )}
+      </TouchableOpacity>
+
+      <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    padding: 20,
+const COLORS = {
+  bg: "#F6F8FA",
+  card: "#FFFFFF",
+  text: "#111",
+  subtext: "#666",
+  border: "#E6E8EB",
+  primary: "#2563EB",
+  primaryText: "#FFFFFF",
+  chipBg: "#EFF3F8",
+  chipActiveBg: "#DBEAFE",
+  chipText: "#374151",
+  chipTextActive: "#1D4ED8",
+  danger: "#EF4444",
+};
+
+const shadow = Platform.select({
+  ios: {
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
   },
-  label: {
-    marginTop: 15,
-    fontWeight: 'bold',
-  },
-
-input: {
-  borderWidth: 1,
-  borderColor: '#ccc',
-  backgroundColor: '#fff', // Light background
-  color: '#000',           // Text color
-  padding: 10,
-  borderRadius: 8,
-  marginBottom: 20,
-},
-
-  preview: {
-    width: '100%',
-    height: 200,
-    marginTop: 10,
-    borderRadius: 5,
-  },
-pickerWrapper: {
-  borderWidth: 1,
-  borderColor: '#ccc',
-  borderRadius: 5,
-  marginTop: 5,
-  marginBottom: 10,
-},
-picker: {
-  height: 50,
-  color: "#000" // darker text if selected
-}
-
-
+  android: { elevation: 3 },
 });
+
+const styles = StyleSheet.create({
+  container: { padding: 16, backgroundColor: COLORS.bg },
+
+  headerCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    ...shadow,
+  },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: COLORS.text },
+  headerSubtitle: { marginTop: 6, color: COLORS.subtext },
+
+  card: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderColor: COLORS.border,
+    borderWidth: 1,
+    ...shadow,
+  },
+
+  summaryTitle: { fontWeight: "700", color: COLORS.text, marginBottom: 8 },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  summaryIcon: { width: 24, textAlign: "center", marginRight: 8 },
+  summaryLabel: { width: 90, color: COLORS.subtext, fontWeight: "600" },
+  summaryValue: { flex: 1, color: COLORS.text, fontWeight: "600" },
+
+  label: { fontWeight: "600", color: COLORS.text, marginBottom: 8 },
+
+  inputMultiline: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    minHeight: 100,
+    textAlignVertical: "top",
+    backgroundColor: "#fff",
+    color: COLORS.text,
+  },
+
+  chipsRow: { flexDirection: "row", gap: 8 },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: COLORS.chipBg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  chipActive: { backgroundColor: COLORS.chipActiveBg, borderColor: "#BFDBFE" },
+  chipText: { color: COLORS.chipText, fontWeight: "600" },
+  chipTextActive: { color: COLORS.chipTextActive },
+
+  actionsRow: { flexDirection: "row", gap: 10 },
+
+  btnOutline: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  btnOutlineText: { color: COLORS.text, fontWeight: "600" },
+
+  previewWrap: { marginTop: 12, position: "relative" },
+  preview: { width: "100%", height: 220, borderRadius: 12 },
+  removeBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: COLORS.danger,
+    borderRadius: 16,
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  removeBadgeText: { color: "#fff", fontWeight: "700" },
+
+  btnPrimary: {
+    marginTop: 8,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    ...shadow,
+  },
+  btnDisabled: { opacity: 0.6 },
+  btnPrimaryText: { color: COLORS.primaryText, fontWeight: "700" },
+});
+
 
