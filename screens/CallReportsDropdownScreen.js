@@ -7,7 +7,7 @@ import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { MaterialIcons } from '@expo/vector-icons';
-import { KEYS } from './bgVoiceAlert';
+import { KEYS } from '../components/bgVoiceAlert';
 
 //import RequestPartScreen from './screens/RequestPartScreen';
 //import PartRequestList from './screens/PartRequestList';
