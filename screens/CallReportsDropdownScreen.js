@@ -7,9 +7,8 @@ import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { MaterialIcons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
-import * as BackgroundFetch from 'expo-background-fetch';
-import * as TaskManager from 'expo-task-manager';
+import { KEYS } from './bgVoiceAlert';
+
 //import RequestPartScreen from './screens/RequestPartScreen';
 //import PartRequestList from './screens/PartRequestList';
 import { useFocusEffect } from '@react-navigation/native';
@@ -24,39 +23,22 @@ const CallReportsDropdownScreen = ({ navigation, route  }) => {
   const [selectedReport, setSelectedReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const refreshingRef = useRef(false);
   const screenHeight = Dimensions.get('window').height;
-  const TASK_NAME = 'background-voice-alert-task';
-  const [partRequestCounts, setPartRequestCounts] = useState({});
+  
+
+ 
+ 
+  
+useFocusEffect(
+  useCallback(() => {
+    //fetchReports();  // this will refetch and update counts
+    fetchCallReports();
+  }, [])
+);
 
 
-const registerBackgroundVoiceAlert = async () => {
-  const isRegistered = await TaskManager.isTaskRegisteredAsync(TASK_NAME);
-  if (!isRegistered) {
-    await BackgroundFetch.registerTaskAsync(TASK_NAME, {
-      minimumInterval: 1800, // 30 minutes in seconds
-      stopOnTerminate: false,
-      startOnBoot: true,
-    });
-    console.log('✅ Background voice alert task registered.');
-  }
-};
 
-
-const playVoiceAlert = async () => {
-  try {
-    const { sound } = await Audio.Sound.createAsync(
-      require('../assets/callwarning.mp3') // adjust path if needed
-    );
-    await sound.playAsync();
-  } catch (error) {
-    console.log("Error playing sound:", error);
-  }
-};
-
-  useEffect(() => {
-    //fetchCallReports();
-    registerBackgroundVoiceAlert(); // for background
-  }, []);
 
 useFocusEffect(
   useCallback(() => {
@@ -66,55 +48,6 @@ useFocusEffect(
 );
 
 
-/*
-useEffect(() => {
-  if (selectedReport && selectedReport.age > 5) {
-    playVoiceAlert();
-  }
-}, [selectedReport]);
-*/
-
-const intervalRef = useRef(null);
-
-const startWarningInterval = () => {
-  if (intervalRef.current) clearInterval(intervalRef.current);
-
-  intervalRef.current = setInterval(() => {
-    const now = new Date();
-    const hour = now.getHours();
-    if (hour >= 9 && hour < 18) {
-      playVoiceAlert();
-    }
-  }, 30 * 60 * 1000); // every 30 minutes
-
-  // Optional: Play once immediately
-  const hour = new Date().getHours();
-  if (hour >= 9 && hour < 18) {
-    playVoiceAlert();
-  }
-};
-
-useEffect(() => {
-  return () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-  };
-}, []);
-
-
-
-/*const fetchPartRequests = async (callReports) => {
-  const counts = {};
-  for (let call of callReports) {
-    try {
-      const res = await axios.get(`http://192.34.58.213/gayatri/api/call_reports/${call.id}/part_requests`);
-      counts[call.id] = res.data.length;
-    } catch (error) {
-      counts[call.id] = 0;
-    }
-  }
-  setPartRequestCounts(counts);
-};
-*/
 
 useFocusEffect(
   useCallback(() => {
@@ -131,32 +64,6 @@ useFocusEffect(
     return () => { active = false; };
   }, [route.params?.selectCaseId, route.params?.refreshAt, fetchCallReports, handleCaseSelection, navigation])
 );
-/*
-  const fetchCallReports = async () => {
-    try {
-      const userId = await AsyncStorage.getItem('user_id');
-      const res = await axios.get(`http://134.199.178.17/gayatri/api/call_reports?engineer_id=${userId}`);
-      const fetchedCalls = res.data;
-
-      setCaseList(fetchedCalls);
-      //fetchPartRequests(res.data);  // <- fetch part counts
-
-      setLoading(false);
-      setRefreshing(false); // turn off refresh
-     // Start 30-min voice alert loop if any report is older than 3 days
-     const hasOldCall = fetchedCalls.some(report => report.age > 3);
-     if (hasOldCall) {
-       startWarningInterval();
-     }
-
-    } catch (error) {
-      Alert.alert('Error', 'Failed to fetch call reports');
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-*/
-
 
 const fetchCallReports = useCallback(async () => {
   try {
@@ -171,15 +78,16 @@ const fetchCallReports = useCallback(async () => {
     setCaseList(fetchedCalls);
     setLoading(false);
     setRefreshing(false);
-
-    // 30-min voice alert loop if any report is older than 3 days
-    if (fetchedCalls.some(r => r.age > 3)) startWarningInterval();
-
+   // drive BG voice alert with a simple flag
+      const hasOld = fetchedCalls.some(r => Number(r.age) > 3);
+      await AsyncStorage.setItem(KEYS.HAS_OLD, hasOld ? 'true' : 'false');
+ 
     return fetchedCalls;            // 👈 return the fresh list
   } catch (error) {
     Alert.alert('Error', 'Failed to fetch call reports');
     setLoading(false);
     setRefreshing(false);
+    await AsyncStorage.setItem(KEYS.HAS_OLD, 'false');
     return [];                      // 👈 keep a predictable return
   }
 }, [setCaseList, setLoading, setRefreshing]);
@@ -191,6 +99,15 @@ const handleCaseSelection = useCallback((caseId, list = caseList) => {
   const found = list.find(item => String(item.case_id) === scid);
   setSelectedReport(found || null);
 }, [caseList]);
+ 
+
+  const onRefresh = useCallback(async () => {
+    if (refreshingRef.current) return;
+    refreshingRef.current = true;
+    setRefreshing(true);
+    await fetchCallReports();
+    refreshingRef.current = false;
+  }, [fetchCallReports]);
 
 
   const handleSubmit = () => {
@@ -198,11 +115,6 @@ const handleCaseSelection = useCallback((caseId, list = caseList) => {
     navigation.navigate('SubmitCallReportScreen', { report: selectedReport });
   };
 
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchCallReports();
-  };
 
   if (loading) {
     return <ActivityIndicator size="large" style={styles.loader} />;
