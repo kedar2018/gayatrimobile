@@ -17,6 +17,8 @@ import AttendanceScreen from './screens/AttendanceScreen';
 import RequestPartScreen from './screens/RequestPartScreen';
 import PartRequestList from './screens/PartRequestList';
 import LocalConveyanceScreen from './screens/LocalConveyanceScreen';
+import '/components/bgVoiceAlert'; // defines the task at module scope
+import { registerBackgroundVoiceAlert } from '/components/bgVoiceAlert';
 
 
 const Stack = createStackNavigator();
@@ -55,6 +57,8 @@ function MainTabs() {
 
 // Main App Navigation
 export default function App() {
+    React.useEffect(() => { registerBackgroundVoiceAlert(); }, []);
+
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
