@@ -12,7 +12,10 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 //import RequestPartScreen from './screens/RequestPartScreen';
 //import PartRequestList from './screens/PartRequestList';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
+
+
+const route = useRoute();
 
 
 const CallReportsDropdownScreen = ({ navigation }) => {
@@ -113,6 +116,22 @@ useEffect(() => {
 };
 */
 
+useFocusEffect(
+  useCallback(() => {
+    let active = true;
+    (async () => {
+      const list = await fetchCallReports();
+      const caseIdToSelect = route.params?.selectCaseId;
+      if (active && caseIdToSelect) {
+        handleCaseSelection(caseIdToSelect, list);
+        // clear the param so it doesn't re-trigger next time
+        navigation.setParams({ selectCaseId: undefined, refreshAt: undefined });
+      }
+    })();
+    return () => { active = false; };
+  }, [route.params?.selectCaseId, route.params?.refreshAt, fetchCallReports, handleCaseSelection, navigation])
+);
+/*
   const fetchCallReports = async () => {
     try {
       const userId = await AsyncStorage.getItem('user_id');
@@ -136,12 +155,43 @@ useEffect(() => {
       setRefreshing(false);
     }
   };
+*/
 
-  const handleCaseSelection = (caseId) => {
-    setSelectedCaseId(caseId);
-    const found = caseList.find(item => item.case_id === caseId);
-    setSelectedReport(found || null);
-  };
+
+const fetchCallReports = useCallback(async () => {
+  try {
+    const userId = await AsyncStorage.getItem('user_id');
+    const res = await axios.get(
+      `http://134.199.178.17/gayatri/api/call_reports`,
+      { params: { engineer_id: userId } }
+    );
+
+    const fetchedCalls = Array.isArray(res.data) ? res.data : [];
+
+    setCaseList(fetchedCalls);
+    setLoading(false);
+    setRefreshing(false);
+
+    // 30-min voice alert loop if any report is older than 3 days
+    if (fetchedCalls.some(r => r.age > 3)) startWarningInterval();
+
+    return fetchedCalls;            // 👈 return the fresh list
+  } catch (error) {
+    Alert.alert('Error', 'Failed to fetch call reports');
+    setLoading(false);
+    setRefreshing(false);
+    return [];                      // 👈 keep a predictable return
+  }
+}, [setCaseList, setLoading, setRefreshing]);
+
+// your selection helper (accepts an optional list to avoid race with state)
+const handleCaseSelection = useCallback((caseId, list = caseList) => {
+  const scid = String(caseId);
+  setSelectedCaseId(scid);
+  const found = list.find(item => String(item.case_id) === scid);
+  setSelectedReport(found || null);
+}, [caseList]);
+
 
   const handleSubmit = () => {
     if (!selectedReport) return;
