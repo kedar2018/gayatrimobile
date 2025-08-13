@@ -90,7 +90,20 @@ export default function SubmitCallReportScreen({ route, navigation }) {
 
       if (json.success) {
         Alert.alert("Success", "Call report submitted");
-        navigation.goBack();
+//        navigation.goBack();
+/*navigation.navigate({
+  name: 'CallReportsDropdown', // <- your list route name
+  params: { selectCaseId: String(report.case_id), refreshAt: Date.now() },
+  merge: true,
+});*/
+// inside SubmitCallReport (after successful submit)
+navigation.navigate('MainTabs', {
+  screen: 'CallReportsDropdown',     // ✅ Tab route name
+  params: {
+    selectCaseId: String(report.case_id),
+    refreshAt: Date.now(),           // forces effect to run
+  },
+});
       } else {
         Alert.alert("Error", json.errors?.join(", ") || "Submission failed");
       }

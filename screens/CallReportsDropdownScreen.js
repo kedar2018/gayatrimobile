@@ -12,13 +12,13 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 //import RequestPartScreen from './screens/RequestPartScreen';
 //import PartRequestList from './screens/PartRequestList';
-import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 
 
-const route = useRoute();
+//const route = useRoute();
 
 
-const CallReportsDropdownScreen = ({ navigation }) => {
+const CallReportsDropdownScreen = ({ navigation, route  }) => {
   const [caseList, setCaseList] = useState([]);
   const [selectedCaseId, setSelectedCaseId] = useState(null);
   const [selectedReport, setSelectedReport] = useState(null);
