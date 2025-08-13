@@ -41,46 +41,23 @@ const LocalConveyanceScreen = () => {
   const openDropdown = (key) => setActiveDropdown(key);
   const closeDropdown = () => setActiveDropdown(null);
 
+ 
+  const handleSelect = (key, value) => {
+    if (key === "ccr_no") {
+      const picked = Array.isArray(ccrList)
+        ? ccrList.find(r => String(r.case_id).trim() === String(value).trim())
+        : null;
 
-/* not is use
-const handleCcrSelect = (ccr) => {
-  setSelectedCcr(ccr);
-  setFormData(prev => ({ ...prev, ccr_no: ccr }));
-  setCcrModalVisible(false);
-};
-*/
-/*
-    const handleSelect = (key, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+      setFormData(prev => ({
+        ...prev,
+        ccr_no: value || "",
+        call_report_id: picked?.id ?? null,         // <-- stash it
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [key]: value }));
+    }
     closeDropdown();
   };
-*/
-
-const handleSelect = (key, value) => {
-  if (key === "ccr_no") {
-    const picked = Array.isArray(ccrList)
-      ? ccrList.find(r => String(r.case_id).trim() === String(value).trim())
-      : null;
-
-    setFormData(prev => ({
-      ...prev,
-      ccr_no: value || "",
-      call_report_id: picked?.id ?? null,         // <-- stash it
-    }));
-  } else {
-    setFormData(prev => ({ ...prev, [key]: value }));
-  }
-  closeDropdown();
-};
-
-
-
-
-
-
 
 
   const [formData, setFormData] = useState({

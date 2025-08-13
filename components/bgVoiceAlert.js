@@ -1,4 +1,6 @@
 // bgVoiceAlert.js
+// lets change thhis to normal javascript function like timer since this task manager is in hand of android os
+//not in use
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 import AsyncStorage from '@react-native-async-storage/async-storage';

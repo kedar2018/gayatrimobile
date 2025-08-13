@@ -8,7 +8,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { MaterialIcons } from '@expo/vector-icons';
 import { KEYS } from '../components/bgVoiceAlert';
-
+/*this screen is currently not in use also the voice call alert is not working thinking 
+  to change into normal javascript function
+*/
 //import RequestPartScreen from './screens/RequestPartScreen';
 //import PartRequestList from './screens/PartRequestList';
 import { useFocusEffect } from '@react-navigation/native';

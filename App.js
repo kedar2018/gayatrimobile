@@ -32,8 +32,13 @@ function MainTabs() {
         headerShown: false,
         tabBarIcon: ({ color, size }) => {
           let iconName;
-          if (route.name === 'CallReportsDropdown') iconName = 'assignment';
+         // if (route.name === 'CallReportsDropdown') iconName = 'assignment';
         //  else if (route.name === 'History') iconName = 'history';
+        //  else if (route.name === 'Profile') iconName = 'person';
+        //  return <MaterialIcons name={iconName} size={size} color={color} />;
+          if (route.name === 'Leave') iconName = 'event';
+          else if (route.name === 'Attendance') iconName = 'schedule';
+          else if (route.name === 'Local Conveyance') iconName = 'directions-car';
           else if (route.name === 'Profile') iconName = 'person';
           return <MaterialIcons name={iconName} size={size} color={color} />;
         },
@@ -42,7 +47,7 @@ function MainTabs() {
       })}
     >
       {/*<Tab.Screen name="CallReports" component={CallReportsScreen} />*/}
-      <Tab.Screen name="CallReportsDropdown" component={CallReportsDropdownScreen}/>
+      {/*<Tab.Screen name="CallReportsDropdown" component={CallReportsDropdownScreen}/>*/}
       <Tab.Screen name="Leave" component={LeaveScreen} />
 	    <Tab.Screen name="Attendance" component={AttendanceScreen} />
       {/*<Tab.Screen name="RequestPart" component={RequestPartScreen} options={{ tabBarButton: () => null, tabBarVisible: false }} />
