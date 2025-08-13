@@ -27,7 +27,7 @@ async function playVoiceAlert() {
   });
   const { sound } = await Audio.Sound.createAsync(
     // adjust path if your file is elsewhere
-    require('./assets/callwarning.mp3')
+    require('../assets/callwarning.mp3')
   );
   await sound.playAsync();
   setTimeout(() => sound.unloadAsync(), 6000);
