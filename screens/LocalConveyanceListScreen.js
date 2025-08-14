@@ -1,5 +1,7 @@
 // screens/LocalConveyanceListScreen.js
 import React, { useEffect, useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+
 import {
   View,
   Text,
@@ -34,6 +36,13 @@ export default function LocalConveyanceListScreen({ navigation }) {
       console.log('Fetch entries error:', e?.response?.data || e.message);
     }
   }, [userId]);
+
+
+useFocusEffect(
+  React.useCallback(() => {
+    if (userId) fetchEntries();   // your existing fetchEntries useCallback
+  }, [userId, fetchEntries])
+);
 
   useEffect(() => {
     loadUserId();
