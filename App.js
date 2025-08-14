@@ -54,23 +54,22 @@ function MainTabs() {
       {/*<Tab.Screen name="RequestPart" component={RequestPartScreen} options={{ tabBarButton: () => null, tabBarVisible: false }} />
       <Tab.Screen name="PartRequestList" component={PartRequestList} options={{ tabBarButton: () => null, tabBarVisible: false }} />
      */}	
-      <Tab.Screen name="Local Conveyance" component={LocalConveyanceListScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
-
+      <Tab.Screen name="Local Conveyance" component={LocalConveyanceListScreen} />
     </Tab.Navigator>
   );
 }
 
 // Main App Navigation
 export default function App() {
-  /*  React.useEffect(() => { registerBackgroundVoiceAlert(); }, []);
-*/
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="MainTabs" component={MainTabs} />
+        <Stack.Screen
+          name="LocalConveyanceForm" component={LocalConveyanceFormScreen} options={{ headerShown: true, title: 'Add Entry' }}/>
 	{/*<Stack.Screen name="SubmitCallReport" component={SubmitCallReportScreen} />*/}
       </Stack.Navigator>
     </NavigationContainer>
