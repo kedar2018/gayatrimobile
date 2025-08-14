@@ -7,19 +7,20 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-na
 
 import SplashScreen from './screens/SplashScreen';
 import LoginScreen from './screens/LoginScreen';
-import CallReportsScreen from './screens/CallReportsScreen'; //old screen not in used
+//import CallReportsScreen from './screens/CallReportsScreen'; //old screen not in used
 import ProfileScreen from './screens/ProfileScreen';
 //import HistoryScreen from './screens/HistoryScreen';
-import SubmitCallReportScreen from './screens/SubmitReportScreen'; // Adjust path if needed
+//import SubmitCallReportScreen from './screens/SubmitReportScreen'; // Adjust path if needed
 import CallReportsDropdownScreen from './screens/CallReportsDropdownScreen';
 import LeaveScreen from './screens/LeaveScreen';
 import AttendanceScreen from './screens/AttendanceScreen';
-import RequestPartScreen from './screens/RequestPartScreen';
-import PartRequestList from './screens/PartRequestList';
-import LocalConveyanceScreen from './screens/LocalConveyanceScreen';
-import './components/bgVoiceAlert'; // defines the task at module scope
-import { registerBackgroundVoiceAlert } from './components/bgVoiceAlert';
-
+//import RequestPartScreen from './screens/RequestPartScreen';
+//import PartRequestList from './screens/PartRequestList';
+//import LocalConveyanceScreen from './screens/LocalConveyanceScreen';
+//import './components/bgVoiceAlert'; // defines the task at module scope
+//import { registerBackgroundVoiceAlert } from './components/bgVoiceAlert';
+import LocalConveyanceListScreen from './screens/LocalConveyanceListScreen';
+import LocalConveyanceFormScreen from './screens/LocalConveyanceFormScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -53,7 +54,7 @@ function MainTabs() {
       {/*<Tab.Screen name="RequestPart" component={RequestPartScreen} options={{ tabBarButton: () => null, tabBarVisible: false }} />
       <Tab.Screen name="PartRequestList" component={PartRequestList} options={{ tabBarButton: () => null, tabBarVisible: false }} />
      */}	
-      <Tab.Screen name="Local Conveyance" component={LocalConveyanceScreen} />
+      <Tab.Screen name="Local Conveyance" component={LocalConveyanceListScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
 
     </Tab.Navigator>
@@ -62,15 +63,15 @@ function MainTabs() {
 
 // Main App Navigation
 export default function App() {
-    React.useEffect(() => { registerBackgroundVoiceAlert(); }, []);
-
+  /*  React.useEffect(() => { registerBackgroundVoiceAlert(); }, []);
+*/
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="MainTabs" component={MainTabs} />
-	<Stack.Screen name="SubmitCallReport" component={SubmitCallReportScreen} />
+	{/*<Stack.Screen name="SubmitCallReport" component={SubmitCallReportScreen} />*/}
       </Stack.Navigator>
     </NavigationContainer>
   );

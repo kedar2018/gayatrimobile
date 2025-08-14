@@ -10,6 +10,8 @@ import {
   Alert,
   ScrollView,
   Platform,
+  Button,
+  Image,
 } from 'react-native';
 import axios from 'axios';
 import { Picker } from '@react-native-picker/picker';
@@ -18,8 +20,13 @@ import Modal from 'react-native-modal';
 import ModalDropdown from '../components/ModalDropdown'; // Adjust path accordingly
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
+
 //import ZoomableItem from '../components/ZoomableItem';
 //import ZoomableCard from '../components/ZoomableCard'
+const MAX_SIZE_BYTES = 300 *  300 * 1024; // 300 KB
 
 
 const API_URL = 'http://134.199.178.17/gayatri';
@@ -36,10 +43,46 @@ const LocalConveyanceScreen = () => {
   const [isCcrModalVisible, setCcrModalVisible] = useState(false);
   const [selectedCcr, setSelectedCcr] = useState('');
   const [activeDropdown, setActiveDropdown] = useState(null);
+  const [image, setImage] = useState(null);
 
  
   const openDropdown = (key) => setActiveDropdown(key);
   const closeDropdown = () => setActiveDropdown(null);
+
+  const askPermissions = async () => {
+    const camera = await ImagePicker.requestCameraPermissionsAsync();
+    const media = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!camera.granted || !media.granted) {
+      Alert.alert("Permissions required", "Please allow camera and media access.");
+      return false;
+    }
+    return true;
+  };
+
+  const pickFromGallery = async () => {
+    const ok = await askPermissions();
+    if (!ok) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
+    if (!result.canceled) setImage(result.assets[0]);
+  };
+
+  const captureWithCamera = async () => {
+    const ok = await askPermissions();
+    if (!ok) return;
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
+    if (!result.canceled) setImage(result.assets[0]);
+  };
+
+  const removeImage = () => setImage(null);
+
+
+
 
  
   const handleSelect = (key, value) => {
@@ -234,7 +277,7 @@ const fetchAllData = async () => {
 
 
 
-  const handleSubmit = async () => {
+  /*const handleSubmit = async () => {
     try {
       await axios.post(`${API_URL}/api/tour_conveyances`, formData);
       Alert.alert('Success', 'Entry added successfully');
@@ -246,6 +289,57 @@ const fetchAllData = async () => {
       Alert.alert('Error', 'Failed to save entry');
     }
   };
+*/
+
+
+
+
+const handleSubmit = async () => {
+  try {
+    const payload = new FormData();
+
+    // Append each form field
+    Object.keys(formData).forEach((key) => {
+      if (formData[key] !== null && formData[key] !== '') {
+        payload.append(`tour_conveyance[${key}]`, formData[key]);
+      }
+    });
+
+
+      if (image) {
+        payload.append("call_report[signed_copy]", {
+          uri: image.uri,
+          name: "signed_copy.jpg",
+          type: "image/jpeg",
+        });
+      }
+
+
+    // Submit using axios with content-type set for FormData
+    await axios.post(`${API_URL}/api/tour_conveyances`, payload, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    Alert.alert('Success', 'Entry added successfully');
+    setFormVisible(false);
+    fetchAllData();
+    resetForm();
+  } catch (err) {
+    console.log('Submit Error:', err.response?.data || err.message);
+    Alert.alert('Error', 'Failed to save entry');
+  }
+};
+
+
+
+
+
+
+
+
+
 
   const resetForm = () => {
     setFormData({
@@ -409,6 +503,34 @@ const renderItem = ({ item }) => (
         style={styles.input_user}
       />
 
+
+
+
+      {/* Image actions */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Signed Copy (optional)</Text>
+        <View style={styles.actionsRow}>
+          <TouchableOpacity style={styles.btnOutline} onPress={captureWithCamera}>
+            <Text style={styles.btnOutlineText}>📷 Capture</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.btnOutline} onPress={pickFromGallery}>
+            <Text style={styles.btnOutlineText}>🖼️ Gallery</Text>
+          </TouchableOpacity>
+        </View>
+
+        {image && (
+          <View style={styles.previewWrap}>
+            <Image source={{ uri: image.uri }} style={styles.preview} />
+            <TouchableOpacity style={styles.removeBadge} onPress={removeImage}>
+              <Text style={styles.removeBadgeText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+
+
+
       <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
         <Text style={styles.btnText}>✅ Submit</Text>
       </TouchableOpacity>
@@ -434,6 +556,32 @@ const renderItem = ({ item }) => (
 export default LocalConveyanceScreen;
 
 //const isDarkMode = useColorScheme() === 'dark'; // optional
+
+const COLORS = {
+  bg: "#F6F8FA",
+  card: "#FFFFFF",
+  text: "#111",
+  subtext: "#666",
+  border: "#E6E8EB",
+  primary: "#2563EB",
+  primaryText: "#FFFFFF",
+  chipBg: "#EFF3F8",
+  chipActiveBg: "#DBEAFE",
+  chipText: "#374151",
+  chipTextActive: "#1D4ED8",
+  danger: "#EF4444",
+};
+
+
+const shadow = Platform.select({
+  ios: {
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  android: { elevation: 3 },
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -797,7 +945,27 @@ formOverlay: {
     color: '#0f172a',
     fontWeight: '700',
   },
+  previewWrap: { marginTop: 12, position: "relative" },
+  card: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderColor: COLORS.border,
+    borderWidth: 1,
+    ...shadow,
+  },
 
+  btnOutline: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  btnOutlineText: { color: COLORS.text, fontWeight: "600" },
 });
 
 
