@@ -19,44 +19,124 @@ export default function LocalConveyanceListScreen({ navigation }) {
   const [entries, setEntries] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
 
   const loadUserId = useCallback(async () => {
     const id = await AsyncStorage.getItem('user_id');
     if (id) setUserId(id);
   }, []);
 
-  const fetchEntries = useCallback(async () => {
+  const fetchEntries = useCallback(async (newPage = 1, isRefresh = false) => {
     if (!userId) return;
     try {
       const res = await axios.get(`${API_URL}/api/tour_conveyances`, {
-        params: { engineer_id: userId },
+        params: { 
+ 	engineer_id: userId,
+          page: newPage,
+          per_page: 10,
+	},
       });
-      setEntries(res.data || []);
+   
+      const newData = res.data;
+
+    if (isRefresh) {
+        setEntries(newData);
+      } else {
+        setEntries(prev => [...prev, ...newData]);
+      }
+
+      setHasMore(newData.length === 10); // if less than 10, no more pages
+
+
     } catch (e) {
       console.log('Fetch entries error:', e?.response?.data || e.message);
     }
   }, [userId]);
 
 
+
+  const loadMore = () => {
+    if (!isLoadingMore && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      setIsLoadingMore(true);
+      fetchEntries(nextPage).finally(() => setIsLoadingMore(false));
+    }
+  };
+
+/*
 useFocusEffect(
   React.useCallback(() => {
     if (userId) fetchEntries();   // your existing fetchEntries useCallback
   }, [userId, fetchEntries])
+);
+*/
+/*
+  useFocusEffect(
+    useCallback(() => {
+      handleRefresh();
+    }, [])
+  );
+*/
+/*useFocusEffect(
+  useCallback(() => {
+    handleRefresh();
+
+    return () => {
+      // Cleanup if needed
+    };
+  }, [])
+);
+*/
+useFocusEffect(
+  useCallback(() => {
+    fetchEntries();
+  }, [fetchEntries])
 );
 
   useEffect(() => {
     loadUserId();
   }, [loadUserId]);
 
-  useEffect(() => {
+/*  useEffect(() => {
     fetchEntries();
   }, [fetchEntries]);
-
+*/
+/*
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchEntries();
     setRefreshing(false);
   }, [fetchEntries]);
+*/
+/*
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    setPage(1);
+    fetchEntries(1, true).finally(() => setIsRefreshing(false));
+  };
+*/
+const handleRefresh = useCallback(() => {
+  setIsRefreshing(true);
+  setPage(1);
+  fetchEntries(1, true).finally(() => setIsRefreshing(false));
+}, []);
+
+
+
+
+
+  const renderFooter = () =>
+    isLoadingMore ? (
+      <Text style={{ textAlign: 'center', padding: 10 }}>Loading more...</Text>
+    ) : null;
+
+
+
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
@@ -120,12 +200,16 @@ useFocusEffect(
     <View style={styles.container}>
       <FlatList
         data={entries}
-        keyExtractor={(_, index) => String(index)}
+        keyExtractor={(item, index) => index.toString()}
+
         renderItem={renderItem}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
         }
         ListHeaderComponent={<Text style={styles.title}>Local Conveyance Entries</Text>}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={renderFooter}
       />
 
       <TouchableOpacity
