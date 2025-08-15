@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import axios from 'axios';
 import { Picker } from '@react-native-picker/picker';
+const API_URL = 'http://134.199.178.17/gayatri';
 
 
 export default function LeaveScreen() {
@@ -23,13 +24,23 @@ export default function LeaveScreen() {
   const [leaves, setLeaves] = useState([]);
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
-  const [selectedType, setSelectedType] = useState('');
+  const [selectedType, setSelectedType] = useState(''); 
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [userId, setUserId] = useState(null); // assuming user-specific leaves
 
 
+
+
+/*
   useEffect(() => {
     fetchLeaves();
   }, []);
+*/
 
+/*
   const fetchLeaves = async () => {
     const userId = await AsyncStorage.getItem('user_id');
     try {
@@ -41,6 +52,65 @@ export default function LeaveScreen() {
       console.error('Error fetching leave applications:', error);
     }
   };
+*/
+
+useEffect(() => {
+  if (userId) {
+    fetchLeaves(1, true);
+  }
+}, [userId]);
+
+
+useEffect(() => {
+  const getUser = async () => {
+    const id = await AsyncStorage.getItem('user_id');
+    setUserId(id);
+  };
+  getUser();
+}, []);
+
+const handleRefresh = () => {
+  setRefreshing(true);
+  setPage(1);
+  fetchLeaves(1, true);
+  setRefreshing(false);
+};
+
+const handleLoadMore = () => {
+  if (!loading && hasMore) {
+    fetchLeaves(page);
+  }
+};
+
+const fetchLeaves = async (pageToLoad = 1, isRefresh = false) => {
+  if (loading || (!isRefresh && !hasMore)) return;
+  setLoading(true);
+  try {
+    const res = await axios.get(`${API_URL}/api/leave_applications`, {
+      params: {
+        user_id: userId,
+        page: pageToLoad,
+        per_page: 10,
+      },
+    });
+    const newData = res.data;
+    if (isRefresh) {
+      setLeaves(newData);
+    } else {
+      setLeaves((prev) => [...prev, ...newData]);
+    }
+    setHasMore(newData.length === 10);
+    setPage(pageToLoad + 1);
+  } catch (err) {
+    console.error('Leave fetch error:', err);
+  }
+  setLoading(false);
+};
+
+
+
+
+
 
   useEffect(() => {
     fetch('http://134.199.178.17/gayatri/api/leave_types')
@@ -57,59 +127,50 @@ export default function LeaveScreen() {
       Alert.alert('Validation', 'Leave type and reason are required.');
       return;
     }
-
     const userId = await AsyncStorage.getItem('user_id');
-
-
-
-try {
-    const { data } = await axios.post(
-      'http://134.199.178.17/gayatri/api/leave_applications',
-      {
-        user_id: userId,
-        leave_type: selectedType,
-        from_date: fromDate.toISOString().split('T')[0],
-        to_date: toDate.toISOString().split('T')[0],
-        reason: reason,
-      }
-    );
-
-    // Success path
-    Alert.alert('Success', data?.message || 'Leave application submitted.');
-    setSelectedType('');   // reset to "Select type"
-    setReason('');
-    fetchLeaves();
-  } catch (error) {
-    // Server responded (4xx/5xx)
-    if (error.response) {
-      const apiErrors = error.response.data?.errors;
-      const apiMessage = error.response.data?.message;
-
-      const message =
-        (Array.isArray(apiErrors) && apiErrors.length
-          ? apiErrors.join('\n')
-          : apiMessage) || 'Something went wrong.';
-
-      Alert.alert('Error', message);
-    }
-    // No response (network, CORS, server down)
-    else if (error.request) {
-      Alert.alert(
-        'Network Error',
-        'Unable to reach the server. Please check your connection and try again.'
+    try {
+      const { data } = await axios.post(
+        'http://134.199.178.17/gayatri/api/leave_applications',
+        {
+          user_id: userId,
+          leave_type: selectedType,
+          from_date: fromDate.toISOString().split('T')[0],
+          to_date: toDate.toISOString().split('T')[0],
+          reason: reason,
+        }
       );
-    }
-    // Something else (code bug, thrown error)
-    else {
-      Alert.alert('Error', error.message || 'Unexpected error occurred.');
-    }
 
-    console.error('Error submitting leave:', error);
+      // Success path
+      Alert.alert('Success', data?.message || 'Leave application submitted.');
+      setSelectedType('');   // reset to "Select type"
+      setReason('');
+      fetchLeaves();
+    } catch (error) {
+      // Server responded (4xx/5xx)
+      if (error.response) {
+        const apiErrors = error.response.data?.errors;
+        const apiMessage = error.response.data?.message;
+
+        const message =
+          (Array.isArray(apiErrors) && apiErrors.length
+            ? apiErrors.join('\n')
+            : apiMessage) || 'Something went wrong.';
+
+        Alert.alert('Error', message);
+      }
+      // No response (network, CORS, server down)
+      else if (error.request) {
+        Alert.alert(
+          'Network Error',
+          'Unable to reach the server. Please check your connection and try again.'
+        );
+      }
+      // Something else (code bug, thrown error)
+      else {
+        Alert.alert('Error', error.message || 'Unexpected error occurred.');
+      }
+      console.error('Error submitting leave:', error);
   }
-
-
-
-
   };
 
 return (
@@ -117,25 +178,28 @@ return (
     style={styles.container}
     data={leaves}
     keyExtractor={(item, index) => index.toString()}
+    onEndReached={handleLoadMore}
+    onEndReachedThreshold={0.2}
+    onRefresh={handleRefresh}
+    refreshing={refreshing}
     ListHeaderComponent={
-      <>
-        <Text style={styles.title}   >Apply for Leave</Text>
+      <View style={styles.formCard}>
+        <Text style={styles.title}>📝 Apply for Leave</Text>
 
-    <View style={styles.pickerContainer}>
-
-      <Picker
-        selectedValue={selectedType}
-        onValueChange={(value) => setSelectedType(value)} // use the setter here
-        style={styles.picker}
-        dropdownIconColor="#333"
-      >
-        <Picker.Item label="Select type" value="" />
-        {(leaveTypes || []).map((type, index) => (
-          <Picker.Item key={index} label={type} value={type} />
-        ))}
-      </Picker>
-
-</View>
+        <Text style={styles.label}>Leave Type</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={selectedType}
+            onValueChange={(value) => setSelectedType(value)}
+            style={styles.picker}
+            dropdownIconColor="#333"
+          >
+            <Picker.Item label="Select type" value="" />
+            {(leaveTypes || []).map((type, index) => (
+              <Picker.Item key={index} label={type} value={type} />
+            ))}
+          </Picker>
+        </View>
 
         <Text style={styles.label}>From Date</Text>
         <Button title={fromDate.toDateString()} onPress={() => setShowFromPicker(true)} />
@@ -164,110 +228,118 @@ return (
             }}
           />
         )}
-        <Text style={styles.title}>Reason</Text>
+
+        <Text style={styles.label}>Reason</Text>
         <TextInput
           style={[styles.input, { height: 80 }]}
-          placeholder="Reason"
+          placeholder="Enter reason for leave"
           multiline
           value={reason}
           onChangeText={setReason}
         />
 
-        <View style={{ marginVertical: 10 }}>
+        <View style={styles.buttonWrapper}>
           <Button
-            title="Submit Leave Application"
+            title="📤 Submit Leave Application"
             color="#004080"
             onPress={submitLeave}
           />
         </View>
 
-        <Text style={styles.subTitle}>Your Previous Leaves</Text>
+        <Text style={styles.subTitle}>📚 Your Previous Leaves</Text>
         {leaves.length === 0 && (
-          <Text style={{ color: '#999', textAlign: 'center', marginTop: 10 }}>
+          <Text style={styles.noRecordText}>
             No leave records found.
           </Text>
         )}
-      </>
+      </View>
     }
     renderItem={({ item }) => (
       <View style={styles.card}>
         <Text style={styles.cardText}>📝 {item.leave_type}</Text>
-        <Text style={styles.cardText}>📅 {item.from_date} to {item.to_date}</Text>
-        <Text style={styles.cardText}>📖 {item.reason}</Text>
+        <Text style={styles.cardText}>📅 {item.from_date} → {item.to_date}</Text>
+        <Text style={styles.cardText}>💬 {item.reason}</Text>
         <Text style={styles.cardText}>✅ Status: {item.status}</Text>
       </View>
     )}
   />
+  {loading && !refreshing && (
+  <ActivityIndicator size="small" color="#004080" style={{ marginVertical: 10 }} />
+)}
 );
+
 
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#f9f9f9',
-    padding: 16,
+    padding: 10,
+    backgroundColor: '#f5f6fa',
+  },
+  formCard: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
+    elevation: 3,
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 16,
     color: '#004080',
+    marginBottom: 10,
     textAlign: 'center',
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginTop: 12,
-    marginBottom: 6,
-    color: '#333',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
-    fontSize: 16,
-    marginBottom: 12,
   },
   subTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginTop: 20,
-    marginBottom: 10,
-    color: '#004080',
-  },
-  card: {
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 10,
-    marginVertical: 6,
-    marginHorizontal: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2, // Android shadow
-  },
-  cardText: {
-    fontSize: 15,
     color: '#333',
+  },
+  label: {
+    marginTop: 10,
     marginBottom: 4,
+    fontWeight: '600',
+    color: '#333',
+  },
+  input: {
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+    backgroundColor: '#fff',
   },
   pickerContainer: {
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
-    overflow: 'hidden', // ensures corners are rounded
-    marginVertical: 10,
+    overflow: 'hidden',
+    marginBottom: 10,
+    backgroundColor: '#fff',
   },
   picker: {
-    height: 50,
-    fontSize: 16,
-    color: '#000', // text color
-    backgroundColor: '#f9f9f9',
+    height: 45,
+    width: '100%',
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    padding: 15,
+    marginBottom: 10,
+    borderRadius: 10,
+    elevation: 2,
+  },
+  cardText: {
+    fontSize: 14,
+    marginBottom: 4,
+    color: '#333',
+  },
+  noRecordText: {
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  buttonWrapper: {
+    marginTop: 15,
   },
 });
-
