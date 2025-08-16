@@ -23,14 +23,15 @@ export default function LocalConveyanceListScreen({ navigation }) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-
+/*
   const loadUserId = useCallback(async () => {
     const id = await AsyncStorage.getItem('user_id');
     if (id) setUserId(id);
   }, []);
-
-  const fetchEntries = useCallback(async (newPage = 1, isRefresh = false) => {
+*/
+  /*const fetchEntries = useCallback(async (newPage = 1, isRefresh = false) => {
     if (!userId) return;
     try {
       const res = await axios.get(`${API_URL}/api/tour_conveyances`, {
@@ -56,9 +57,23 @@ export default function LocalConveyanceListScreen({ navigation }) {
       console.log('Fetch entries error:', e?.response?.data || e.message);
     }
   }, [userId]);
+*/
 
-
-
+/*const fetchEntries = async (currentPage = 1) => {
+  if (loading) return;
+  setLoading(true);
+  try {
+    const res = await axios.get(`${API_URL}/api/tour_conveyances`, {
+      params: { engineer_id: userId, page: currentPage, per_page: 10 },
+    });
+    setEntries(prev => currentPage === 1 ? res.data : [...prev, ...res.data]);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
+*/
   const loadMore = () => {
     if (!isLoadingMore && hasMore) {
       const nextPage = page + 1;
@@ -95,13 +110,73 @@ useFocusEffect(
 useFocusEffect(
   useCallback(() => {
     fetchEntries();
-  }, [fetchEntries])
+  }, [userId, fetchEntries])
 );
+
+/*const fetchEntries = useCallback(async (currentPage = 1) => {
+  if (loading) return;
+  setLoading(true);
+  try {
+    const res = await axios.get(`${API_URL}/api/tour_conveyances`, {
+      params: { engineer_id: userId, page: currentPage, per_page: 10 },
+    });
+    setEntries(prev => currentPage === 1 ? res.data : [...prev, ...res.data]);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+}, [userId, loading]);
+
+*/
+
+
+useEffect(() => {
+  const loadUserId = async () => {
+    const id = await AsyncStorage.getItem('user_id');
+    setUserId(id);
+  };
+
+  loadUserId();
+}, []);
+
+const fetchEntries = async (pageToLoad = 1, refreshing = false) => {
+console.log('Fetching with cccuserId:', userId);
+console.log(loading);
+console.log(refreshing)
+console.log(hasMore)
+  if (loading || (!refreshing && !hasMore)) return;
+console.log('Fetching with userId:', userId);
+
+  setLoading(true);
+
+  try {
+    const res = await axios.get(`${API_URL}/api/tour_conveyances`, {
+      params: { engineer_id: userId, page: pageToLoad, per_page: 10 },
+    });
+
+    const newData = res.data;
+    if (refreshing) {
+      setEntries(newData);
+    } else {
+      setEntries((prev) => [...prev, ...newData]);
+    }
+
+    setHasMore(newData.length === 10); // If less than 10, no more pages
+    setPage(pageToLoad + 1);
+  } catch (err) {
+    console.log('Pagination Fetch Error:', err);
+  }
+
+  setLoading(false);
+};
+
+/*
 
   useEffect(() => {
     loadUserId();
   }, [loadUserId]);
-
+*/
 /*  useEffect(() => {
     fetchEntries();
   }, [fetchEntries]);
@@ -120,14 +195,31 @@ useFocusEffect(
     fetchEntries(1, true).finally(() => setIsRefreshing(false));
   };
 */
-const handleRefresh = useCallback(() => {
+/*const handleRefresh = useCallback(() => {
   setIsRefreshing(true);
   setPage(1);
   fetchEntries(1, true).finally(() => setIsRefreshing(false));
 }, []);
+*/
 
+const handleRefresh = () => {
+  setPage(1);
+  fetchEntries(1);
+};
 
-
+/*
+const handleLoadMore = () => {
+  if (loading) return;
+  const nextPage = page + 1;
+  setPage(nextPage);
+  fetchEntries(nextPage);
+};
+*/
+const handleLoadMore = () => {
+  if (!loading && hasMore) {
+    fetchEntries(page);
+  }
+};
 
 
   const renderFooter = () =>
@@ -198,20 +290,17 @@ const handleRefresh = useCallback(() => {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={entries}
-        keyExtractor={(item, index) => index.toString()}
 
-        renderItem={renderItem}
-        refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
-        }
-        ListHeaderComponent={<Text style={styles.title}>Local Conveyance Entries</Text>}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={renderFooter}
-      />
 
+<FlatList
+  data={entries}
+  keyExtractor={(item, index) => index.toString()}
+  renderItem={renderItem}
+  onEndReached={handleLoadMore}
+  onEndReachedThreshold={0.5}
+  onRefresh={handleRefresh}
+  refreshing={loading}
+/>
       <TouchableOpacity
         style={styles.addBtn}
         onPress={() => navigation.navigate('LocalConveyanceForm')}
