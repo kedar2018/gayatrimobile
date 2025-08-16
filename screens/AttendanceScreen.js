@@ -83,240 +83,209 @@ export default function AttendanceScreen() {
   };
 
   return (
-    <FlatList
-      data={logs}
-      keyExtractor={(item, index) => index.toString()}
-      contentContainerStyle={styles.container}
-      ListHeaderComponent={
-        <>
-          <Text style={styles.title}>Log Attendance</Text>
+  <FlatList
+    data={logs}
+    keyExtractor={(item, index) => index.toString()}
+    contentContainerStyle={styles.container}
+    ListHeaderComponent={
+      <>
+        <Text style={styles.title}>Log Attendance</Text>
 
-          {!!errorMsg && (
-            <View style={[styles.banner, styles.errorBanner]}>
-              <Text style={styles.bannerText}>{errorMsg}</Text>
-              <TouchableOpacity onPress={() => setErrorMsg('')}>
-                <Text style={styles.bannerClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {!!successMsg && (
-            <View style={[styles.banner, styles.successBanner]}>
-              <Text style={styles.bannerText}>{successMsg}</Text>
-              <TouchableOpacity onPress={() => setSuccessMsg('')}>
-                <Text style={styles.bannerClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          <Text style={styles.label}>Hour</Text>
-          <View style={styles.pickerWrapper}>
-
-  <Picker
-    selectedValue={hour}
-    onValueChange={(val) => setHour(val)}
-    mode="dropdown"                         // Android: dropdown instead of dialog
-    style={styles.picker}                   // main control style
-    itemStyle={styles.pickerItem}           // iOS item font
-    dropdownIconColor="#475569"             // Android icon
-    dropdownIconRippleColor="#e5e7eb"       // Android ripple
-    prompt="Select hour"                    // Android dialog title (fallback)
-  >
-    <Picker.Item label="Select hour" value="" enabled={false} />
-    {[...Array(24).keys()].map((h) => (
-      <Picker.Item key={h} label={`${h}:00`} value={h.toString()} />
-    ))}
-  </Picker>
-
+        {/* Banners */}
+        {!!errorMsg && (
+          <View style={[styles.banner, styles.errorBanner]}>
+            <Text style={styles.bannerText}>{errorMsg}</Text>
+            <TouchableOpacity onPress={() => setErrorMsg('')}>
+              <Text style={styles.bannerClose}>✕</Text>
+            </TouchableOpacity>
           </View>
+        )}
 
-          <Text style={styles.label}>Task</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter task"
-            value={task}
-            onChangeText={setTask}
-            placeholderTextColor="#9aa3af"
-          />
+        {!!successMsg && (
+          <View style={[styles.banner, styles.successBanner]}>
+            <Text style={styles.bannerText}>{successMsg}</Text>
+            <TouchableOpacity onPress={() => setSuccessMsg('')}>
+              <Text style={styles.bannerClose}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-          <TouchableOpacity
-            onPress={submitAttendance}
-            disabled={submitting}
-            style={[styles.button, submitting && styles.buttonDisabled]}
+        {/* Hour Picker */}
+        <Text style={styles.label}>Hour</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={hour}
+            onValueChange={(val) => setHour(val)}
+            style={styles.picker}
+            dropdownIconColor="#333"
+            prompt="Select hour"
           >
-            <Text style={styles.buttonText}>{submitting ? 'Submitting…' : 'Submit'}</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.subTitle}>Your Attendance Logs</Text>
-          {logs.length === 0 && (
-            <Text style={styles.noLogs}>No attendance yet.</Text>
-          )}
-        </>
-      }
-      renderItem={({ item }) => (
-        <View style={styles.card}>
-          <Text style={styles.cardLine}>📅 {item.log_date}</Text>
-          <Text style={styles.cardLine}>⏱ {item.hour}:00</Text>
-          <Text style={styles.cardLine}>📝 {item.task}</Text>
+            <Picker.Item label="Select hour" value="" enabled={false} />
+            {[...Array(24).keys()].map((h) => (
+              <Picker.Item key={h} label={`${h}:00`} value={h.toString()} />
+            ))}
+          </Picker>
         </View>
-      )}
-    />
-  );
+
+        {/* Task Input */}
+        <Text style={styles.label}>Task</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter task"
+          value={task}
+          onChangeText={setTask}
+          placeholderTextColor="#9aa3af"
+        />
+
+        {/* Submit Button */}
+        <TouchableOpacity
+          onPress={submitAttendance}
+          disabled={submitting}
+          style={[styles.button, submitting && styles.buttonDisabled]}
+        >
+          <Text style={styles.buttonText}>
+            {submitting ? 'Submitting…' : 'Submit'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Header for Logs */}
+        <Text style={styles.subTitle}>Your Attendance Logs</Text>
+        {logs.length === 0 && (
+          <Text style={styles.noLogs}>No attendance yet.</Text>
+        )}
+      </>
+    }
+    renderItem={({ item }) => (
+      <View style={styles.card}>
+        <Text style={styles.cardText}>📅 {item.log_date}</Text>
+        <Text style={styles.cardText}>⏱ {item.hour}:00</Text>
+        <Text style={styles.cardText}>📝 {item.task}</Text>
+      </View>
+    )}
+  />
+);
+
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
-    backgroundColor: '#f2f4f7',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#004080',
-    marginBottom: 12,
-  },
-  label: {
-    marginTop: 10,
-    marginBottom: 6,
-    fontSize: 14,
-    color: '#4b5563',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 14,
-    backgroundColor: '#fff',
-    fontSize: 16,
-  },
-  pickerWrapper: {
-color: '#hgfswd', // text color
-    backgroundColor: '#swdsss',
-    borderRadius: 10,
-    borderColor: '#cbd5e1',
-    borderWidth: 1,
-    marginBottom: 14,
-    overflow: 'hidden',
-  },
-  picker: {
-    height: 50,
-    width: '100%',
-  },
-  button: {
-    backgroundColor: '#004080',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-    letterSpacing: 0.2,
-  },
-  subTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginTop: 22,
-    color: '#004080',
-  },
-  noLogs: {
-    textAlign: 'center',
-    color: '#6b7280',
-    marginTop: 10,
-  },
-  card: {
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 12,
-    marginVertical: 6,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  cardLine: {
-    fontSize: 15,
-    color: '#111827',
-    marginBottom: 2,
-  },
-  // Inline banner styles (same pattern as Leave screen)
-  banner: {
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  errorBanner: {
-    backgroundColor: '#fee2e2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-  },
-  successBanner: {
-    backgroundColor: '#dcfce7',
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-  },
-  bannerText: {
-    color: '#111827',
-    flex: 1,
-    fontSize: 14,
-  },
-  bannerClose: {
-    color: '#111827',
-    fontSize: 16,
-    paddingHorizontal: 6,
-  },
-  label: {
-    marginTop: 10,
-    marginBottom: 6,
-    fontSize: 14,
-    color: '#4b5563',
-  },
+  padding: 16,
+  backgroundColor: '#f8fafc',
+},
 
-  // Outer wrapper to simulate padding & rounded corners (Android Picker ignores some paddings)
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    overflow: 'hidden',
-    marginBottom: 14,
-    // iOS shadow (subtle)
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    // Android elevation
-    elevation: 1,
-  },
+title: {
+  fontSize: 20,
+  fontWeight: 'bold',
+  marginBottom: 12,
+  color: '#1e293b',
+},
 
-  // Control height + left/right breathing room (Platform-specific for best behavior)
-  picker: {
-    height: 52,
-    ...Platform.select({
-      ios: { paddingHorizontal: 12 },       // iOS respects padding
-      android: { paddingHorizontal: 6 },    // Android ignores mostly, wrapper helps
-    }),
-    color: '#111827',
-    fontSize: 16,
-  },
+label: {
+  marginTop: 10,
+  fontSize: 14,
+  fontWeight: '600',
+  color: '#334155',
+},
 
-  // iOS only: font and row height for the wheel/dropdown rows
-  pickerItem: Platform.select({
-    ios: {
-      fontSize: 16,
-      height: 52,
-    },
-    android: {}, // No effect on Android
-  }),
+pickerContainer: {
+  borderWidth: 1,
+  borderColor: '#ccc',
+  borderRadius: 6,
+  marginBottom: 10,
+  overflow: 'hidden',
+},
+
+picker: {
+  height: 55,
+  width: '100%',
+  backgroundColor: '#fff',
+  color: '#1f2937',
+},
+
+input: {
+  height: 45,
+  borderWidth: 1,
+  borderColor: '#cbd5e1',
+  borderRadius: 6,
+  paddingHorizontal: 10,
+  backgroundColor: '#fff',
+  marginBottom: 12,
+},
+
+button: {
+  backgroundColor: '#004080',
+  padding: 12,
+  borderRadius: 6,
+  alignItems: 'center',
+  marginBottom: 16,
+},
+
+buttonDisabled: {
+  backgroundColor: '#94a3b8',
+},
+
+buttonText: {
+  color: '#fff',
+  fontWeight: '600',
+},
+
+subTitle: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  marginVertical: 10,
+  color: '#1e293b',
+},
+
+card: {
+  backgroundColor: '#fff',
+  borderRadius: 6,
+  padding: 12,
+  marginVertical: 6,
+  shadowColor: '#000',
+  shadowOpacity: 0.1,
+  shadowRadius: 3,
+  elevation: 2,
+},
+
+cardText: {
+  fontSize: 14,
+  color: '#334155',
+},
+
+noLogs: {
+  color: '#9ca3af',
+  textAlign: 'center',
+  marginTop: 10,
+},
+
+banner: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: 10,
+  marginVertical: 5,
+  borderRadius: 5,
+},
+
+errorBanner: {
+  backgroundColor: '#fee2e2',
+},
+
+successBanner: {
+  backgroundColor: '#dcfce7',
+},
+
+bannerText: {
+  color: '#1e293b',
+  flex: 1,
+},
+
+bannerClose: {
+  marginLeft: 10,
+  fontSize: 16,
+  fontWeight: 'bold',
+  color: '#334155',
+},
+
 });
+
