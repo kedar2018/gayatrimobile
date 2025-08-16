@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -31,29 +32,6 @@ export default function LeaveScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState(null); // assuming user-specific leaves
 
-
-
-
-/*
-  useEffect(() => {
-    fetchLeaves();
-  }, []);
-*/
-
-/*
-  const fetchLeaves = async () => {
-    const userId = await AsyncStorage.getItem('user_id');
-    try {
-      const res = await axios.get(
-        `http://134.199.178.17/gayatri/api/leave_applications?user_id=${userId}`
-      );
-      setLeaves(res.data);
-    } catch (error) {
-      console.error('Error fetching leave applications:', error);
-    }
-  };
-*/
-
 useEffect(() => {
   if (userId) {
     fetchLeaves(1, true);
@@ -69,12 +47,22 @@ useEffect(() => {
   getUser();
 }, []);
 
-const handleRefresh = () => {
+/*const handleRefresh = () => {
   setRefreshing(true);
   setPage(1);
   fetchLeaves(1, true);
   setRefreshing(false);
 };
+*/
+const handleRefresh = () => {
+  setRefreshing(true);
+  setPage(1);
+  fetchLeaves(1, true).finally(() => {
+    setRefreshing(false);
+  });
+};
+
+
 
 const handleLoadMore = () => {
   if (!loading && hasMore) {
@@ -83,7 +71,8 @@ const handleLoadMore = () => {
 };
 
 const fetchLeaves = async (pageToLoad = 1, isRefresh = false) => {
-  if (loading || (!isRefresh && !hasMore)) return;
+  if (loading || (!isRefresh && !hasMore) || !userId) return;
+
   setLoading(true);
   try {
     const res = await axios.get(`${API_URL}/api/leave_applications`, {
@@ -108,18 +97,12 @@ const fetchLeaves = async (pageToLoad = 1, isRefresh = false) => {
 };
 
 
-
-
-
-
   useEffect(() => {
     fetch('http://134.199.178.17/gayatri/api/leave_types')
       .then(res => res.json())
       .then(data => setLeaveTypes(data.leave_types))
       .catch(err => console.error(err));
   }, []);
-
-
 
 
   const submitLeave = async () => {
@@ -143,8 +126,10 @@ const fetchLeaves = async (pageToLoad = 1, isRefresh = false) => {
       // Success path
       Alert.alert('Success', data?.message || 'Leave application submitted.');
       setSelectedType('');   // reset to "Select type"
-      setReason('');
-      fetchLeaves();
+      setReason(''); 
+      // Refresh leave list from page 1
+      await fetchLeaves(1, true);
+      setPage(2); // Reset page counter for pagination
     } catch (error) {
       // Server responded (4xx/5xx)
       if (error.response) {
@@ -174,6 +159,7 @@ const fetchLeaves = async (pageToLoad = 1, isRefresh = false) => {
   };
 
 return (
+  <>
   <FlatList
     style={styles.container}
     data={leaves}
@@ -266,6 +252,7 @@ return (
   {loading && !refreshing && (
   <ActivityIndicator size="small" color="#004080" style={{ marginVertical: 10 }} />
 )}
+  </>
 );
 
 
