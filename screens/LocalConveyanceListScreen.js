@@ -20,126 +20,13 @@ export default function LocalConveyanceListScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState(null);
   const [page, setPage] = useState(1);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
 
-/*
-  const loadUserId = useCallback(async () => {
-    const id = await AsyncStorage.getItem('user_id');
-    if (id) setUserId(id);
-  }, []);
-*/
-  /*const fetchEntries = useCallback(async (newPage = 1, isRefresh = false) => {
-    if (!userId) return;
-    try {
-      const res = await axios.get(`${API_URL}/api/tour_conveyances`, {
-        params: { 
- 	engineer_id: userId,
-          page: newPage,
-          per_page: 10,
-	},
-      });
-   
-      const newData = res.data;
-
-    if (isRefresh) {
-        setEntries(newData);
-      } else {
-        setEntries(prev => [...prev, ...newData]);
-      }
-
-      setHasMore(newData.length === 10); // if less than 10, no more pages
-
-
-    } catch (e) {
-      console.log('Fetch entries error:', e?.response?.data || e.message);
-    }
-  }, [userId]);
-*/
-
-/*const fetchEntries = async (currentPage = 1) => {
-  if (loading) return;
-  setLoading(true);
-  try {
-    const res = await axios.get(`${API_URL}/api/tour_conveyances`, {
-      params: { engineer_id: userId, page: currentPage, per_page: 10 },
-    });
-    setEntries(prev => currentPage === 1 ? res.data : [...prev, ...res.data]);
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setLoading(false);
-  }
-};
-*/
-  const loadMore = () => {
-    if (!isLoadingMore && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      setIsLoadingMore(true);
-      fetchEntries(nextPage).finally(() => setIsLoadingMore(false));
-    }
-  };
-
-/*
-useFocusEffect(
-  React.useCallback(() => {
-    if (userId) fetchEntries();   // your existing fetchEntries useCallback
-  }, [userId, fetchEntries])
-);
-*/
-/*
-  useFocusEffect(
-    useCallback(() => {
-      handleRefresh();
-    }, [])
-  );
-*/
-/*useFocusEffect(
-  useCallback(() => {
-    handleRefresh();
-
-    return () => {
-      // Cleanup if needed
-    };
-  }, [])
-);
-*/
-useFocusEffect(
-  useCallback(() => {
-    fetchEntries();
-  }, [userId, fetchEntries])
-);
-
-/*const fetchEntries = useCallback(async (currentPage = 1) => {
-  if (loading) return;
-  setLoading(true);
-  try {
-    const res = await axios.get(`${API_URL}/api/tour_conveyances`, {
-      params: { engineer_id: userId, page: currentPage, per_page: 10 },
-    });
-    setEntries(prev => currentPage === 1 ? res.data : [...prev, ...res.data]);
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setLoading(false);
-  }
-}, [userId, loading]);
-
-*/
-
-
-useEffect(() => {
-  const loadUserId = async () => {
-    const id = await AsyncStorage.getItem('user_id');
-    setUserId(id);
-  };
-
-  loadUserId();
-}, []);
-
+ 
+  
+ 
 const fetchEntries = async (pageToLoad = 1, refreshing = false) => {
 console.log('Fetching with cccuserId:', userId);
 console.log(loading);
@@ -171,50 +58,42 @@ console.log('Fetching with userId:', userId);
   setLoading(false);
 };
 
-/*
-
-  useEffect(() => {
-    loadUserId();
-  }, [loadUserId]);
-*/
-/*  useEffect(() => {
+ 
+  
+ /*
+useFocusEffect(
+  useCallback(() => {
     fetchEntries();
-  }, [fetchEntries]);
+  }, [userId, fetchEntries])
+);
 */
-/*
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchEntries();
-    setRefreshing(false);
-  }, [fetchEntries]);
-*/
-/*
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setPage(1);
-    fetchEntries(1, true).finally(() => setIsRefreshing(false));
+
+useFocusEffect(
+  useCallback(() => {
+    if (userId) {
+      fetchEntries(1, true); // trigger initial fetch
+    }
+  }, [userId])
+);
+
+ 
+useEffect(() => {
+  const loadUserId = async () => {
+    const id = await AsyncStorage.getItem('user_id');
+    setUserId(id);
   };
-*/
-/*const handleRefresh = useCallback(() => {
-  setIsRefreshing(true);
-  setPage(1);
-  fetchEntries(1, true).finally(() => setIsRefreshing(false));
+
+  loadUserId();
 }, []);
-*/
+
+
 
 const handleRefresh = () => {
   setPage(1);
   fetchEntries(1);
 };
 
-/*
-const handleLoadMore = () => {
-  if (loading) return;
-  const nextPage = page + 1;
-  setPage(nextPage);
-  fetchEntries(nextPage);
-};
-*/
+ 
 const handleLoadMore = () => {
   if (!loading && hasMore) {
     fetchEntries(page);
@@ -222,12 +101,7 @@ const handleLoadMore = () => {
 };
 
 
-  const renderFooter = () =>
-    isLoadingMore ? (
-      <Text style={{ textAlign: 'center', padding: 10 }}>Loading more...</Text>
-    ) : null;
-
-
+ 
 
 
   const renderItem = ({ item }) => (
@@ -361,3 +235,4 @@ const styles = StyleSheet.create({
   },
   btnText: { color: '#fff', fontWeight: '700' },
 });
+
