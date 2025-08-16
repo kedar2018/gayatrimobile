@@ -297,18 +297,22 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     backgroundColor: '#fff',
   },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 10,
-    backgroundColor: '#fff',
-  },
-  picker: {
-    height: 45,
-    width: '100%',
-  },
+
+pickerContainer: {
+  borderWidth: 1,
+  borderColor: '#ccc',
+  borderRadius: 5,
+  marginBottom: 10,
+  overflow: 'hidden',
+},
+
+picker: {
+  height: 55,
+  width: '100%',
+  backgroundColor: '#fff',
+  color: '#333',
+  paddingHorizontal: 10,
+},
   card: {
     backgroundColor: '#ffffff',
     padding: 15,
