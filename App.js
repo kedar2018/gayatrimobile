@@ -47,6 +47,7 @@ function MainTabs() {
         tabBarInactiveTintColor: 'gray',
       })}
     >
+      <Tab.Screen name="Local Conveyance" component={LocalConveyanceListScreen} />
       {/*<Tab.Screen name="CallReports" component={CallReportsScreen} />*/}
       {/*<Tab.Screen name="CallReportsDropdown" component={CallReportsDropdownScreen}/>*/}
       <Tab.Screen name="Leave" component={LeaveScreen} />
@@ -55,7 +56,6 @@ function MainTabs() {
       <Tab.Screen name="PartRequestList" component={PartRequestList} options={{ tabBarButton: () => null, tabBarVisible: false }} />
      */}	
       <Tab.Screen name="Profile" component={ProfileScreen} />
-      <Tab.Screen name="Local Conveyance" component={LocalConveyanceListScreen} />
     </Tab.Navigator>
   );
 }
