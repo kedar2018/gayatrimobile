@@ -252,8 +252,16 @@ export default function LocalConveyanceFormScreen({ navigation }) {
       // Go back to list; list screen can refetch in focus listener or pull-to-refresh
       navigation.goBack();
     } catch (err) {
-      console.log('Submit Error:', err?.response?.data || err.message);
-      Alert.alert('Error', 'Failed to save entry');
+
+console.log('Submit Error:', err.response?.data);
+
+    if (err.response?.status === 422 && err.response?.data?.errors) {
+      const errorMessages = err.response.data.errors.join('\n');
+      Alert.alert('Validation Error', errorMessages);
+    } else {
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    }
+
     }
   };
 
