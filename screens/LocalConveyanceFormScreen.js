@@ -21,19 +21,7 @@ import * as FileSystem from 'expo-file-system';
 
 const API_URL = 'http://134.199.178.17/gayatri';
 
-// util: pick a mime and filename from uri
-const mimeFromUri = (uri = '') => {
-  const u = uri.toLowerCase();
-  if (u.endsWith('.png')) return 'image/png';
-  if (u.endsWith('.webp')) return 'image/webp';
-  if (u.endsWith('.heic') || u.endsWith('.heif')) return 'image/heic';
-  return 'image/jpeg';
-};
-const filenameFromUri = (uri = '') => {
-  const last = uri.split('/').pop() || 'photo.jpg';
-  return last.includes('.') ? last : `${last}.jpg`;
-};
-
+ 
 function DateTimeSelector({ label, value, onChange }) {
   const [step, setStep] = useState(null); // "date" | "time" | null
   const [tempDate, setTempDate] = useState(value ? new Date(value) : new Date());
@@ -84,6 +72,20 @@ function DateTimeSelector({ label, value, onChange }) {
     </View>
   );
 }
+
+
+const MAX_BYTES = 300 * 1024 * 1024; // 300 MB
+
+// optional helpers (reuse if you already have them)
+const mimeFromUri = (uri = "") => {
+  const u = uri.toLowerCase();
+  if (u.endsWith(".png")) return "image/png";
+  if (u.endsWith(".webp")) return "image/webp";
+  if (u.endsWith(".heic") || u.endsWith(".heif")) return "image/heic";
+  return "image/jpeg";
+};
+const filenameFromUri = (uri = "") => (uri.split("/").pop() || "upload.jpg");
+
 
 export default function LocalConveyanceFormScreen({ navigation }) {
   const [userId, setUserId] = useState(null);
@@ -172,7 +174,7 @@ export default function LocalConveyanceFormScreen({ navigation }) {
     closeDropdown();
   };
 
-  const pickImage = async () => {
+  /*const pickImage = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (perm.status !== 'granted') {
       Alert.alert('Permission needed', 'Media library access is required.');
@@ -205,6 +207,64 @@ export default function LocalConveyanceFormScreen({ navigation }) {
       setSelectedImage(asset);
     }
   };
+*/
+
+  const ensurePermissions = async () => {
+    const { status: libStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const { status: camStatus } = await ImagePicker.requestCameraPermissionsAsync();
+    if (libStatus !== "granted" || camStatus !== "granted") {
+      Alert.alert("Permissions needed", "Please allow camera and media library access.");
+      return false;
+    }
+    return true;
+  };
+
+  const validateAndSet = async (asset) => {
+    // asset: { uri, width, height, fileSize (iOS/Android), mimeType (Android) ... }
+    if (!asset?.uri) return;
+
+    // Some Android versions provide asset.fileSize; iOS might not. If missing, we skip size check.
+    if (typeof asset.fileSize === "number" && asset.fileSize > MAX_BYTES) {
+      Alert.alert("Too large", "Please choose a smaller image (under 300 MB).");
+      return;
+    }
+
+    setSelectedImage({
+      uri: asset.uri,
+      width: asset.width,
+      height: asset.height,
+      fileSize: asset.fileSize,
+      mime: asset.mimeType || mimeFromUri(asset.uri),
+      name: filenameFromUri(asset.uri),
+    });
+  };
+
+
+  const pickImage = async () => {
+    try {
+      const ok = await ensurePermissions();
+      if (!ok) return;
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.9,
+        allowsMultipleSelection: false,
+        exif: false,
+        base64: false,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets?.[0];
+      await validateAndSet(asset);
+    } catch (e) {
+      console.log("pickImage error:", e);
+      Alert.alert("Error", "Could not pick image.");
+    }
+  };
+
+
+
 
   const resetForm = () => {
     setFormData({
@@ -265,6 +325,31 @@ console.log('Submit Error:', err.response?.data);
     }
   };
 
+
+  const captureImage = async () => {
+    try {
+      const ok = await ensurePermissions();
+      if (!ok) return;
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.9,
+        exif: false,
+        base64: false,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets?.[0];
+      await validateAndSet(asset);
+    } catch (e) {
+      console.log("captureImage error:", e);
+      Alert.alert("Error", "Could not capture image.");
+    }
+  };
+
+
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>📝 Add Local Conveyance</Text>
@@ -316,18 +401,26 @@ console.log('Submit Error:', err.response?.data);
         onClose={closeDropdown}
       />
 
+<View style={{ display: "none" }}>
       <Text style={styles.label}>👤 User ID</Text>
       <TextInput value={userId || ''} editable={false} style={styles.inputDisabled} />
+</View>
 
-      <View style={{ marginVertical: 10 }}>
-        <Button title="Pick Image" onPress={pickImage} />
-        {selectedImage ? (
-          <Image
-            source={{ uri: selectedImage.uri }}
-            style={{ width: 220, height: 220, marginTop: 10, borderRadius: 8 }}
-          />
-        ) : null}
-      </View>
+    <View style={{ marginVertical: 10 }}>
+      <Button title="Pick from Gallery" onPress={pickImage} />
+      <View style={{ height: 10 }} />
+      <Button title="Capture from Camera" onPress={captureImage} />
+
+      {selectedImage ? (
+        <Image
+          source={{ uri: selectedImage.uri }}
+          style={{ width: 220, height: 220, marginTop: 10, borderRadius: 8 }}
+          resizeMode="cover"
+        />
+      ) : null}
+    </View>
+
+
 
       <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
         <Text style={styles.submitText}>✅ Submit</Text>
@@ -375,3 +468,4 @@ const styles = StyleSheet.create({
   },
   cancelText: { color: '#fff', fontWeight: '700' },
 });
+
