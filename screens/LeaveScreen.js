@@ -14,7 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import axios from 'axios';
 import { Picker } from '@react-native-picker/picker';
-const API_URL = 'http://134.199.178.17/gayatri';
+const API_URL = 'https://134.199.178.17/gayatri';
 
 
 export default function LeaveScreen() {
@@ -98,7 +98,7 @@ const fetchLeaves = async (pageToLoad = 1, isRefresh = false) => {
 
 
   useEffect(() => {
-    fetch('http://134.199.178.17/gayatri/api/leave_types')
+    fetch('https://134.199.178.17/gayatri/api/leave_types')
       .then(res => res.json())
       .then(data => setLeaveTypes(data.leave_types))
       .catch(err => console.error(err));
@@ -113,7 +113,7 @@ const fetchLeaves = async (pageToLoad = 1, isRefresh = false) => {
     const userId = await AsyncStorage.getItem('user_id');
     try {
       const { data } = await axios.post(
-        'http://134.199.178.17/gayatri/api/leave_applications',
+        'https://134.199.178.17/gayatri/api/leave_applications',
         {
           user_id: userId,
           leave_type: selectedType,

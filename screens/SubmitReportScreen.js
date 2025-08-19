@@ -83,7 +83,7 @@ export default function SubmitCallReportScreen({ route, navigation }) {
       }
 
       const response = await fetch(
-        `http://134.199.178.17/gayatri/api/call_reports/${callReportId}/submit_report/`,
+        `https://134.199.178.17/gayatri/api/call_reports/${callReportId}/submit_report/`,
         { method: "PATCH", body: formData }
       );
       const json = await response.json();

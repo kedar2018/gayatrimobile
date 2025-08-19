@@ -23,7 +23,7 @@ export default function AttendanceScreen() {
   const fetchAttendance = async () => {
     const userId = await AsyncStorage.getItem('user_id');
     try {
-      const res = await axios.get(`http://134.199.178.17/gayatri/api/attendance_logs?user_id=${userId}`);
+      const res = await axios.get(`https://134.199.178.17/gayatri/api/attendance_logs?user_id=${userId}`);
       setLogs(res.data || []);
     } catch (error) {
       console.error('Error fetching attendance:', error);
@@ -57,7 +57,7 @@ export default function AttendanceScreen() {
     const userId = await AsyncStorage.getItem('user_id');
 
     try {
-      const { data } = await axios.post(`http://134.199.178.17/gayatri/api/attendance_logs`, {
+      const { data } = await axios.post(`https://134.199.178.17/gayatri/api/attendance_logs`, {
         user_id: userId,
         hour: parseInt(hour, 10),
         task: task.trim(),

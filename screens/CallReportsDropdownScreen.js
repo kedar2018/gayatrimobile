@@ -71,7 +71,7 @@ const fetchCallReports = useCallback(async () => {
   try {
     const userId = await AsyncStorage.getItem('user_id');
     const res = await axios.get(
-      `http://134.199.178.17/gayatri/api/call_reports`,
+      `https://134.199.178.17/gayatri/api/call_reports`,
       { params: { engineer_id: userId } }
     );
 

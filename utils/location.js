@@ -78,7 +78,7 @@ TaskManager.defineTask(TASK_NAME, async ({ data, error }) => {
   const user_id = await AsyncStorage.getItem('user_id');
 
   try {
-    await axios.post('http://134.199.178.17/gayatri/api/log_location', {
+    await axios.post('https://134.199.178.17/gayatri/api/log_location', {
       tour_conveyance_id: tourId,
       latitude,
       longitude,
@@ -95,7 +95,7 @@ TaskManager.defineTask(TASK_NAME, async ({ data, error }) => {
       if (dist < 100) {
         console.log("✅ Within 100 meters — auto-stopping tour");
 
-   const stopRes = await axios.post('http://134.199.178.17/gayatri/api/log_location_stop', {
+   const stopRes = await axios.post('https://134.199.178.17/gayatri/api/log_location_stop', {
   tour_conveyance_id: tourId,
   latitude,
   longitude,

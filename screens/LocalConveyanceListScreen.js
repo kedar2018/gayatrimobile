@@ -13,7 +13,7 @@ import {
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://134.199.178.17/gayatri';
+const API_URL = 'https://134.199.178.17/gayatri';
 
 export default function LocalConveyanceListScreen({ navigation }) {
   const [entries, setEntries] = useState([]);

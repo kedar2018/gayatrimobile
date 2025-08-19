@@ -1,8 +1,8 @@
 // app.config.js
 export default ({ config }) => ({
   ...config,
-  name: "FieldVisitApp",
-  slug: "FieldVisitApp",
+  name: "Employee",
+  slug: "Employee",
   version: "1.0.0",
   orientation: "portrait",
   icon: "./assets/icon.png",
@@ -17,7 +17,7 @@ export default ({ config }) => ({
   splash: {
     image: "./assets/splash-icon.png",
     resizeMode: "contain",
-    backgroundColor: "#ffffff"
+    backgroundColor: "#0C7CFF"
   },
 
   android: {
@@ -29,7 +29,8 @@ export default ({ config }) => ({
 
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
-      backgroundColor: "#ffffff"
+      backgroundColor: "#0C7CFF",
+      monochromeImage: "./assets/adaptive-icon-monochrome.png"
     },
     edgeToEdgeEnabled: true,
     permissions: [

@@ -49,7 +49,7 @@ useEffect(() => {
   const fetchReports = async () => {
     try {
       const userId = await AsyncStorage.getItem('user_id');
-      const res = await axios.get(`http://134.199.178.17/gayatri/api/call_reports?engineer_id=${userId}`);
+      const res = await axios.get(`https://134.199.178.17/gayatri/api/call_reports?engineer_id=${userId}`);
      console.log(res.data)
       setCalls(res.data);
       setLoading(false);
@@ -83,7 +83,7 @@ console.log(trackingreturnTour);
     const current = await Location.getCurrentPositionAsync({});
     const user_id = await AsyncStorage.getItem('user_id');
 
-    const res = await axios.post(`http://134.199.178.17/gayatri/api/log_location_stop`, {
+    const res = await axios.post(`https://134.199.178.17/gayatri/api/log_location_stop`, {
       tour_conveyance_id: trackingreturnTour.tour_id,
       latitude: current.coords.latitude,
       longitude: current.coords.longitude,
@@ -123,7 +123,7 @@ return;
 setStartingretTour(true);
     const user_id = await AsyncStorage.getItem('user_id');
    const current = await Location.getCurrentPositionAsync({});
-    const res = await axios.post('http://134.199.178.17/gayatri/api/tour_location/start_return', {
+    const res = await axios.post('https://134.199.178.17/gayatri/api/tour_location/start_return', {
       user_id,
       call_report_id: call.id,
     });
@@ -187,7 +187,7 @@ return;
     const current = await Location.getCurrentPositionAsync({});
     const user_id = await AsyncStorage.getItem('user_id');
 
-    const res = await axios.post(`http://134.199.178.17/gayatri/api/tour_conveyances`, {
+    const res = await axios.post(`https://134.199.178.17/gayatri/api/tour_conveyances`, {
       user_id,
       call_report_id: call.id
     });
@@ -239,7 +239,7 @@ return;
       const current = await Location.getCurrentPositionAsync({});
       const user_id = await AsyncStorage.getItem('user_id');
 
-      const res = await axios.post(`http://134.199.178.17/gayatri/api/log_location_stop`, {
+      const res = await axios.post(`https://134.199.178.17/gayatri/api/log_location_stop`, {
         tour_conveyance_id: trackingTour.tour_id,
         latitude: current.coords.latitude,
         longitude: current.coords.longitude,

@@ -19,7 +19,7 @@ import ModalDropdown from '../components/ModalDropdown';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 
-const API_URL = 'http://134.199.178.17/gayatri';
+const API_URL = 'https://134.199.178.17/gayatri';
 
  
 function DateTimeSelector({ label, value, onChange }) {

@@ -21,7 +21,7 @@ const CallReportsDropdownScreen = ({ navigation }) => {
   const fetchCallReports = async () => {
     try {
       const userId = await AsyncStorage.getItem('user_id');
-      const res = await axios.get(`http://134.199.178.17/gayatri/api/call_reports?engineer_id=${userId}`);
+      const res = await axios.get(`https://134.199.178.17/gayatri/api/call_reports?engineer_id=${userId}`);
       setCaseList(res.data);
       setLoading(false);
     } catch (error) {

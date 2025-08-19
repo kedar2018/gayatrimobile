@@ -29,7 +29,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 const MAX_SIZE_BYTES = 300 *  300 * 1024; // 300 KB
 
 
-const API_URL = 'http://134.199.178.17/gayatri';
+const API_URL = 'https://134.199.178.17/gayatri';
 
 const LocalConveyanceScreen = () => {
   const [entries, setEntries] = useState([]);
