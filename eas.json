@@ -8,12 +8,12 @@
       "distribution": "internal",
       "android": {
         "env": {
-          "EXPO_PUBLIC_API_URL": "http://134.199.178.17"
+          "EXPO_PUBLIC_API_URL": "https://134.199.178.17"
         }
       },
       "ios": {
         "env": {
-          "EXPO_PUBLIC_API_URL": "http://134.199.178.17"
+          "EXPO_PUBLIC_API_URL": "https://134.199.178.17"
         }
       }
     },
@@ -22,12 +22,12 @@
       "distribution": "internal",
       "android": {
         "env": {
-          "EXPO_PUBLIC_API_URL": "http://134.199.178.17"
+          "EXPO_PUBLIC_API_URL": "https://134.199.178.17"
         }
       },
       "ios": {
         "env": {
-          "EXPO_PUBLIC_API_URL": "http://134.199.178.17"
+          "EXPO_PUBLIC_API_URL": "https://134.199.178.17"
         }
       }
     },
@@ -35,12 +35,12 @@
       "distribution": "store",
       "android": {
         "env": {
-          "EXPO_PUBLIC_API_URL": "http://134.199.178.17"
+          "EXPO_PUBLIC_API_URL": "https://134.199.178.17"
         }
       },
       "ios": {
         "env": {
-          "EXPO_PUBLIC_API_URL": "http://134.199.178.17"
+          "EXPO_PUBLIC_API_URL": "https://134.199.178.17"
         }
       }
     }
