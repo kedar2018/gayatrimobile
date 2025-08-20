@@ -21,6 +21,19 @@ import * as FileSystem from 'expo-file-system';
 
 const API_URL = 'https://134.199.178.17/gayatri';
 
+
+// define fields once
+const FIELDS = [
+  { key: 'ccr_no',         label: 'CCR NO',        type: 'dropdown' },
+  { key: 'project',        label: 'PROJECT',       type: 'dropdown' },
+  { key: 'mode',           label: 'MODE',          type: 'dropdown' },
+  { key: 'from_location',  label: 'FROM LOCATION', type: 'dropdown' },
+  { key: 'to_location',    label: 'TO LOCATION',   type: 'text' },   // <-- text box
+];
+
+// helper to look up field meta
+const fieldMeta = (k) => FIELDS.find(f => f.key === k);
+ 
  
 function DateTimeSelector({ label, value, onChange }) {
   const [step, setStep] = useState(null); // "date" | "time" | null
@@ -174,41 +187,7 @@ export default function LocalConveyanceFormScreen({ navigation }) {
     closeDropdown();
   };
 
-  /*const pickImage = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (perm.status !== 'granted') {
-      Alert.alert('Permission needed', 'Media library access is required.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.7,
-    });
-
-    if (!result.canceled) {
-      const asset = result.assets[0];
-      // On Expo, size may be missing — fetch via FileSystem
-      let size = asset.fileSize;
-      if (size == null && asset.uri) {
-        try {
-          const info = await FileSystem.getInfoAsync(asset.uri);
-          if (info.exists && info.size != null) size = info.size;
-        } catch {}
-      }
-      const sizeMB = size ? size / (1024 * 1024) : 0;
-
-      // limit ~3MB (adjust if you want 300MB, but that’s unusually large for mobile uploads)
-      if (sizeMB > 3) {
-        Alert.alert('Image too large', 'Please select an image less than 3 MB.');
-        return;
-      }
-      setSelectedImage(asset);
-    }
-  };
-*/
-
+ 
   const ensurePermissions = async () => {
     const { status: libStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     const { status: camStatus } = await ImagePicker.requestCameraPermissionsAsync();
@@ -382,24 +361,44 @@ console.log('Submit Error:', err.response?.data);
         style={styles.input}
       />
 
-      {['ccr_no', 'project', 'mode', 'from_location', 'to_location'].map((key) => (
-        <View key={key} style={{ marginBottom: 12 }}>
-          <Text style={styles.label}>{key.replace('_', ' ').toUpperCase()}</Text>
-          <TouchableOpacity style={styles.dropdownButton} onPress={() => openDropdown(key)}>
-            <Text style={styles.dropdownButtonText}>
-              {formData[key] || `Select ${key.replace('_', ' ')}`}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ))}
+ {/* fields */}
+{FIELDS.map(({ key, label, type }) => (
+  <View key={key} style={{ marginBottom: 12 }}>
+    <Text style={styles.label}>{label}</Text>
 
-      <ModalDropdown
-        visible={!!activeDropdown}
-        options={dropdownOptions[activeDropdown] || []}
-        labelKey="" // plain strings
-        onSelect={(item) => handleSelect(activeDropdown, item)}
-        onClose={closeDropdown}
+    {type === 'text' ? (
+      <TextInput
+        style={[styles.input, { paddingHorizontal: 12, paddingVertical: 10 }]}
+        value={formData[key] ?? ''}
+        placeholder={`Enter ${label.toLowerCase()}`}
+        onChangeText={(t) => setFormData((p) => ({ ...p, [key]: t }))}
+        autoCapitalize="words"
+        returnKeyType="done"
+        onSubmitEditing={() => Keyboard.dismiss?.()}
       />
+    ) : (
+      <TouchableOpacity
+        style={styles.dropdownButton}
+        onPress={() => openDropdown(key)}
+      >
+        <Text style={styles.dropdownButtonText}>
+          {formData[key] || `Select ${label.toLowerCase()}`}
+        </Text>
+      </TouchableOpacity>
+    )}
+  </View>
+))}
+
+{/* dropdown only shows for dropdown fields */}
+<ModalDropdown
+  visible={
+    !!activeDropdown && fieldMeta(activeDropdown)?.type === 'dropdown'
+  }
+  options={dropdownOptions[activeDropdown] || []}
+  labelKey="" // plain strings
+  onSelect={(item) => handleSelect(activeDropdown, item)}
+  onClose={closeDropdown}
+/>
 
 <View style={{ display: "none" }}>
       <Text style={styles.label}>👤 User ID</Text>

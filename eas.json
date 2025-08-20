@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 3.22.0"
+    "version": ">= 3.22.0",
+    "appVersionSource": "remote", "version": ">=16.0.0",
   },
   "build": {
     "development": {
@@ -36,7 +37,8 @@
       "android": {
         "env": {
           "EXPO_PUBLIC_API_URL": "https://134.199.178.17"
-        }
+        },
+       "buildType": "apk"
       },
       "ios": {
         "env": {
