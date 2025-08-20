@@ -33,8 +33,12 @@ const FIELDS = [
 
 // helper to look up field meta
 const fieldMeta = (k) => FIELDS.find(f => f.key === k);
- 
- 
+
+
+
+
+
+
 function DateTimeSelector({ label, value, onChange }) {
   const [step, setStep] = useState(null); // "date" | "time" | null
   const [tempDate, setTempDate] = useState(value ? new Date(value) : new Date());
@@ -112,6 +116,7 @@ export default function LocalConveyanceFormScreen({ navigation }) {
   });
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [defaultValues, setDefaultValues] = useState({}); // holds defaults from storage/API
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -130,6 +135,17 @@ export default function LocalConveyanceFormScreen({ navigation }) {
 
   const openDropdown = (key) => setActiveDropdown(key);
   const closeDropdown = () => setActiveDropdown(null);
+
+const buildOptions = (key) => {
+  const opts = [...(dropdownOptions[key] || [])]; // your original options (strings)
+  const def = defaultValues[key];
+  if (!def) return opts;
+
+  const has = opts.some(o => (typeof o === 'string' ? o === def : o?.value === def || o?.label === def));
+  if (!has) opts.unshift(def); // put default at top
+  return opts;
+};
+
 
   const loadUserId = useCallback(async () => {
     const id = await AsyncStorage.getItem('user_id');
@@ -161,6 +177,21 @@ export default function LocalConveyanceFormScreen({ navigation }) {
       console.log('Options fetch error:', e?.response?.data || e.message);
     }
   }, [userId]);
+
+useEffect(() => {
+  (async () => {
+    try {
+      const saved = await AsyncStorage.getItem('DEFAULT_FROM_LOCATION');
+      if (saved) {
+        setDefaultValues((p) => ({ ...p, from_location: saved }));
+        // only prefill if not already chosen by user
+        setFormData((p) => p.from_location ? p : ({ ...p, from_location: saved }));
+      }
+    } catch {}
+  })();
+}, []);
+
+
 
   useEffect(() => {
     loadUserId();
@@ -382,7 +413,8 @@ console.log('Submit Error:', err.response?.data);
         onPress={() => openDropdown(key)}
       >
         <Text style={styles.dropdownButtonText}>
-          {formData[key] || `Select ${label.toLowerCase()}`}
+          {formData[key] || defaultValues[key] || `Select ${label.toLowerCase()}`}
+
         </Text>
       </TouchableOpacity>
     )}
@@ -390,15 +422,19 @@ console.log('Submit Error:', err.response?.data);
 ))}
 
 {/* dropdown only shows for dropdown fields */}
+
 <ModalDropdown
-  visible={
-    !!activeDropdown && fieldMeta(activeDropdown)?.type === 'dropdown'
-  }
-  options={dropdownOptions[activeDropdown] || []}
-  labelKey="" // plain strings
+  visible={!!activeDropdown && fieldMeta(activeDropdown)?.type === 'dropdown'}
+  options={buildOptions(activeDropdown)}
+  selectedValue={formData[activeDropdown] ?? null}
+  defaultValue={defaultValues[activeDropdown] ?? null}
   onSelect={(item) => handleSelect(activeDropdown, item)}
   onClose={closeDropdown}
 />
+
+
+
+
 
 <View style={{ display: "none" }}>
       <Text style={styles.label}>👤 User ID</Text>

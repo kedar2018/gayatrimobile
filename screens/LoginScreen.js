@@ -28,9 +28,11 @@ export default function LoginScreen({ navigation }) {
     setSubmitting(true);
     try {
       const res = await axios.post('https://134.199.178.17/gayatri/api/login', { email, password });
-      const { user_id, name } = res.data;
+      const { user_id, name, location } = res.data;
       await AsyncStorage.setItem('user_id', user_id.toString());
       await AsyncStorage.setItem('user_name', name || '');
+      await AsyncStorage.setItem('DEFAULT_FROM_LOCATION', location || '');
+
       navigation.replace('MainTabs');
     } catch (err) {
         console.log('Login Error:', err); // 👈 This shows error in the Expo console
