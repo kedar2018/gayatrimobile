@@ -57,7 +57,9 @@ export default ({ config }) => ({
   extra: {
     // Default to HTTPS (can still override at build time)
     apiUrl: process.env.EXPO_PUBLIC_API_URL || "https://134.199.178.17",
-    eas: { projectId: "07374876-184e-4802-bea5-5e816168a83f" }
+    // eas: { projectId: "remove this to re-link" }
+    eas: { projectId: "50d621d4-ca6c-43ad-8dbf-a253c283c13c" } // ⟵ new ID from eas init
+
   },
 
   owner: "kedar1811"
