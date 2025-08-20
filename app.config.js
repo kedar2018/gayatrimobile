@@ -7,6 +7,8 @@ export default ({ config }) => ({
   orientation: "portrait",
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
+  const profile = process.env.EAS_BUILD_PROFILE || 'development';
+  const isProd = profile === 'production';
 
   // >>> IMPORTANT: include our CA plugin + expo-location together
   plugins: [
@@ -25,7 +27,8 @@ export default ({ config }) => ({
     versionCode: 2,
 
     // We’re using HTTPS, so no cleartext needed
-    usesCleartextTraffic: false,
+    //usesCleartextTraffic: false,
+    usesCleartextTraffic: !isProd
 
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
