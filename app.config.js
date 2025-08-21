@@ -7,7 +7,7 @@ export default ({ config }) => {
   // Use your env if provided; otherwise fall back (you can make dev HTTP if needed)
   const API_URL =
     process.env.EXPO_PUBLIC_API_URL ||
-    (isProd ? 'https://134.199.178.17' : 'http://192.34.58.213:3000'); // change dev URL as you like
+    (isProd ? 'https://134.199.178.17' : 'https://192.34.58.213'); // change dev URL as you like
 
   return {
     ...config,
