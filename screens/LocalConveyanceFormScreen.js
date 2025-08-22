@@ -12,6 +12,8 @@ import {
   Button,
   Platform,
   ActivityIndicator,
+  Pressable,
+  useColorScheme,
 } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,6 +21,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import ModalDropdown from '../components/ModalDropdown';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import { Ionicons } from '@expo/vector-icons';
+
 
 const API_URL = 'https://134.199.178.17/gayatri';
 
@@ -119,6 +123,19 @@ export default function LocalConveyanceFormScreen({ navigation }) {
   const [selectedImage, setSelectedImage] = useState(null);
   const [defaultValues, setDefaultValues] = useState({}); // holds defaults from storage/API
   const [isSubmitting, setIsSubmitting] = useState(false);
+const scheme = useColorScheme();
+const palette = {
+  bg: scheme === 'dark' ? '#0b1220' : '#ffffff',
+  text: scheme === 'dark' ? '#e6e9f2' : '#222',
+  subtext: scheme === 'dark' ? '#9aa4b2' : '#555',
+  primary: '#2563eb',
+  primaryText: '#ffffff',
+  outline: scheme === 'dark' ? '#1f2937' : '#e5e7eb',
+  danger: '#ef4444',
+};
+
+
+
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -489,39 +506,80 @@ const handleSubmit = async () => {
       <TextInput value={userId || ''} editable={false} style={styles.inputDisabled} />
 </View>
 
-    <View style={{ marginVertical: 10 }}>
-      <Button title="Pick from Gallery" onPress={pickImage} />
-      <View style={{ height: 10 }} />
-      <Button title="Capture from Camera" onPress={captureImage} />
 
-      {selectedImage ? (
-        <Image
-          source={{ uri: selectedImage.uri }}
-          style={{ width: 220, height: 220, marginTop: 10, borderRadius: 8 }}
-          resizeMode="cover"
-        />
-      ) : null}
+ <View style={{ marginVertical: 12 }}>
+    {/* Image actions row */}
+    <View style={styles.row}>
+      <Pressable
+        onPress={pickImage}
+        style={({ pressed }) => [
+          styles.actionBtn,
+          { borderColor: palette.outline, backgroundColor: pressed ? '#f3f6ff' : '#f8faff' },
+        ]}
+        android_ripple={{ color: '#e6eefc' }}
+      >
+        <Ionicons name="images-outline" size={18} color={palette.primary} style={{ marginRight: 8 }} />
+        <Text style={[styles.actionText, { color: palette.text }]}>Pick from Gallery</Text>
+      </Pressable>
+
+      <Pressable
+        onPress={captureImage}
+        style={({ pressed }) => [
+          styles.actionBtn,
+          { borderColor: palette.outline, backgroundColor: pressed ? '#fff7f7' : '#fffafa' },
+        ]}
+        android_ripple={{ color: '#fde2e2' }}
+      >
+        <Ionicons name="camera-outline" size={18} color="#e11d48" style={{ marginRight: 8 }} />
+        <Text style={[styles.actionText, { color: palette.text }]}>Capture from Camera</Text>
+      </Pressable>
     </View>
 
+    {/* Preview */}
+    {selectedImage ? (
+      <View style={styles.previewWrap}>
+        <Image
+          source={{ uri: selectedImage.uri }}
+          style={styles.previewImg}
+          resizeMode="cover"
+        />
+      </View>
+    ) : null}
 
+    <View style={styles.bottomBar}>
 
+      <Pressable
+        onPress={handleSubmit}
+        disabled={isSubmitting}
+        style={({ pressed }) => [
+          styles.ctaBtn,
+          { backgroundColor: palette.primary, opacity: isSubmitting ? 0.6 : pressed ? 0.9 : 1 },
+        ]}
+        android_ripple={{ color: '#c7d7fe' }}
+      >
+        {isSubmitting ? (
+          <ActivityIndicator />
+        ) : (
+          <>
+            <Ionicons name="checkmark-circle" size={18} color={palette.primaryText} style={{ marginRight: 8 }} />
+            <Text style={[styles.ctaText, { color: palette.primaryText }]}>Submit</Text>
+          </>
+        )}
+      </Pressable>
 
-<TouchableOpacity
-  style={[styles.submitBtn, isSubmitting && { opacity: 0.6 }]}
-  onPress={handleSubmit}
-  disabled={isSubmitting}              // <- prevents multiple taps
->
-  {isSubmitting ? (
-    <ActivityIndicator />
-  ) : (
-    <Text style={styles.submitText}>✅ Submit</Text>
-  )}
-</TouchableOpacity>
-
-
-      <TouchableOpacity style={styles.cancelBtn} onPress={() => navigation.goBack()}>
-        <Text style={styles.cancelText}>❌ Cancel</Text>
-      </TouchableOpacity>
+      <Pressable
+        onPress={() => navigation.goBack()}
+        style={({ pressed }) => [
+          styles.cancelBtn,
+          { borderColor: palette.outline, backgroundColor: pressed ? '#f9fafb' : 'transparent' },
+        ]}
+        android_ripple={{ color: '#e5e7eb' }}
+      >
+        <Ionicons name="close-circle-outline" size={18} color={palette.danger} style={{ marginRight: 8 }} />
+        <Text style={[styles.cancelText, { color: palette.danger }]}>Cancel</Text>
+      </Pressable>
+	</View>
+	</View>
     </ScrollView>
   );
 }
@@ -555,10 +613,64 @@ const styles = StyleSheet.create({
     paddingVertical: 12, borderRadius: 10, alignItems: 'center', marginTop: 10,
   },
   submitText: { color: '#fff', fontWeight: '700' },
-  cancelBtn: {
-    backgroundColor: '#dc2626',
-    paddingVertical: 12, borderRadius: 10, alignItems: 'center', marginTop: 10, marginBottom: 20,
+   
+    row: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
   },
-  cancelText: { color: '#fff', fontWeight: '700' },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+  },
+  actionText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  previewWrap: {
+    marginTop: 12,
+    alignItems: 'flex-start',
+  },
+  previewImg: {
+    width: 240,
+    height: 240,
+    borderRadius: 12,
+  },
+  bottomBar: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  ctaBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    elevation: 1, // subtle shadow on Android
+  },
+  ctaText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  cancelBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  cancelText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
 });
 
