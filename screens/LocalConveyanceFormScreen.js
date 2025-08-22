@@ -113,7 +113,7 @@ export default function LocalConveyanceFormScreen({ navigation }) {
     mode: ['Auto', 'Bike', 'Walk', 'Train'],
     from_location: ['Pune Office', 'Mumbai HQ', 'Nashik Depot'],
     to_location: ['Mumbai HQ', 'Nashik Depot', 'Customer Site'],
-    ccr_no: ['ccr1', 'ccr2'],
+    ccr_no: ['ask admin to assign'],
   });
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);

@@ -69,7 +69,7 @@ export default function LoginScreen({ navigation }) {
         <View style={styles.inner}>
           <Text style={styles.title}>Engineer Login</Text>
           <TextInput style={styles.input} placeholder="Email" placeholderTextColor="#888" keyboardType="email-address" autoCapitalize="none" onChangeText={setEmail}   selectionColor="#004080" underlineColorAndroid="transparent" />
-          <TextInput style={styles.input} placeholder="Password" secureTextEntry onChangeText={setPassword} />
+          <TextInput style={styles.input} placeholder="Password" secureTextEntry onChangeText={setPassword} placeholderTextColor="#888" />
           <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={submitting}>
             {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Login</Text>}
           </TouchableOpacity>
