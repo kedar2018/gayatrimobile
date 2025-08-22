@@ -11,6 +11,7 @@ import {
   Image,
   Button,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -117,6 +118,7 @@ export default function LocalConveyanceFormScreen({ navigation }) {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [defaultValues, setDefaultValues] = useState({}); // holds defaults from storage/API
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -294,7 +296,7 @@ useEffect(() => {
     setSelectedImage(null);
   };
 
-  const handleSubmit = async () => {
+  /*const handleSubmit = async () => {
     try {
       const payload = new FormData();
 
@@ -334,6 +336,52 @@ console.log('Submit Error:', err.response?.data);
 
     }
   };
+*/
+
+const handleSubmit = async () => {
+  if (isSubmitting) return;            // <- hard guard against rapid taps
+  setIsSubmitting(true);
+
+  try {
+    const payload = new FormData();
+    Object.keys(formData).forEach((key) => {
+      const val = formData[key];
+      if (val !== null && val !== '') {
+        payload.append(`tour_conveyance[${key}]`, String(val));
+      }
+    });
+
+    if (selectedImage) {
+      payload.append('tour_conveyance[image]', {
+        uri: selectedImage.uri,
+        type: mimeFromUri(selectedImage.uri),
+        name: filenameFromUri(selectedImage.uri),
+      });
+    }
+
+    const res = await axios.post(`${API_URL}/api/tour_conveyances`, payload, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      // optional: small safety net to avoid hanging forever
+      timeout: 30000,
+    });
+
+    Alert.alert('Success', 'Entry added successfully');
+    resetForm();
+    navigation.goBack();               // only on success
+  } catch (err) {
+    console.log('Submit Error:', err.response?.data || err.message);
+    if (err.response?.status === 422 && err.response?.data?.errors) {
+      const errorMessages = Array.isArray(err.response.data.errors)
+        ? err.response.data.errors.join('\n')
+        : String(err.response.data.errors);
+      Alert.alert('Validation Error', errorMessages);
+    } else {
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    }
+  } finally {
+    setIsSubmitting(false);            // re-enable button after response
+  }
+};
 
 
   const captureImage = async () => {
@@ -457,9 +505,19 @@ console.log('Submit Error:', err.response?.data);
 
 
 
-      <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-        <Text style={styles.submitText}>✅ Submit</Text>
-      </TouchableOpacity>
+
+<TouchableOpacity
+  style={[styles.submitBtn, isSubmitting && { opacity: 0.6 }]}
+  onPress={handleSubmit}
+  disabled={isSubmitting}              // <- prevents multiple taps
+>
+  {isSubmitting ? (
+    <ActivityIndicator />
+  ) : (
+    <Text style={styles.submitText}>✅ Submit</Text>
+  )}
+</TouchableOpacity>
+
 
       <TouchableOpacity style={styles.cancelBtn} onPress={() => navigation.goBack()}>
         <Text style={styles.cancelText}>❌ Cancel</Text>
