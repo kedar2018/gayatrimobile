@@ -9,23 +9,98 @@ import {
   StyleSheet,
   Alert,
   Image,
-  Button,
   Platform,
   ActivityIndicator,
   Pressable,
   useColorScheme,
+  Keyboard,
 } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import ModalDropdown from '../components/ModalDropdown';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 const API_URL = 'https://134.199.178.17/gayatri';
 
+
+export const DateTimeField = React.memo(function DateTimeField({
+  label,
+  value,        // ISO string or ''
+  onChange,     // (isoString) => void
+  colors,
+  styles,
+}) {
+  const [step, setStep] = useState(null); // 'date' | 'time' | null
+  const [tempDate, setTempDate] = useState(value ? new Date(value) : new Date());
+
+  const d = value ? new Date(value) : null;
+  const dateStr = d ? d.toLocaleDateString(undefined, { dateStyle: 'medium' }) : '';
+  const timeStr = d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+  const open = () => setStep('date');
+
+  const onDateChange = (event, picked) => {
+    if (event.type === 'dismissed') return setStep(null);
+    const next = picked || tempDate;
+    setTempDate(next);
+    setStep('time');
+  };
+
+  const onTimeChange = (event, picked) => {
+    if (event.type === 'dismissed') return setStep(null);
+    const next = new Date(tempDate);
+    next.setHours(picked.getHours());
+    next.setMinutes(picked.getMinutes());
+    setTempDate(next);
+    setStep(null);
+    onChange?.(next.toISOString());
+  };
+
+  return (
+    <View style={{ marginBottom: 12 }}>
+      <Pressable
+        onPress={open}
+        style={[
+          styles.inputWrap,
+          { backgroundColor: colors.card, borderColor: colors.border, paddingVertical: 12 },
+        ]}
+        android_ripple={{ color: '#e6eefc' }}
+      >
+        <Ionicons name="time-outline" size={18} color={colors.subtext} style={styles.leftIcon} />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.smallLabel, { color: colors.subtext }]}>{label}</Text>
+
+          {d ? (
+            <View style={styles.valueRow}>
+              <View style={[styles.pill, { backgroundColor: '#f5f7fb' }]}>
+                <Ionicons name="calendar-outline" size={14} color={colors.subtext} style={{ marginRight: 6 }} />
+                <Text style={[styles.valueText, { color: colors.text }]} numberOfLines={1}>{dateStr}</Text>
+              </View>
+              <View style={[styles.pill, { backgroundColor: '#f5f7fb' }]}>
+                <Ionicons name="time-outline" size={14} color={colors.subtext} style={{ marginRight: 6 }} />
+                <Text style={[styles.valueText, { color: colors.text }]} numberOfLines={1}>{timeStr}</Text>
+              </View>
+            </View>
+          ) : (
+            <Text style={[styles.placeholderText, { color: colors.subtext }]}>Select date & time</Text>
+          )}
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.subtext} />
+      </Pressable>
+
+      {step === 'date' && (
+        <DateTimePicker value={tempDate} mode="date" display="default" onChange={onDateChange} />
+      )}
+      {step === 'time' && (
+        <DateTimePicker value={tempDate} mode="time" display="default" onChange={onTimeChange} />
+      )}
+    </View>
+  );
+});
 
 // define fields once
 const FIELDS = [
@@ -109,6 +184,74 @@ const mimeFromUri = (uri = "") => {
 const filenameFromUri = (uri = "") => (uri.split("/").pop() || "upload.jpg");
 
 
+
+
+export const FieldLabel = React.memo(({ icon, text, colors, styles }) => (
+  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+    {icon ? <Ionicons name={icon} size={16} color={colors.subtext} style={styles.leftIcon} /> : null}
+    <Text style={[styles.label, { color: colors.subtext }]}>{text}</Text>
+  </View>
+));
+
+export const LabeledInput = React.memo(({
+  icon = 'document-text-outline',
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType = 'default',
+  autoCapitalize = 'sentences',
+  onSubmitEditing,
+  fieldKey,
+  colors,
+  styles,
+  focusedKey,
+  setFocusedKey,
+}) => (
+  <View style={styles.field}>
+    <View
+      style={[
+        styles.inputWrap,
+        {
+          backgroundColor: colors.card,
+          borderColor: focusedKey === fieldKey ? colors.focus : colors.border,
+        },
+      ]}
+    >
+      <Ionicons name={icon} size={18} color={colors.subtext} style={styles.leftIcon} />
+      <TextInput
+        style={[styles.input, { color: colors.text }]}
+        placeholder={placeholder}
+        placeholderTextColor={colors.subtext}
+        value={value}
+        onChangeText={onChangeText}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
+        returnKeyType="next"
+        blurOnSubmit={false}
+        onSubmitEditing={onSubmitEditing}
+        onFocus={() => setFocusedKey(fieldKey)}
+        onBlur={() => setFocusedKey(null)}
+      />
+    </View>
+  </View>
+));
+
+export const DropdownButton = React.memo(({ label, value, onPress, colors, styles }) => (
+  <View style={styles.field}>
+    <View style={[styles.inputWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <MaterialCommunityIcons name="form-select" size={18} color={colors.subtext} style={styles.leftIcon} />
+      <Pressable onPress={onPress} style={{ flex: 1, paddingVertical: 2 }}>
+        <Text style={{ color: value ? colors.text : colors.subtext, fontSize: 15 }}>
+          {value || `Select ${label.toLowerCase()}`}
+        </Text>
+      </Pressable>
+      <Ionicons name="chevron-down" size={18} color={colors.subtext} />
+    </View>
+  </View>
+));
+
+
+
 export default function LocalConveyanceFormScreen({ navigation }) {
   const [userId, setUserId] = useState(null);
   const [ccrList, setCcrList] = useState([]);
@@ -123,16 +266,28 @@ export default function LocalConveyanceFormScreen({ navigation }) {
   const [selectedImage, setSelectedImage] = useState(null);
   const [defaultValues, setDefaultValues] = useState({}); // holds defaults from storage/API
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+
+// ...inside your component:
 const scheme = useColorScheme();
 const palette = {
-  bg: scheme === 'dark' ? '#0b1220' : '#ffffff',
-  text: scheme === 'dark' ? '#e6e9f2' : '#222',
-  subtext: scheme === 'dark' ? '#9aa4b2' : '#555',
+ bg: '#f5f7fb',        // soft light background (always)
+  card: '#ffffff',       // card/input background
+  text: scheme === 'dark' ? '#334155' : '#334155',
+  subtext: scheme === 'dark' ? '#334155' : '#6b7280',
+  border: scheme === 'dark' ? '#2d3748' : '#e5e7eb',
+  focus: '#2563eb',
   primary: '#2563eb',
-  primaryText: '#ffffff',
-  outline: scheme === 'dark' ? '#1f2937' : '#e5e7eb',
   danger: '#ef4444',
+  success: '#16a34a',
 };
+
+
+const insets = useSafeAreaInsets();
+const bottomOffset = Math.max(16, (insets?.bottom || 0) + 16);
+
+
+const [focusedKey, setFocusedKey] = React.useState(null);
 
 
 
@@ -424,136 +579,185 @@ const handleSubmit = async () => {
   };
 
 
-
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>📝 Add Local Conveyance</Text>
-
-      <Text style={styles.label}>🆔 Request ID / SO No.</Text>
-      <TextInput
-        placeholder="Enter Request No"
-        value={formData.request_id}
-        onChangeText={(v) => setFormData({ ...formData, request_id: v })}
-        style={styles.input}
-      />
-
-      <DateTimeSelector
-        label="⏰ Start Time"
-        value={formData.start_time}
-        onChange={(v) => setFormData({ ...formData, start_time: v })}
-      />
-      <DateTimeSelector
-        label="🕓 Arrived Time"
-        value={formData.arrived_time}
-        onChange={(v) => setFormData({ ...formData, arrived_time: v })}
-      />
-
-      <Text style={styles.label}>📏 Distance (km)</Text>
-      <TextInput
-        placeholder="e.g. 12.5"
-        keyboardType="numeric"
-        value={formData.distance_km}
-        onChangeText={(v) => setFormData({ ...formData, distance_km: v })}
-        style={styles.input}
-      />
-
- {/* fields */}
-{FIELDS.map(({ key, label, type }) => (
-  <View key={key} style={{ marginBottom: 12 }}>
-    <Text style={styles.label}>{label}</Text>
-
-    {type === 'text' ? (
-      <TextInput
-        style={[styles.input, { paddingHorizontal: 12, paddingVertical: 10 }]}
-        value={formData[key] ?? ''}
-        placeholder={`Enter ${label.toLowerCase()}`}
-        onChangeText={(t) => setFormData((p) => ({ ...p, [key]: t }))}
-        autoCapitalize="words"
-        returnKeyType="done"
-        onSubmitEditing={() => Keyboard.dismiss?.()}
-      />
-    ) : (
-      <TouchableOpacity
-        style={styles.dropdownButton}
-        onPress={() => openDropdown(key)}
-      >
-        <Text style={styles.dropdownButtonText}>
-          {formData[key] || defaultValues[key] || `Select ${label.toLowerCase()}`}
-
-        </Text>
-      </TouchableOpacity>
-    )}
+const FieldLabel = ({ icon, text }) => (
+  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+    {icon ? <Ionicons name={icon} size={16} color={palette.subtext} style={{ marginRight: 6 }} /> : null}
+    <Text style={[styles.label, { color: palette.subtext }]}>{text}</Text>
   </View>
-))}
-
-{/* dropdown only shows for dropdown fields */}
-
-<ModalDropdown
-  visible={!!activeDropdown && fieldMeta(activeDropdown)?.type === 'dropdown'}
-  options={buildOptions(activeDropdown)}
-  selectedValue={formData[activeDropdown] ?? null}
-  defaultValue={defaultValues[activeDropdown] ?? null}
-  onSelect={(item) => handleSelect(activeDropdown, item)}
-  onClose={closeDropdown}
-/>
+);
 
 
-
-
-
-<View style={{ display: "none" }}>
-      <Text style={styles.label}>👤 User ID</Text>
-      <TextInput value={userId || ''} editable={false} style={styles.inputDisabled} />
-</View>
-
-
- <View style={{ marginVertical: 12 }}>
-    {/* Image actions row */}
-    <View style={styles.row}>
-      <Pressable
-        onPress={pickImage}
-        style={({ pressed }) => [
-          styles.actionBtn,
-          { borderColor: palette.outline, backgroundColor: pressed ? '#f3f6ff' : '#f8faff' },
-        ]}
-        android_ripple={{ color: '#e6eefc' }}
-      >
-        <Ionicons name="images-outline" size={18} color={palette.primary} style={{ marginRight: 8 }} />
-        <Text style={[styles.actionText, { color: palette.text }]}>Pick from Gallery</Text>
+const DropdownButton = ({ label, value, onPress }) => (
+  <View style={styles.field}>
+    <View style={[styles.inputWrap, { backgroundColor: palette.card, borderColor: palette.border }]}>
+      <MaterialCommunityIcons name="form-select" size={18} color={palette.subtext} style={styles.leftIcon} />
+      <Pressable onPress={onPress} style={{ flex: 1, paddingVertical: 2 }}>
+        <Text style={{ color: value ? palette.text : palette.subtext, fontSize: 15 }}>
+          {value || `Select ${label.toLowerCase()}`}
+        </Text>
       </Pressable>
+      <Ionicons name="chevron-down" size={18} color={palette.subtext} />
+    </View>
+  </View>
+);
 
-      <Pressable
-        onPress={captureImage}
-        style={({ pressed }) => [
-          styles.actionBtn,
-          { borderColor: palette.outline, backgroundColor: pressed ? '#fff7f7' : '#fffafa' },
-        ]}
-        android_ripple={{ color: '#fde2e2' }}
-      >
-        <Ionicons name="camera-outline" size={18} color="#e11d48" style={{ marginRight: 8 }} />
-        <Text style={[styles.actionText, { color: palette.text }]}>Capture from Camera</Text>
-      </Pressable>
+
+
+
+return (
+<ScrollView
+  style={{ flex: 1, backgroundColor: palette.bg }}
+  contentContainerStyle={[styles.container, { paddingBottom: bottomOffset }]}
+  keyboardShouldPersistTaps="handled"
+  keyboardDismissMode="on-drag"
+>
+    <View style={styles.titleRow}>
+      <View style={styles.titleIconWrap}>
+        <Ionicons name="receipt-outline" size={18} color={palette.primary} />
+      </View>
+      <Text style={[styles.title, { color: palette.text }]}>Add Local Conveyance</Text>
     </View>
 
-    {/* Preview */}
-    {selectedImage ? (
-      <View style={styles.previewWrap}>
-        <Image
-          source={{ uri: selectedImage.uri }}
-          style={styles.previewImg}
-          resizeMode="cover"
-        />
+    <FieldLabel icon="pricetag-outline" text="Request ID / SO No." colors={palette} styles={styles} />
+    <LabeledInput
+      icon="pricetag-outline"
+      fieldKey="request_id"
+      value={formData.request_id}
+      onChangeText={(v) => setFormData({ ...formData, request_id: v })}
+      placeholder="Enter Request No"
+      autoCapitalize="characters"
+      colors={palette}
+      styles={styles}
+      focusedKey={focusedKey}
+      setFocusedKey={setFocusedKey}
+      onSubmitEditing={() => {}}
+    />
+
+
+
+
+{/* Start Time (full width) */}
+<DateTimeField
+  label="Start Time"
+  value={formData.start_time}
+  onChange={(v) => setFormData({ ...formData, start_time: v })}
+  colors={palette}
+  styles={styles}
+/>
+
+{/* Arrived Time (full width) */}
+<DateTimeField
+  label="Arrived Time"
+  value={formData.arrived_time}
+  onChange={(v) => setFormData({ ...formData, arrived_time: v })}
+  colors={palette}
+  styles={styles}
+/>
+
+    <FieldLabel icon="map-outline" text="Distance (km)" colors={palette} styles={styles} />
+    <LabeledInput
+      icon="map-outline"
+      fieldKey="distance_km"
+      value={formData.distance_km}
+      onChangeText={(v) => setFormData({ ...formData, distance_km: v })}
+      placeholder="e.g. 12.5"
+      keyboardType="numeric"
+      colors={palette}
+      styles={styles}
+      focusedKey={focusedKey}
+      setFocusedKey={setFocusedKey}
+      onSubmitEditing={() => {}}
+    />
+
+    {FIELDS.map(({ key, label, type, icon }) => (
+      <View key={key}>
+        <FieldLabel icon={icon || 'create-outline'} text={label} colors={palette} styles={styles} />
+        {type === 'text' ? (
+          <LabeledInput
+            icon={icon || 'create-outline'}
+            fieldKey={key}
+            value={formData[key] ?? ''}
+            placeholder={`Enter ${label.toLowerCase()}`}
+            autoCapitalize="words"
+            onChangeText={(t) => setFormData((p) => ({ ...p, [key]: t }))}
+            colors={palette}
+            styles={styles}
+            focusedKey={focusedKey}
+            setFocusedKey={setFocusedKey}
+            onSubmitEditing={() => {}}
+          />
+        ) : (
+          <DropdownButton
+            label={label}
+            value={formData[key] || defaultValues[key] || ''}
+            onPress={() => openDropdown(key)}
+            colors={palette}
+            styles={styles}
+          />
+        )}
       </View>
-    ) : null}
+    ))}
 
-    <View style={styles.bottomBar}>
+    <ModalDropdown
+      visible={!!activeDropdown && fieldMeta(activeDropdown)?.type === 'dropdown'}
+      options={buildOptions(activeDropdown)}
+      selectedValue={formData[activeDropdown] ?? null}
+      defaultValue={defaultValues[activeDropdown] ?? null}
+      onSelect={(item) => handleSelect(activeDropdown, item)}
+      onClose={closeDropdown}
+    />
 
+    <View style={{ display: 'none' }}>
+      <FieldLabel icon="person-outline" text="User ID" colors={palette} styles={styles} />
+      <View style={[styles.inputWrap, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Ionicons name="person-outline" size={18} color={palette.subtext} style={styles.leftIcon} />
+        <TextInput value={userId || ''} editable={false} style={[styles.input, { color: palette.subtext }]} />
+      </View>
+    </View>
+
+    <View style={{ marginVertical: 12 }}>
+      <View style={styles.row}>
+        <Pressable
+          onPress={pickImage}
+          style={({ pressed }) => [
+            styles.actionBtn,
+            styles.mr10,
+            { borderColor: palette.border, backgroundColor: pressed ? '#eef4ff' : palette.card },
+          ]}
+          android_ripple={{ color: '#e6eefc' }}
+        >
+          <Ionicons name="images-outline" size={18} color={palette.primary} style={{ marginRight: 8 }} />
+          <Text style={[styles.actionText, { color: palette.text }]}>Pick from Gallery</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={captureImage}
+          style={({ pressed }) => [
+            styles.actionBtn,
+            { borderColor: palette.border, backgroundColor: pressed ? '#fff1f2' : palette.card },
+          ]}
+          android_ripple={{ color: '#fde2e2' }}
+        >
+          <Ionicons name="camera-outline" size={18} color="#e11d48" style={{ marginRight: 8 }} />
+          <Text style={[styles.actionText, { color: palette.text }]}>Take Photo</Text>
+        </Pressable>
+      </View>
+
+      {selectedImage ? (
+        <View style={styles.previewWrap}>
+          <Image source={{ uri: selectedImage.uri }} style={styles.previewImg} resizeMode="cover" />
+        </View>
+      ) : null}
+    </View>
+
+  <View style={[styles.bottomBar, { marginBottom: bottomOffset }]}>
       <Pressable
         onPress={handleSubmit}
         disabled={isSubmitting}
         style={({ pressed }) => [
           styles.ctaBtn,
-          { backgroundColor: palette.primary, opacity: isSubmitting ? 0.6 : pressed ? 0.9 : 1 },
+          styles.mr10,
+          { backgroundColor: palette.primary, opacity: isSubmitting ? 0.6 : pressed ? 0.95 : 1 },
         ]}
         android_ripple={{ color: '#c7d7fe' }}
       >
@@ -561,8 +765,8 @@ const handleSubmit = async () => {
           <ActivityIndicator />
         ) : (
           <>
-            <Ionicons name="checkmark-circle" size={18} color={palette.primaryText} style={{ marginRight: 8 }} />
-            <Text style={[styles.ctaText, { color: palette.primaryText }]}>Submit</Text>
+            <Ionicons name="checkmark-circle" size={18} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={[styles.ctaText, { color: '#fff' }]}>Submit</Text>
           </>
         )}
       </Pressable>
@@ -571,54 +775,50 @@ const handleSubmit = async () => {
         onPress={() => navigation.goBack()}
         style={({ pressed }) => [
           styles.cancelBtn,
-          { borderColor: palette.outline, backgroundColor: pressed ? '#f9fafb' : 'transparent' },
+          { borderColor: palette.border, backgroundColor: pressed ? '#f3f4f6' : 'transparent' },
         ]}
         android_ripple={{ color: '#e5e7eb' }}
       >
         <Ionicons name="close-circle-outline" size={18} color={palette.danger} style={{ marginRight: 8 }} />
         <Text style={[styles.cancelText, { color: palette.danger }]}>Cancel</Text>
       </Pressable>
-	</View>
-	</View>
-    </ScrollView>
-  );
+    </View>
+  </ScrollView>
+);
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 14, backgroundColor: '#f7f7f7' },
-  title: { fontSize: 20, fontWeight: '700', marginBottom: 14 },
-  label: { fontWeight: '600', marginBottom: 6 },
-  input: {
-    borderWidth: 1, borderColor: '#ccc', borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: Platform.OS === 'ios' ? 12 : 8,
-    marginBottom: 12, backgroundColor: '#fff',
-  },
-  inputDisabled: {
-    borderWidth: 1, borderColor: '#eee', borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: Platform.OS === 'ios' ? 12 : 8,
-    marginBottom: 12, backgroundColor: '#f3f4f6', color: '#6b7280',
-  },
-  pickerBtn: {
-    padding: 12, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, backgroundColor: '#fff',
-  },
-  dropdownButton: {
-    backgroundColor: '#fff',
-    borderWidth: 1, borderColor: '#ccc', borderRadius: 8,
-    paddingHorizontal: 12, paddingVertical: 12,
-  },
-  dropdownButtonText: { color: '#111' },
+  container: { padding: 16},
 
-  submitBtn: {
-    backgroundColor: '#16a34a',
-    paddingVertical: 12, borderRadius: 10, alignItems: 'center', marginTop: 10,
+  titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  titleIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#eef2ff',
+    marginRight: 8,
   },
-  submitText: { color: '#fff', fontWeight: '700' },
-   
-    row: {
+  title: { fontSize: 20, fontWeight: '700' },
+
+  label: { fontSize: 13, fontWeight: '600', letterSpacing: 0.2 },
+  field: { marginBottom: 12 },
+
+  inputWrap: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
   },
+  leftIcon: { marginRight: 10, opacity: 0.9 },
+  input: { flex: 1, fontSize: 15 },
+
+  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  mr10: { marginRight: 10 },
+
   actionBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -627,25 +827,22 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 6,
+      },
+      android: { elevation: 1 },
+    }),
   },
-  actionText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  previewWrap: {
-    marginTop: 12,
-    alignItems: 'flex-start',
-  },
-  previewImg: {
-    width: 240,
-    height: 240,
-    borderRadius: 12,
-  },
-  bottomBar: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 16,
-  },
+  actionText: { fontSize: 14, fontWeight: '600' },
+
+  previewWrap: { marginTop: 12, alignItems: 'flex-start' },
+  previewImg: { width: 240, height: 240, borderRadius: 12 },
+
+  bottomBar: { flexDirection: 'row', alignItems: 'center', marginTop: 16 },
   ctaBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -653,12 +850,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     borderRadius: 14,
-    elevation: 1, // subtle shadow on Android
+    ...Platform.select({
+      ios: {
+        shadowColor: '#2563eb',
+        shadowOpacity: 0.25,
+        shadowOffset: { width: 0, height: 8 },
+        shadowRadius: 14,
+      },
+      android: { elevation: 2 },
+    }),
   },
-  ctaText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
+  ctaText: { fontSize: 15, fontWeight: '700' },
   cancelBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -668,9 +870,60 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
   },
-  cancelText: {
-    fontSize: 15,
-    fontWeight: '700',
+  cancelText: { fontSize: 15, fontWeight: '700' },
+// Two-column row for time pickers
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    marginBottom: 12,
   },
-});
+  timeCol: {
+    flex: 1,
+    minWidth: 0, // allows text truncation
+  },
+  timeSpacer: {
+    width: 10,
+  },
 
+  // Tiny label above value, and value styling
+  smallLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+    textTransform: 'uppercase',
+  },
+  valueText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+// add to your existing styles object
+smallLabel: {
+  fontSize: 11,
+  fontWeight: '600',
+  letterSpacing: 0.3,
+  marginBottom: 4,
+  textTransform: 'uppercase',
+},
+valueRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 8,
+},
+pill: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  paddingHorizontal: 10,
+  paddingVertical: 6,
+  borderRadius: 999,
+},
+valueText: {
+  fontSize: 14,
+  fontWeight: '600',
+},
+placeholderText: {
+  fontSize: 15,
+  fontWeight: '500',
+},
+});
