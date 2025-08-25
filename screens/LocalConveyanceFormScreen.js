@@ -356,6 +356,20 @@ export default function LocalConveyanceFormScreen({ navigation }) {
   }, [ccrList, formData.ccr_no, formData.request_id]);
 
   const handleSelect = (key, value) => {
+  if (key === 'to_location') {
+    const val = String(value || '').trim();
+    if (!val) return closeDropdown();
+    // set field value
+    setFormData((prev) => ({ ...prev, to_location: val }));
+    // add to options if not present (case-insensitive)
+    setDropdownOptions((prev) => {
+      const list = Array.isArray(prev.to_location) ? prev.to_location : [];
+      const exists = list.some((x) => String(x).trim().toLowerCase() === val.toLowerCase());
+      return exists ? prev : { ...prev, to_location: [val, ...list] };
+    });
+    closeDropdown();
+    return;
+  }
     if (key === 'ccr_no') {
       const picked = Array.isArray(ccrList)
         ? ccrList.find((r) => String(r.case_id).trim() === String(value).trim())
@@ -573,6 +587,7 @@ export default function LocalConveyanceFormScreen({ navigation }) {
         searchValue={activeDropdown === 'to_location' ? dropdownSearch : ''}
         onSearchChange={setDropdownSearch}
         searchPlaceholder="Search area/city"
+         allowFreeText={activeDropdown === 'to_location'}
       />
 
       <View style={{ marginVertical: 12 }}>

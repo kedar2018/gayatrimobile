@@ -26,6 +26,8 @@ export default function ModalDropdown({
   searchValue = '',
   onSearchChange = () => {},
   searchPlaceholder = 'Search...',
+  allowFreeText = false,
+
 }) {
   const [ready, setReady] = useState(false);
   const searchRef = useRef(null);
@@ -47,6 +49,15 @@ export default function ModalDropdown({
     if (!q) return arr;
     return arr.filter((o) => toLabel(o).toLowerCase().includes(q));
   }, [visible, options, searchEnabled, searchValue]);
+
+
+ const existsExact = useMemo(() => {
+   if (!searchEnabled || !searchValue?.trim()) return false;
+   const needle = searchValue.trim().toLowerCase();
+   const arr = Array.isArray(options) ? options : [];
+   return arr.some((o) => toLabel(o).trim().toLowerCase() === needle);
+ }, [options, searchEnabled, searchValue]);
+
 
   const keyExtractor = useCallback((item, idx) => {
     const v = toValue(item);
@@ -159,6 +170,27 @@ export default function ModalDropdown({
           <View style={{ padding: 16 }}>
             <Text style={{ color: '#6b7280' }}>Loading…</Text>
           </View>
+        )}
+
+        {/* Free-text fallback: allow adding custom value */}
+        {searchEnabled && allowFreeText && !!searchValue?.trim() && !existsExact && (
+          <Pressable
+            onPress={() => onSelect?.(searchValue.trim())}
+            style={{
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              borderTopWidth: 1,
+              borderTopColor: '#e5e7eb',
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}
+            android_ripple={{ color: '#e5e7eb' }}
+          >
+            <Ionicons name="add-circle-outline" size={18} color="#2563eb" style={{ marginRight: 8 }} />
+            <Text style={{ color: '#2563eb', fontWeight: '600' }}>
+              Use “{searchValue.trim()}”
+            </Text>
+          </Pressable>
         )}
       </View>
     </Modal>
