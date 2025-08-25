@@ -1,18 +1,18 @@
 // components/ModalDropdown.js
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { Modal, View, Text, Pressable, FlatList, TextInput, Platform } from 'react-native';
+import { Modal, View, Text, Pressable, FlatList, TextInput, Platform, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-// Tiny cross-engine defer (Hermes-safe)
 const defer = (cb) =>
   (global?.requestAnimationFrame
     ? requestAnimationFrame(() => setTimeout(cb, 0))
     : setTimeout(cb, 0));
 
 const ITEM_HEIGHT = 48;
+const MAX_HEIGHT = Math.min(360, Math.round(Dimensions.get('window').height * 0.55));
 
-const toLabel = (opt) => (typeof opt === 'string' ? opt : opt?.label ?? String(opt ?? ''));
-const toValue = (opt) => (typeof opt === 'string' ? opt : opt?.value ?? toLabel(opt));
+const toLabel = (opt) => (typeof opt === 'string' ? opt : (opt && opt.label != null ? String(opt.label) : String(opt ?? '')));
+const toValue = (opt) => (typeof opt === 'string' ? opt : (opt && opt.value != null ? opt.value : toLabel(opt)));
 
 export default function ModalDropdown({
   visible,
@@ -27,15 +27,15 @@ export default function ModalDropdown({
   onSearchChange = () => {},
   searchPlaceholder = 'Search...',
   allowFreeText = false,
-
 }) {
   const [ready, setReady] = useState(false);
   const searchRef = useRef(null);
+  const debounceRef = useRef(null);
 
   useEffect(() => {
     if (visible) {
       setReady(false);
-      defer(() => setReady(true)); // mount list after a frame
+      defer(() => setReady(true));
       if (searchEnabled) setTimeout(() => searchRef.current?.focus?.(), 120);
     } else {
       setReady(false);
@@ -45,23 +45,21 @@ export default function ModalDropdown({
   const filtered = useMemo(() => {
     if (!visible) return [];
     const arr = Array.isArray(options) ? options : [];
-    const q = searchEnabled ? searchValue.trim().toLowerCase() : '';
+    const q = searchEnabled ? String(searchValue || '').trim().toLowerCase() : '';
     if (!q) return arr;
     return arr.filter((o) => toLabel(o).toLowerCase().includes(q));
   }, [visible, options, searchEnabled, searchValue]);
 
-
- const existsExact = useMemo(() => {
-   if (!searchEnabled || !searchValue?.trim()) return false;
-   const needle = searchValue.trim().toLowerCase();
-   const arr = Array.isArray(options) ? options : [];
-   return arr.some((o) => toLabel(o).trim().toLowerCase() === needle);
- }, [options, searchEnabled, searchValue]);
-
+  const existsExact = useMemo(() => {
+    if (!searchEnabled || !searchValue || !String(searchValue).trim()) return false;
+    const needle = String(searchValue).trim().toLowerCase();
+    const arr = Array.isArray(options) ? options : [];
+    return arr.some((o) => toLabel(o).trim().toLowerCase() === needle);
+  }, [options, searchEnabled, searchValue]);
 
   const keyExtractor = useCallback((item, idx) => {
     const v = toValue(item);
-    return typeof v === 'string' ? `k:${v}` : `i:${idx}`;
+    return typeof v === 'string' ? `k:${v}:${idx}` : `i:${idx}`;
   }, []);
 
   const getItemLayout = useCallback((_, index) => (
@@ -93,16 +91,25 @@ export default function ModalDropdown({
     [selectedValue, defaultValue, onSelect]
   );
 
+  const onSearchChangeDebounced = (txt) => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => onSearchChange(txt), 80);
+  };
+
   return (
     <Modal
-      visible={visible}
+      visible={!!visible}
       transparent
       animationType="none"
       statusBarTranslucent
       onRequestClose={onClose}
     >
       {/* overlay */}
-      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.28)' }} />
+      <Pressable
+        onPress={onClose}
+        accessibilityLabel="Close dropdown overlay"
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.28)' }}
+      />
 
       {/* sheet */}
       <View
@@ -123,32 +130,35 @@ export default function ModalDropdown({
         {/* header */}
         <View style={{ paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', flexDirection: 'row', alignItems: 'center', minHeight: 48 }}>
           <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827', flex: 1 }}>
-            {title || 'Select'}
+            {title ? String(title) : 'Select'}
           </Text>
-          <Pressable onPress={onClose} hitSlop={8}>
+          <Pressable onPress={onClose} hitSlop={8} accessibilityLabel="Close dropdown">
             <Ionicons name="close" size={20} color="#6b7280" />
           </Pressable>
         </View>
 
         {/* search (only when enabled) */}
-        {searchEnabled && (
+        {searchEnabled ? (
           <View style={{ paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', flexDirection: 'row', alignItems: 'center', minHeight: 44 }}>
             <Ionicons name="search-outline" size={18} color="#6b7280" style={{ marginRight: 8 }} />
             <TextInput
               ref={searchRef}
               placeholder={searchPlaceholder}
               value={searchValue}
-              onChangeText={onSearchChange}
+              onChangeText={onSearchChangeDebounced}
               placeholderTextColor="#9ca3af"
               style={{ flex: 1, fontSize: 15, paddingVertical: Platform.OS === 'ios' ? 8 : 6 }}
+              autoCorrect={false}
+              autoCapitalize="words"
+              returnKeyType="done"
             />
-            {searchValue?.length ? (
-              <Pressable onPress={() => onSearchChange('')} hitSlop={8} style={{ marginLeft: 6 }}>
+            {searchValue ? (
+              <Pressable onPress={() => onSearchChange('')} hitSlop={8} style={{ marginLeft: 6 }} accessibilityLabel="Clear search">
                 <Ionicons name="close-circle" size={18} color="#9ca3af" />
               </Pressable>
             ) : null}
           </View>
-        )}
+        ) : null}
 
         {/* list */}
         {ready ? (
@@ -163,19 +173,23 @@ export default function ModalDropdown({
             updateCellsBatchingPeriod={16}
             removeClippedSubviews
             keyboardShouldPersistTaps="handled"
-            style={{ maxHeight: 360 }}
-            ListEmptyComponent={<View style={{ padding: 16 }}><Text style={{ color: '#6b7280' }}>No results</Text></View>}
+            style={{ maxHeight: MAX_HEIGHT }}
+            ListEmptyComponent={
+              <View style={{ padding: 16 }}>
+                <Text style={{ color: '#6b7280' }}>No results</Text>
+              </View>
+            }
           />
         ) : (
           <View style={{ padding: 16 }}>
-            <Text style={{ color: '#6b7280' }}>Loading…</Text>
+            <Text style={{ color: '#6b7280' }}>Loading...</Text>
           </View>
         )}
 
-        {/* Free-text fallback: allow adding custom value */}
-        {searchEnabled && allowFreeText && !!searchValue?.trim() && !existsExact && (
+        {/* free-text fallback */}
+        {searchEnabled && allowFreeText && !!String(searchValue).trim() && !existsExact ? (
           <Pressable
-            onPress={() => onSelect?.(searchValue.trim())}
+            onPress={() => onSelect?.(String(searchValue).trim())}
             style={{
               paddingHorizontal: 14,
               paddingVertical: 12,
@@ -185,13 +199,14 @@ export default function ModalDropdown({
               alignItems: 'center',
             }}
             android_ripple={{ color: '#e5e7eb' }}
+            accessibilityLabel="Use typed value"
           >
             <Ionicons name="add-circle-outline" size={18} color="#2563eb" style={{ marginRight: 8 }} />
             <Text style={{ color: '#2563eb', fontWeight: '600' }}>
-              Use “{searchValue.trim()}”
+              Use "{String(searchValue).trim()}"
             </Text>
           </Pressable>
-        )}
+        ) : null}
       </View>
     </Modal>
   );
