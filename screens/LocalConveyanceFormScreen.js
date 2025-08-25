@@ -278,18 +278,19 @@ export default function LocalConveyanceFormScreen({ navigation }) {
   };
   const closeDropdown = () => setActiveDropdown(null);
 
-const buildOptions = useCallback((key) => {
-  if (key === 'ccr_no') {
-    // show only CCR numbers
-    if (Array.isArray(ccrList) && ccrList.length) {
-      return ccrList.map((it) => String(it.case_id).trim());
+  const buildOptions = useCallback((key) => {
+    if (key === 'ccr_no') {
+      const arr = Array.isArray(ccrList) ? ccrList : [];
+      return arr.map((it) => {
+        const parts = [String(it.case_id).trim()];
+        if (it.serial_number) parts.push(`SN: ${String(it.serial_number).trim()}`);
+        const cust = it.customer_detail?.name || it.customer_detail?.customer_name;
+        if (cust) parts.push(String(cust).trim());
+        return { label: parts.join(' · '), value: String(it.case_id).trim() };
+      });
     }
-    // fallback to whatever you already have in state
-    return dropdownOptions.ccr_no || [];
-  }
-  // others unchanged
-  return dropdownOptions[key] || [];
-}, [ccrList, dropdownOptions]);
+    return dropdownOptions[key] || [];
+  }, [ccrList, dropdownOptions]);
 
 
   const loadUserId = useCallback(async () => {
