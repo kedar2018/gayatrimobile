@@ -522,58 +522,96 @@ export default function LocalConveyanceFormScreen({ navigation }) {
         <Text style={[styles.title, { color: colors.text }]}>Add Local Conveyance</Text>
       </View>
 
-      <FieldLabel icon="pricetag-outline" text="Request ID / SO No." colors={colors} />
-      <LabeledInput
-        icon="pricetag-outline"
-        fieldKey="request_id"
-        value={formData.request_id}
-        onChangeText={(v) => setFormData({ ...formData, request_id: v })}
-        placeholder="Enter Request No"
-        autoCapitalize="characters"
-        focusedKey={focusedKey}
-        setFocusedKey={setFocusedKey}
-        colors={colors}
-      />
 
-      <DateTimeField
-        label="Start Time"
-        value={formData.start_time}
-        onChange={(v) => setFormData({ ...formData, start_time: v })}
-        colors={colors}
-      />
-      <DateTimeField
-        label="Arrived Time"
-        value={formData.arrived_time}
-        onChange={(v) => setFormData({ ...formData, arrived_time: v })}
-        colors={colors}
-      />
+{/* 1) Request ID */}
+<FieldLabel icon="pricetag-outline" text="Request ID / SO No." colors={colors} />
+<LabeledInput
+  icon="pricetag-outline"
+  fieldKey="request_id"
+  value={formData.request_id}
+  onChangeText={(v) => setFormData({ ...formData, request_id: v })}
+  placeholder="Enter Request No"
+  autoCapitalize="characters"
+  focusedKey={focusedKey}
+  setFocusedKey={setFocusedKey}
+  colors={colors}
+/>
 
-      <FieldLabel icon="map-outline" text="Distance (km)" colors={colors} />
-      <LabeledInput
-        icon="map-outline"
-        fieldKey="distance_km"
-        value={formData.distance_km}
-        onChangeText={(v) => setFormData({ ...formData, distance_km: v })}
-        placeholder="e.g. 12.5"
-        keyboardType="numeric"
-        focusedKey={focusedKey}
-        setFocusedKey={setFocusedKey}
-        colors={colors}
-      />
+{/* 2) CCR NO */}
+<FieldLabel icon="document-text-outline" text="CCR NO" colors={colors} />
+<DropdownButton
+  label="CCR NO"
+  value={formData.ccr_no || ''}
+  onPress={() => openDropdown('ccr_no')}
+  colors={colors}
+/>
 
-      {FIELDS.map(({ key, label, type, icon }) => (
-        <View key={key}>
-          <FieldLabel icon={icon || 'create-outline'} text={label} colors={colors} />
-          {type === 'dropdown' ? (
-            <DropdownButton
-              label={label}
-              value={formData[key] || defaultValues[key] || ''}
-              onPress={() => openDropdown(key)}
-              colors={colors}
-            />
-          ) : null}
-        </View>
-      ))}
+{/* 3) PROJECT */}
+<FieldLabel icon="briefcase-outline" text="PROJECT" colors={colors} />
+<DropdownButton
+  label="PROJECT"
+  value={formData.project || (defaultValues.project || '')}
+  onPress={() => openDropdown('project')}
+  colors={colors}
+/>
+
+{/* 4) START TIME */}
+<DateTimeField
+  label="Start Time"
+  value={formData.start_time}
+  onChange={(v) => setFormData({ ...formData, start_time: v })}
+  colors={colors}
+/>
+
+{/* 5) ARRIVED TIME */}
+<DateTimeField
+  label="Arrived Time"
+  value={formData.arrived_time}
+  onChange={(v) => setFormData({ ...formData, arrived_time: v })}
+  colors={colors}
+/>
+
+{/* 6) MODE */}
+<FieldLabel icon="car-outline" text="MODE" colors={colors} />
+<DropdownButton
+  label="MODE"
+  value={formData.mode || (defaultValues.mode || '')}
+  onPress={() => openDropdown('mode')}
+  colors={colors}
+/>
+
+{/* 7) FROM LOCATION */}
+<FieldLabel icon="location-outline" text="FROM LOCATION" colors={colors} />
+<DropdownButton
+  label="FROM LOCATION"
+  value={formData.from_location || (defaultValues.from_location || '')}
+  onPress={() => openDropdown('from_location')}
+  colors={colors}
+/>
+
+{/* 8) TO LOCATION (search + free-text handled in ModalDropdown props) */}
+<FieldLabel icon="flag-outline" text="TO LOCATION" colors={colors} />
+<DropdownButton
+  label="TO LOCATION"
+  value={formData.to_location || (defaultValues.to_location || '')}
+  onPress={() => openDropdown('to_location')}
+  colors={colors}
+/>
+
+{/* 9) DISTANCE (km) */}
+<FieldLabel icon="map-outline" text="Distance (km)" colors={colors} />
+<LabeledInput
+  icon="map-outline"
+  fieldKey="distance_km"
+  value={formData.distance_km}
+  onChangeText={(v) => setFormData({ ...formData, distance_km: v })}
+  placeholder="e.g. 12.5"
+  keyboardType="numeric"
+  focusedKey={focusedKey}
+  setFocusedKey={setFocusedKey}
+  colors={colors}
+/>
+
 
       <ModalDropdown
         visible={!!activeDropdown && FIELDS.find((f) => f.key === activeDropdown)?.type === 'dropdown'}
