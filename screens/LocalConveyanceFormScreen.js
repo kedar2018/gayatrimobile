@@ -28,16 +28,54 @@ import ModalDropdown from '../components/ModalDropdown';
 const API_URL = 'https://134.199.178.17/gayatri';
 
 const MH_AREAS = [
+  // Mumbai & suburbs
   'Mumbai','Mumbai Central','Colaba','Fort','Churchgate','Marine Drive','Nariman Point',
-  'Lower Parel','Worli','Prabhadevi','Dadar','Matunga','Sion','Mahim','Wadala','Chembur',
-  'Ghatkopar','Vikhroli','Bhandup','Mulund East','Mulund West','Powai','Bandra East','Bandra West',
-  'Khar','Santacruz East','Santacruz West','Vile Parle East','Vile Parle West','Andheri East','Andheri West',
-  'Versova','Goregaon East','Goregaon West','Malad East','Malad West','Kandivali East','Kandivali West',
-  'Borivali East','Borivali West','Dahisar','Navi Mumbai','Vashi','Sanpada','Turbhe','Kopar Khairane',
-  'Ghansoli','Airoli','Nerul','Kharghar','Seawoods','Panvel','Thane','Kalyan','Dombivli','Bhiwandi',
-  'Pune','Hinjewadi','Wakad','Baner','Aundh','Kothrud','Hadapsar','Kharadi','Viman Nagar','Yerawada',
-  'Nagpur','Nashik','Chhatrapati Sambhajinagar','Kolhapur','Satara','Sangli','Solapur','Jalgaon','Latur',
-  'Nanded','Amravati','Akola','Yavatmal','Wardha','Chandrapur','Gondia','Bhandara','Dhule','Beed','Jalna',
+  'Lower Parel','Worli','Prabhadevi','Dadar','Matunga','Sion','Mahim','Wadala','Sewri',
+  'Byculla','Kurla','Saki Naka','Chandivali','Chembur','Govandi','Deonar','Mankhurd',
+  'Ghatkopar','Vikhroli','Bhandup','Mulund East','Mulund West','Powai',
+  'Bandra East','Bandra West','Khar','Santacruz East','Santacruz West',
+  'Vile Parle East','Vile Parle West','Andheri East','Andheri West','Versova',
+  'Jogeshwari','Goregaon East','Goregaon West','Malad East','Malad West',
+  'Kandivali East','Kandivali West','Borivali East','Borivali West','Dahisar',
+
+  // Navi Mumbai
+  'Navi Mumbai','Vashi','Sanpada','Turbhe','Kopar Khairane','Ghansoli','Airoli','Rabale',
+  'Belapur','Seawoods','Nerul','Kharghar','Kalamboli','Kamothe','Taloja','Ulwe',
+
+  // Thane region
+  'Thane','Thane West','Thane East','Mumbra','Kalwa','Bhiwandi','Kalyan','Dombivli',
+  'Ulhasnagar','Ambarnath','Badlapur','Shahapur',
+
+  // Palghar region
+  'Palghar','Vasai','Virar','Nalasopara','Boisar','Dahanu',
+
+  // Raigad / Konkan
+  'Panvel','Uran','Alibag','Pen','Karjat','Khalapur','Mangaon','Mahad','Murud',
+  'Ratnagiri','Chiplun','Dapoli',
+  'Sindhudurg','Kankavli','Kudal','Sawantwadi',
+
+  // Pune & PCMC
+  'Pune','Shivajinagar','Deccan','FC Road','Aundh','Baner','Pashan','Balewadi',
+  'Wakad','Hinjewadi','Kothrud','Sinhagad Road','Bibwewadi','Kondhwa','Undri',
+  'Hadapsar','Magarpatta','Kharadi','Viman Nagar','Yerawada','Koregaon Park','Camp',
+  'Pimpri','Chinchwad','Bhosari','Nigdi','Talegaon','Chakan','Ranjangaon',
+
+  // Nashik
+  'Nashik','Nashik Road','Panchavati','Satpur','Ambad MIDC','Sinnar','Igatpuri','Malegaon',
+
+  // Nagpur
+  'Nagpur','Sitabuldi','Civil Lines','Dharampeth','Manish Nagar','MIHAN','Hingna','Koradi',
+
+  // Chhatrapati Sambhajinagar (Aurangabad)
+  'Chhatrapati Sambhajinagar','Waluj MIDC','CIDCO','Garkheda','Paithan',
+
+  // Western & Southern MH
+  'Kolhapur','Karveer','Ichalkaranji','Satara','Karad','Sangli','Miraj','Kupwad','Solapur','Akkalkot',
+
+  // North / Marathwada / Vidarbha hubs
+  'Jalgaon','Bhusawal','Ahmednagar','Shrirampur','Latur','Udgir','Nanded','Deglur',
+  'Amravati','Achalpur','Akola','Washim','Buldhana','Yavatmal','Wardha','Chandrapur','Ballarpur',
+  'Gadchiroli','Gondia','Bhandara','Dhule','Nandurbar','Jalna','Beed','Parbhani','Hingoli',
 ];
 
 const FIELDS = [
@@ -189,9 +227,9 @@ export default function LocalConveyanceFormScreen({ navigation }) {
   const colors = useMemo(() => ({
     bg: '#f5f7fb',
     card: '#ffffff',
-    text: scheme === 'dark' ? '#e5e7eb' : '#0f172a',
-    subtext: scheme === 'dark' ? '#9ca3af' : '#6b7280',
-    border: scheme === 'dark' ? '#2d3748' : '#e5e7eb',
+    text: scheme === 'dark' ? '#0f172a' : '#0f172a',
+    subtext: scheme === 'dark' ? '#6b7280' : '#6b7280',
+    border: scheme === 'dark' ? '#e5e7eb' : '#e5e7eb',
     focus: '#2563eb',
     primary: '#2563eb',
     danger: '#ef4444',
