@@ -21,6 +21,8 @@ import AttendanceScreen from './screens/AttendanceScreen';
 //import { registerBackgroundVoiceAlert } from './components/bgVoiceAlert';
 import LocalConveyanceListScreen from './screens/LocalConveyanceListScreen';
 import LocalConveyanceFormScreen from './screens/LocalConveyanceFormScreen';
+import CallReportsCardListScreen from './screens/CallReportsCardListScreen';
+
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -47,6 +49,7 @@ function MainTabs() {
         tabBarInactiveTintColor: 'gray',
       })}
     >
+      <Tab.Screen name="Call Reports" component={CallReportsCardListScreen} />
       <Tab.Screen name="Local Conveyance" component={LocalConveyanceListScreen} />
       {/*<Tab.Screen name="CallReports" component={CallReportsScreen} />*/}
       {/*<Tab.Screen name="CallReportsDropdown" component={CallReportsDropdownScreen}/>*/}
@@ -71,6 +74,12 @@ export default function App() {
         <Stack.Screen
           name="LocalConveyanceForm" component={LocalConveyanceFormScreen} options={{ headerShown: true, title: 'Add Entry' }}/>
 	{/*<Stack.Screen name="SubmitCallReport" component={SubmitCallReportScreen} />*/}
+<Stack.Screen
+  name="CallReportsCardList"
+  component={CallReportsCardListScreen}
+  options={{ headerShown: true, title: 'Call Reports' }}
+/>
+
       </Stack.Navigator>
     </NavigationContainer>
   );
