@@ -34,11 +34,15 @@
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
-    "expo-build-properties": "~0.14.8"
+    "expo-build-properties": "~0.14.8",
+    "expo-file-system": "~18.1.11",
+    "expo-sharing": "~13.1.5"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "expo-dev-client": "~5.2.2"
+    "expo-dev-client": "~5.2.2",
+    "typescript": "~5.8.3",
+    "@types/react": "~19.0.10"
   },
   "private": true
 }
