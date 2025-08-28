@@ -1,14 +1,22 @@
 // screens/CallReportsCardListScreen.js
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, StyleSheet, ActivityIndicator, Alert, FlatList,
-  TextInput, TouchableOpacity, RefreshControl, Linking
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  RefreshControl,
+  Linking,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { MaterialIcons } from '@expo/vector-icons';
 
-// TODO: replace with your config import if you have one, e.g.:
+// ⬇️ Replace with your actual config import if you have one:
 // import { API_URL } from '../utils/config';
 const API_URL = 'https://134.199.178.17/gayatri';
 
@@ -28,9 +36,11 @@ export default function CallReportsCardListScreen({ navigation }) {
         setLoading(false);
         return;
       }
+
       const res = await axios.get(`${API_URL}/api/call_reports`, {
         params: { engineer_id: userId },
       });
+
       const arr = Array.isArray(res.data) ? res.data : [];
       setAll(arr);
     } catch (e) {
@@ -41,7 +51,9 @@ export default function CallReportsCardListScreen({ navigation }) {
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -55,11 +67,25 @@ export default function CallReportsCardListScreen({ navigation }) {
   const filtered = useMemo(() => {
     const q = (query || '').toLowerCase().trim();
     if (!q) return all;
+
     return all.filter((r) => {
+      const cd = r?.customer_detail || {};
       const parts = [
-        r?.case_id, r?.id,
-        r?.customer_name, r?.mobile_number,
-        r?.serial_number, r?.status,
+        r?.case_id,
+        r?.id,
+        r?.serial_number,
+        r?.status,
+        // sometimes backend also flattens these:
+        r?.customer_name,
+        r?.mobile_number,
+        r?.phone_number,
+        r?.address,
+        // nested object:
+        cd?.customer_name,
+        cd?.mobile_number,
+        cd?.phone_number,
+        cd?.address,
+        cd?.city,
       ]
         .map((x) => (x == null ? '' : String(x).toLowerCase()));
       return parts.some((p) => p.includes(q));
@@ -81,22 +107,30 @@ export default function CallReportsCardListScreen({ navigation }) {
   };
 
   const renderItem = ({ item }) => {
+    const cd = item?.customer_detail || {};
+    const customerName = item?.customer_name || cd?.customer_name || '';
+    const phone =
+      item?.mobile_number ||
+      item?.phone_number ||
+      cd?.mobile_number ||
+      cd?.phone_number ||
+      '';
+    const address = item?.address || cd?.address || '';
+    const city = cd?.city || '';
     const created = formatDateTime(item?.created_at);
     const updated = formatDateTime(item?.updated_at);
 
     return (
       <TouchableOpacity
-        activeOpacity={0.8}
+        activeOpacity={0.85}
         style={styles.card}
         onPress={() => {
-          // Optionally navigate to a detail or submit screen later:
+          // Example: navigate to a detail/submission screen later
           // navigation.navigate('SubmitCallReport', { reportId: item.id });
         }}
       >
         <View style={styles.cardHeaderRow}>
-          <Text style={styles.caseId}>
-            #{item?.case_id || item?.id}
-          </Text>
+          <Text style={styles.caseId}>#{item?.case_id || item?.id}</Text>
           {item?.status ? (
             <View style={styles.statusChip}>
               <Text style={styles.statusText}>{String(item.status).toUpperCase()}</Text>
@@ -111,34 +145,41 @@ export default function CallReportsCardListScreen({ navigation }) {
           </Text>
         ) : null}
 
-        {item?.customer_name ? (
+        {customerName ? (
           <Text style={styles.line}>
             <MaterialIcons name="person" size={16} color="#444" />{' '}
-            <Text style={styles.k}>Customer:</Text> {item.customer_name}
+            <Text style={styles.k}>Customer:</Text> {customerName}
           </Text>
         ) : null}
 
-        {item?.mobile_number ? (
+        {phone ? (
           <Text style={styles.line}>
             <MaterialIcons name="phone" size={16} color="#444" />{' '}
             <Text style={styles.k}>Phone:</Text>{' '}
-            <Text style={styles.link} onPress={() => dial(item.mobile_number)}>{item.mobile_number}</Text>
+            <Text style={styles.link} onPress={() => dial(phone)}>
+              {phone}
+            </Text>
           </Text>
         ) : null}
 
-        {item?.address ? (
+        {address ? (
           <Text style={styles.line} numberOfLines={2}>
             <MaterialIcons name="place" size={16} color="#444" />{' '}
-            <Text style={styles.k}>Address:</Text> {item.address}
+            <Text style={styles.k}>Address:</Text> {address}
+            {city ? `, ${city}` : ''}
           </Text>
         ) : null}
 
         <View style={styles.metaRow}>
           {created ? (
-            <Text style={styles.meta}><MaterialIcons name="schedule" size={14} /> Created: {created}</Text>
+            <Text style={styles.meta}>
+              <MaterialIcons name="schedule" size={14} /> Created: {created}
+            </Text>
           ) : null}
           {updated ? (
-            <Text style={styles.meta}><MaterialIcons name="update" size={14} /> Updated: {updated}</Text>
+            <Text style={styles.meta}>
+              <MaterialIcons name="update" size={14} /> Updated: {updated}
+            </Text>
           ) : null}
         </View>
       </TouchableOpacity>
@@ -195,9 +236,7 @@ export default function CallReportsCardListScreen({ navigation }) {
           keyExtractor={(item, idx) => String(item?.id ?? idx)}
           renderItem={renderItem}
           contentContainerStyle={{ padding: 12 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         />
       )}
     </View>
@@ -257,3 +296,4 @@ const styles = StyleSheet.create({
   },
   retryText: { color: '#fff', fontWeight: '700' },
 });
+
