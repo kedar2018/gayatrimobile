@@ -22,6 +22,8 @@ import AttendanceScreen from './screens/AttendanceScreen';
 import LocalConveyanceListScreen from './screens/LocalConveyanceListScreen';
 import LocalConveyanceFormScreen from './screens/LocalConveyanceFormScreen';
 import CallReportsCardListScreen from './screens/CallReportsCardListScreen';
+import CcrPdfFormScreen from './screens/CcrPdfFormScreen';
+
 
 
 const Stack = createStackNavigator();
@@ -79,7 +81,11 @@ export default function App() {
   component={CallReportsCardListScreen}
   options={{ headerShown: true, title: 'Call Reports' }}
 />
-
+<Stack.Screen
+  name="CcrPdfForm"
+  component={CcrPdfFormScreen}
+  options={{ headerShown: true, title: 'Generate Case PDF' }}
+/>
       </Stack.Navigator>
     </NavigationContainer>
   );
