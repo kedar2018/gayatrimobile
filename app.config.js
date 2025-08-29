@@ -17,7 +17,7 @@ export default ({ config }) => ({
 
   extra: {
     ...(config.extra || {}),
+    eas: { projectId: "07374876-184e-4802-bea5-5e816168a83f" },
     apiUrl: "https://134.199.178.17",
-    eas: { projectId: "07374876-184e-4802-bea5-5e816168a83f" }, // <<< REQUIRED
   },
 });
