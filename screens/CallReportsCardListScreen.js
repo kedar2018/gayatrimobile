@@ -234,3 +234,4 @@ const styles = StyleSheet.create({
   retryBtn: { backgroundColor: '#0ea5e9', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
   retryText: { color: '#fff', fontWeight: '700' },
 });
+
