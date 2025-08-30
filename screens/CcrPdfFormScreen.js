@@ -10,6 +10,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 // import { API_URL } from '../utils/config';
@@ -23,11 +24,12 @@ export default function CcrPdfFormScreen({ route }) {
   const [submitting, setSubmitting] = useState(false);
   const [report, setReport] = useState(incomingReport);
   const [actionTakenPreset, setActionTakenPreset] = useState('');
-
+  const [engineerName, setEngineerName] = useState('');
   // Form fields (text)
   const [caseId, setCaseId] = useState(incomingReport?.case_id || '');
   const [problemReported, setProblemReported] = useState('');
-  const [conditionOfMachine, setConditionOfMachine] = useState('');
+  const DEFAULT_CONDITION = 'Any scratch,damage on outside of machine';
+  const [conditionOfMachine, setConditionOfMachine] = useState(DEFAULT_CONDITION);
   const [defectivePartDescription, setDefectivePartDescription] = useState('');
   const [partNumber, setPartNumber] = useState('');
   const [actionTaken, setActionTaken] = useState('');
@@ -48,6 +50,10 @@ export default function CcrPdfFormScreen({ route }) {
   useEffect(() => {
     (async () => {
       if (incomingReport) preset(incomingReport);
+   try {
+     const n = await AsyncStorage.getItem('user_name');
+     if (n) setEngineerName(n);
+   }  catch {}
       setLoading(false);
     })();
   }, []);
@@ -55,6 +61,9 @@ export default function CcrPdfFormScreen({ route }) {
   const preset = (r) => {
     setReport(r);
     setCaseId(r?.case_id || '');
+setConditionOfMachine(
+  (r?.condition_of_machine && String(r.condition_of_machine).trim()) || DEFAULT_CONDITION
+);
   };
 
   // ---- Date/Time helpers
@@ -124,6 +133,7 @@ export default function CcrPdfFormScreen({ route }) {
         replace_part_description: replacePartDescription,
         replace_part_number: replacePartNumber,
         customer_signature: customerSignature,
+        engineer_name: engineerName,
       };
 
       const url = `${API_URL}/api/call_reports/${idForUrl}/generate_pdf`;
@@ -234,12 +244,10 @@ return (
           </View>
         ) : null}
 
-        {report?.status ? (
-          <View style={styles.kvRow}>
-            <Text style={styles.kvK}>Status</Text>
-            <Text style={styles.kvV}>{report.status}</Text>
-          </View>
-        ) : null}
+ <View style={styles.kvRow}>
+   <Text style={styles.kvK}>Engineer</Text>
+   <Text style={styles.kvV}>{engineerName || '-'}</Text>
+ </View>
       </View>
 
       {/* Form */}
