@@ -336,8 +336,12 @@ return (
     selectedValue={actionTakenPreset}
     onValueChange={(v) => setActionTakenPreset(v)}
     prompt="Select Action Taken"
+    mode="dropdown"
+    style={styles.picker}           // ← selected text color/size
+    itemStyle={styles.pickerItem}   // ← iOS wheel text
+    dropdownIconColor="#0f172a"     // ← Android arrow color
   >
-    <Picker.Item label="Select (optional)" value="" />
+    <Picker.Item label="Select (optional)" value="" color="#64748b" />
     <Picker.Item label="Inspection" value="Inspection" />
     <Picker.Item label="Reset performed" value="Reset performed" />
     <Picker.Item label="Part replaced" value="Part replaced" />
@@ -346,7 +350,6 @@ return (
     <Picker.Item label="No fault found" value="No fault found" />
   </Picker>
 </View>
-
 {/* Helper / clear */}
 {actionTakenPreset ? (
   <TouchableOpacity onPress={() => setActionTakenPreset('')} style={{ alignSelf: 'flex-start', marginTop: 6 }}>
@@ -504,10 +507,21 @@ pickerWrap: {
   borderWidth: 1,
   borderColor: '#e2e8f0',
   borderRadius: 10,
+  backgroundColor: '#fff',   // ensure contrast in dark mode
   overflow: 'hidden',
-  backgroundColor: '#fff',
-  color: '#334155'
+  height: 48,                // keeps Android dropdown compact
+  justifyContent: 'center',
+},
+picker: {
+  color: '#0f172a',          // selected text color
+  height: 58,
+  fontSize: 14,
+},
+pickerItem: {
+  color: '#0f172a',          // iOS wheel item color
+  fontSize: 16,
 },
 
 });
+
 
