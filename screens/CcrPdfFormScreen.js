@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet, ActivityIndicator, Alert,
-  ScrollView, Button, Platform,
+  ScrollView, Button, Platform, TouchableOpacity,
 } from 'react-native';
 import axios from 'axios';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -169,53 +169,103 @@ export default function CcrPdfFormScreen({ route }) {
   }
 
   const cd = report?.customer_detail || {};
-  return (
+// --- RETURN (replace your current return) ---
+return (
+  <>
+    {/* Top header */}
+    <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      <Text style={styles.h1}>Call Completion Report</Text>
+      <Text style={styles.sub}>Generate and download PDF</Text>
+    </View>
+
     <ScrollView
       style={styles.flex}
       contentContainerStyle={[
-        styles.containerContent,
-        {
-          paddingTop: insets.top + 8,
-          paddingBottom: Math.max(16, insets.bottom + 12),
-          paddingHorizontal: 16,
-          backgroundColor: '#f7f9fc',
-        },
+        styles.content,
+        { paddingBottom: insets.bottom + 96 } // leaves space above sticky bar
       ]}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.title}>Generate PDF</Text>
+      {/* Hidden Case ID input (kept for binding) */}
+      <Text style={styles.srOnly}>Case ID *</Text>
+      <TextInput style={styles.srOnly} value={caseId} onChangeText={setCaseId} />
 
+      {/* Case details */}
       <View style={styles.card}>
-        <Text style={styles.cardHeader}>Case Details</Text>
-        <Text style={styles.kv}><Text style={styles.k}>Case ID:</Text> {report?.case_id || report?.id || '-'}</Text>
-        {report?.serial_number ? (<Text style={styles.kv}><Text style={styles.k}>Serial #:</Text> {report.serial_number}</Text>) : null}
-        {cd?.customer_name ? (<Text style={styles.kv}><Text style={styles.k}>Customer:</Text> {cd.customer_name}</Text>) : null}
+        <Text style={styles.cardTitle}>Case Details</Text>
+
+        <View style={styles.kvRow}>
+          <Text style={styles.kvK}>Case ID</Text>
+          <Text style={styles.kvV}>{report?.case_id || report?.id || '-'}</Text>
+        </View>
+
+        {report?.serial_number ? (
+          <View style={styles.kvRow}>
+            <Text style={styles.kvK}>Serial #</Text>
+            <Text style={styles.kvV}>{report.serial_number}</Text>
+          </View>
+        ) : null}
+
+        {cd?.customer_name ? (
+          <View style={styles.kvRow}>
+            <Text style={styles.kvK}>Customer</Text>
+            <Text style={styles.kvV}>{cd.customer_name}</Text>
+          </View>
+        ) : null}
+
         {(cd?.mobile_number || cd?.phone_number) ? (
-          <Text style={styles.kv}><Text style={styles.k}>Phone:</Text> {cd.mobile_number || cd.phone_number}</Text>
+          <View style={styles.kvRow}>
+            <Text style={styles.kvK}>Phone</Text>
+            <Text style={styles.kvV}>{cd?.mobile_number || cd?.phone_number}</Text>
+          </View>
         ) : null}
+
         {(report?.address || cd?.address) ? (
-          <Text style={styles.kv}><Text style={styles.k}>Address:</Text> {report?.address || cd?.address}{cd?.city ? `, ${cd.city}` : ''}</Text>
+          <View style={styles.kvRow}>
+            <Text style={styles.kvK}>Address</Text>
+            <Text style={styles.kvV}>
+              {report?.address || cd?.address}{cd?.city ? `, ${cd.city}` : ''}
+            </Text>
+          </View>
         ) : null}
-        {report?.status ? (<Text style={styles.kv}><Text style={styles.k}>Status:</Text> {report.status}</Text>) : null}
+
+        {report?.status ? (
+          <View style={styles.kvRow}>
+            <Text style={styles.kvK}>Status</Text>
+            <Text style={styles.kvV}>{report.status}</Text>
+          </View>
+        ) : null}
       </View>
 
+      {/* Form */}
       <View style={styles.card}>
-        <Text style={styles.cardHeader}>Fill for PDF</Text>
-
-        <Text style={styles.label}>Case ID *</Text>
-        <TextInput style={styles.input} placeholder="Enter Case ID" value={caseId} onChangeText={setCaseId} />
+        <Text style={styles.cardTitle}>Fill for PDF</Text>
 
         <Text style={styles.label}>Problem Reported</Text>
-        <TextInput style={styles.input} placeholder="Describe the problem" value={problemReported} onChangeText={setProblemReported} multiline />
+        <TextInput
+          style={styles.input}
+          placeholder="Describe the problem"
+          value={problemReported}
+          onChangeText={setProblemReported}
+          multiline
+        />
+
+        <View style={styles.divider} />
 
         <Text style={styles.label}>Call Log Time</Text>
-        <Button title={formatDateTime(callLogTime)} onPress={() => openPicker('call')} />
+        <TouchableOpacity style={styles.chip} onPress={() => openPicker('call')}>
+          <Text style={styles.chipText}>{formatDateTime(callLogTime)}</Text>
+        </TouchableOpacity>
 
-        <Text style={styles.label}>Arrival Time</Text>
-        <Button title={formatDateTime(arrivalTime)} onPress={() => openPicker('arrival')} />
+        <Text style={[styles.label, { marginTop: 12 }]}>Arrival Time</Text>
+        <TouchableOpacity style={styles.chip} onPress={() => openPicker('arrival')}>
+          <Text style={styles.chipText}>{formatDateTime(arrivalTime)}</Text>
+        </TouchableOpacity>
 
-        <Text style={styles.label}>Closure Time</Text>
-        <Button title={formatDateTime(closureTime)} onPress={() => openPicker('closure')} />
+        <Text style={[styles.label, { marginTop: 12 }]}>Closure Time</Text>
+        <TouchableOpacity style={styles.chip} onPress={() => openPicker('closure')}>
+          <Text style={styles.chipText}>{formatDateTime(closureTime)}</Text>
+        </TouchableOpacity>
 
         {/* iOS picker */}
         {Platform.OS === 'ios' && iosPickerFor && (
@@ -226,7 +276,6 @@ export default function CcrPdfFormScreen({ route }) {
             onChange={onIOSChange}
           />
         )}
-
         {/* Android pickers (two-step) */}
         {Platform.OS === 'android' && androidPicker.step === 'date' && (
           <DateTimePicker
@@ -246,51 +295,178 @@ export default function CcrPdfFormScreen({ route }) {
           />
         )}
 
+        <View style={styles.divider} />
+
         <Text style={styles.label}>Condition of Machine</Text>
-        <TextInput style={styles.input} placeholder="Condition of machine" value={conditionOfMachine} onChangeText={setConditionOfMachine} multiline />
+        <TextInput
+          style={styles.input}
+          placeholder="Condition of machine"
+          value={conditionOfMachine}
+          onChangeText={setConditionOfMachine}
+          multiline
+        />
 
         <Text style={styles.label}>Defective Part Description</Text>
-        <TextInput style={styles.input} placeholder="Defective part details" value={defectivePartDescription} onChangeText={setDefectivePartDescription} multiline />
+        <TextInput
+          style={styles.input}
+          placeholder="Defective part details"
+          value={defectivePartDescription}
+          onChangeText={setDefectivePartDescription}
+          multiline
+        />
 
         <Text style={styles.label}>Part Number</Text>
-        <TextInput style={styles.input} placeholder="Part number" value={partNumber} onChangeText={setPartNumber} />
+        <TextInput
+          style={styles.input}
+          placeholder="Part number"
+          value={partNumber}
+          onChangeText={setPartNumber}
+        />
 
         <Text style={styles.label}>Action Taken</Text>
-        <TextInput style={styles.input} placeholder="Action taken" value={actionTaken} onChangeText={setActionTaken} multiline />
+        <TextInput
+          style={styles.input}
+          placeholder="Action taken"
+          value={actionTaken}
+          onChangeText={setActionTaken}
+          multiline
+        />
 
         <Text style={styles.label}>Replace Part Description</Text>
-        <TextInput style={styles.input} placeholder="Replacement part details" value={replacePartDescription} onChangeText={setReplacePartDescription} multiline />
+        <TextInput
+          style={styles.input}
+          placeholder="Replacement part details"
+          value={replacePartDescription}
+          onChangeText={setReplacePartDescription}
+          multiline
+        />
 
         <Text style={styles.label}>Replace Part Number</Text>
-        <TextInput style={styles.input} placeholder="Replacement part number" value={replacePartNumber} onChangeText={setReplacePartNumber} />
+        <TextInput
+          style={styles.input}
+          placeholder="Replacement part number"
+          value={replacePartNumber}
+          onChangeText={setReplacePartNumber}
+        />
 
         <Text style={styles.label}>Customer Signature (text)</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter customer signature text (e.g., typed name)"
+          placeholder="Enter customer signature text"
           value={customerSignature}
           onChangeText={setCustomerSignature}
           multiline
         />
-
-        <View style={{ marginTop: 16, marginBottom: insets.bottom }}>
-          <Button title={submitting ? 'Submitting…' : 'Submit & Download PDF'} onPress={onSubmit} disabled={submitting} />
-        </View>
       </View>
     </ScrollView>
-  );
+
+    {/* Sticky bottom action bar */}
+    <View style={[styles.actionBar, { paddingBottom: Math.max(12, insets.bottom + 8) }]}>
+      <TouchableOpacity
+        style={[styles.primaryBtn, submitting && styles.btnDisabled]}
+        onPress={onSubmit}
+        disabled={submitting}
+      >
+        <Text style={styles.primaryBtnText}>
+          {submitting ? 'Submitting…' : 'Submit & Download PDF'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  </>
+);
+
 }
 
+// --- STYLES (replace your styles object) ---
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  containerContent: { paddingBottom: 16 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginTop: 16, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
-  cardHeader: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
-  kv: { fontSize: 14, marginVertical: 2 },
-  k: { fontWeight: '600' },
-  label: { fontSize: 14, marginTop: 12, marginBottom: 6 },
-  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 10, minHeight: 44 },
+
+  header: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    backgroundColor: '#f7f9fc',
+  },
+  h1: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
+  sub: { marginTop: 4, fontSize: 12, color: '#64748b' },
+
+  content: {
+    backgroundColor: '#f7f9fc',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#eef2f7',
+  },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 10 },
+
+  // Key/Value rows
+  kvRow: {
+    flexDirection: 'row',
+    paddingVertical: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#f1f5f9',
+  },
+  kvK: { width: 120, fontWeight: '600', color: '#334155' },
+  kvV: { flex: 1, color: '#0f172a' },
+
+  label: { fontSize: 13, fontWeight: '600', color: '#334155', marginTop: 12, marginBottom: 6 },
+
+  input: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    padding: 10,
+    minHeight: 44,
+  },
+
+  chip: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#dbe3ef',
+    backgroundColor: '#f8fafc',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+  },
+  chipText: { fontSize: 13, color: '#0f172a' },
+
+  divider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 12,
+  },
+
+  actionBar: {
+    position: 'absolute',
+    left: 0, right: 0, bottom: 0,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    backgroundColor: '#ffffffee',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#e2e8f0',
+  },
+  primaryBtn: {
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  btnDisabled: { opacity: 0.6 },
+
+  // “screen-reader only” / hidden inputs
+  srOnly: { position: 'absolute', height: 0, width: 0, opacity: 0 },
 });
 
