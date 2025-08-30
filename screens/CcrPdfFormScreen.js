@@ -9,6 +9,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Picker } from '@react-native-picker/picker';
+
 
 // import { API_URL } from '../utils/config';
 const API_URL = 'https://134.199.178.17/gayatri';
@@ -20,6 +22,7 @@ export default function CcrPdfFormScreen({ route }) {
   const [loading, setLoading] = useState(!incomingReport);
   const [submitting, setSubmitting] = useState(false);
   const [report, setReport] = useState(incomingReport);
+  const [actionTakenPreset, setActionTakenPreset] = useState('');
 
   // Form fields (text)
   const [caseId, setCaseId] = useState(incomingReport?.case_id || '');
@@ -106,6 +109,8 @@ export default function CcrPdfFormScreen({ route }) {
 
     setSubmitting(true);
     try {
+      const actionTakenFinal = actionTakenPreset || actionTaken.trim();
+
       const payload = {
         case_id: caseId,
         problem_reported: problemReported,
@@ -115,7 +120,7 @@ export default function CcrPdfFormScreen({ route }) {
         condition_of_machine: conditionOfMachine,
         defective_part_description: defectivePartDescription,
         part_number: partNumber,
-        action_taken: actionTaken,
+        action_taken: actionTakenFinal,   // ← here
         replace_part_description: replacePartDescription,
         replace_part_number: replacePartNumber,
         customer_signature: customerSignature,
@@ -323,15 +328,42 @@ return (
           onChangeText={setPartNumber}
         />
 
-        <Text style={styles.label}>Action Taken</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Action taken"
-          value={actionTaken}
-          onChangeText={setActionTaken}
-          multiline
-        />
+<Text style={styles.label}>Action Taken</Text>
 
+{/* Preset dropdown */}
+<View style={styles.pickerWrap}>
+  <Picker
+    selectedValue={actionTakenPreset}
+    onValueChange={(v) => setActionTakenPreset(v)}
+    prompt="Select Action Taken"
+  >
+    <Picker.Item label="Select (optional)" value="" />
+    <Picker.Item label="Inspection" value="Inspection" />
+    <Picker.Item label="Reset performed" value="Reset performed" />
+    <Picker.Item label="Part replaced" value="Part replaced" />
+    <Picker.Item label="Firmware updated" value="Firmware updated" />
+    <Picker.Item label="Calibration done" value="Calibration done" />
+    <Picker.Item label="No fault found" value="No fault found" />
+  </Picker>
+</View>
+
+{/* Helper / clear */}
+{actionTakenPreset ? (
+  <TouchableOpacity onPress={() => setActionTakenPreset('')} style={{ alignSelf: 'flex-start', marginTop: 6 }}>
+    <Text style={{ fontSize: 12, color: '#2563eb' }}>Clear selection (use custom text)</Text>
+  </TouchableOpacity>
+) : null}
+
+{/* Custom text fallback (only used when no preset selected) */}
+<Text style={[styles.label, { marginTop: 10 }]}>Or type a custom action</Text>
+<TextInput
+  style={[styles.input, actionTakenPreset ? { opacity: 0.6 } : null]}
+  placeholder="Action taken (custom)"
+  value={actionTaken}
+  onChangeText={setActionTaken}
+  editable={!actionTakenPreset}   // disable when a preset is chosen
+  multiline
+/>
         <Text style={styles.label}>Replace Part Description</Text>
         <TextInput
           style={styles.input}
@@ -468,5 +500,14 @@ const styles = StyleSheet.create({
 
   // “screen-reader only” / hidden inputs
   srOnly: { position: 'absolute', height: 0, width: 0, opacity: 0 },
+pickerWrap: {
+  borderWidth: 1,
+  borderColor: '#e2e8f0',
+  borderRadius: 10,
+  overflow: 'hidden',
+  backgroundColor: '#fff',
+  color: '#334155'
+},
+
 });
 
