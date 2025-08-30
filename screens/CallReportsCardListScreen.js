@@ -114,40 +114,39 @@ export default function CallReportsCardListScreen() {
     navigation.navigate('CcrPdfForm', { report }); // keep your existing route name
   };
 
-  const renderItem = ({ item }) => {
-    const cd = item.customer_detail || {};
-    return (
-      <TouchableOpacity style={styles.card} >
-        <View style={styles.row}>
-          <Text style={styles.caseId}>#{item.case_id || item.id}</Text>
-          {item.status ? <Text style={styles.status}>{item.status}</Text> : null}
-        </View>
+const renderItem = ({ item }) => {
+  const cd = item.customer_detail || {};
+  return (
+    <TouchableOpacity style={styles.card} onPress={() => openReport(item)} activeOpacity={0.85}>
+      <View style={styles.accentBar} />
+      <View style={styles.row}>
+        <Text style={styles.caseId}>#{item.case_id || item.id}</Text>
+        {item.status ? <Text style={styles.status}>{item.status}</Text> : null}
+      </View>
 
-        {cd.customer_name ? (
-          <Text style={styles.kv}><Text style={styles.k}>Customer: </Text>{cd.customer_name}</Text>
-        ) : null}
-        {(cd.mobile_number || cd.phone_number) ? (
-          <Text style={styles.kv}><Text style={styles.k}>Phone: </Text>{cd.mobile_number || cd.phone_number}</Text>
-        ) : null}
-        {(item.address || cd.address) ? (
-          <Text style={styles.kv}><Text style={styles.k}>Address: </Text>{item.address || cd.address}{cd.city ? `, ${cd.city}` : ''}</Text>
-        ) : null}
+      {cd.customer_name ? (
+        <Text style={styles.kv}><Text style={styles.k}>Customer: </Text>{cd.customer_name}</Text>
+      ) : null}
+      {(cd.mobile_number || cd.phone_number) ? (
+        <Text style={styles.kv}><Text style={styles.k}>Phone: </Text>{cd.mobile_number || cd.phone_number}</Text>
+      ) : null}
+      {(item.address || cd.address) ? (
+        <Text style={styles.kv}><Text style={styles.k}>Address: </Text>{item.address || cd.address}{cd.city ? `, ${cd.city}` : ''}</Text>
+      ) : null}
 
-        <View style={styles.cardFooter}>
-  <Pressable
-    onPress={() => openReport(item)}
-    style={styles.linkBtn}
-    android_ripple={{ color: '#e5e7eb' }}
-    hitSlop={8}
-    accessibilityRole="button"
-    accessibilityLabel={`Generate PDF for ${item.case_id || item.id}`}
-  >
-    <Text style={styles.link}>Generate PDF</Text>
-  </Pressable>
-</View>
-      </TouchableOpacity>
-    );
-  };
+      <View style={styles.cardFooter}>
+        <Pressable
+          onPress={() => openReport(item)}
+          style={styles.linkBtn}
+          android_ripple={{ color: '#e5e7eb' }}
+        >
+          <Text style={styles.link}>Generate PDF</Text>
+        </Pressable>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
 
   const ListEmpty = () => {
     if (initialLoading) return null;
@@ -182,71 +181,132 @@ export default function CallReportsCardListScreen() {
     return <View style={{ height: 8 }} />;
   };
 
-  return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Text style={styles.h1}>Call Reports</Text>
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-      </View>
-
-      {initialLoading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator />
-          <Text style={{ marginTop: 8 }}>Loading…</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={items}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={renderItem}
-          contentContainerStyle={{ padding: 16, paddingBottom: Math.max(16, insets.bottom + 12) }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#2563eb"
-              colors={['#2563eb']}
-            />
-          }
-          onEndReachedThreshold={0.4}
-          onEndReached={onEndReached}
-          ListEmptyComponent={ListEmpty}
-          ListFooterComponent={ListFooter}
-          removeClippedSubviews
-        />
-      )}
+// --- RETURN (replace your current return) ---
+return (
+  <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={styles.header}>
+      <Text style={styles.h1}>Call Reports</Text>
+      <Text style={styles.sub}>Swipe down to refresh • Tap a card to open</Text>
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
-  );
+
+    {initialLoading ? (
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator />
+        <Text style={{ marginTop: 8 }}>Loading…</Text>
+      </View>
+    ) : (
+      <FlatList
+        data={items}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#2563eb"
+            colors={['#2563eb']}
+          />
+        }
+        onEndReachedThreshold={0.4}
+        onEndReached={onEndReached}
+        ListEmptyComponent={ListEmpty}
+        ListFooterComponent={ListFooter}
+        removeClippedSubviews
+      />
+    )}
+  </View>
+);
 }
 
+// --- STYLES (replace your styles object) ---
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#f7f9fc' },
-  header: { paddingHorizontal: 16, paddingBottom: 8, backgroundColor: '#f7f9fc' },
-  h1: { fontSize: 20, fontWeight: '800', color: '#0f172a', marginTop: 6 },
+
+  header: {
+    backgroundColor: '#f7f9fc',
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e2e8f0',
+  },
+  h1: { fontSize: 22, fontWeight: '800', color: '#0f172a', marginTop: 6 },
+  sub: { marginTop: 4, fontSize: 12, color: '#64748b' },
+
+  listContent: {
+    padding: 16,
+    paddingBottom: 28,
+    gap: 12, // consistent spacing between cards
+  },
 
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   card: {
+    position: 'relative',
     backgroundColor: '#fff',
     borderRadius: 14,
     padding: 14,
-    marginBottom: 12,
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#eef2f7',
+    borderColor: '#e6edf6',
   },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  caseId: { fontWeight: '800', color: '#0f172a' },
-  status: { fontSize: 12, color: '#2563eb', fontWeight: '700' },
 
-  kv: { marginTop: 6, color: '#0f172a' },
+  // slim accent bar on the left side of card (use in renderItem if you want)
+  accentBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
+    backgroundColor: '#2563eb',
+  },
+
+  // top row
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  caseId: { fontWeight: '800', color: '#0f172a', fontSize: 15 },
+
+  // pill-style status chip
+  status: {
+    fontSize: 12,
+    color: '#1d4ed8',
+    fontWeight: '700',
+    backgroundColor: '#e8f0ff',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+
+  // key/value lines
+  kv: { marginTop: 6, color: '#0f172a', lineHeight: 18 },
   k: { fontWeight: '600', color: '#334155' },
 
-  cardFooter: { marginTop: 10, alignItems: 'flex-end' },
-  link: { color: '#2563eb', fontWeight: '700' },
+  // footer with link/button
+  cardFooter: {
+    marginTop: 10,
+    alignItems: 'flex-end',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#eef2f7',
+    paddingTop: 10,
+  },
+  linkBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#2563eb',
+  },
+  link: {
+    color: '#fff',
+    fontWeight: '700',
+    textDecorationLine: 'none',
+    fontSize: 13,
+  },
 
   footer: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
   footerText: { marginTop: 6, color: '#64748b', fontSize: 12 },
@@ -263,16 +323,5 @@ const styles = StyleSheet.create({
   },
   retryText: { color: '#fff', fontWeight: '700' },
   errorText: { marginTop: 6, color: '#dc2626' },
-  linkBtn: {
-  paddingHorizontal: 12,
-  paddingVertical: 6,
-  borderRadius: 8,
-},
-link: {
-  color: '#2563eb',
-  fontWeight: '700',
-  textDecorationLine: 'underline',
-},
-
 });
 
