@@ -18,18 +18,18 @@ const API_URL = 'https://134.199.178.17/gayatri';
 
 export default function CcrPdfFormScreen({ route }) {
   const insets = useSafeAreaInsets();
+  const SAF_DIR_KEY = '@preferred_pdf_dir';
 
   const incomingReport = route?.params?.report || null;
   const [loading, setLoading] = useState(!incomingReport);
   const [submitting, setSubmitting] = useState(false);
   const [report, setReport] = useState(incomingReport);
   const [actionTakenPreset, setActionTakenPreset] = useState('');
-  const [engineerName, setEngineerName] = useState('');
+
   // Form fields (text)
   const [caseId, setCaseId] = useState(incomingReport?.case_id || '');
   const [problemReported, setProblemReported] = useState('');
-  const DEFAULT_CONDITION = 'Any scratch,damage on outside of machine';
-  const [conditionOfMachine, setConditionOfMachine] = useState(DEFAULT_CONDITION);
+  const [conditionOfMachine, setConditionOfMachine] = useState('');
   const [defectivePartDescription, setDefectivePartDescription] = useState('');
   const [partNumber, setPartNumber] = useState('');
   const [actionTaken, setActionTaken] = useState('');
@@ -50,10 +50,6 @@ export default function CcrPdfFormScreen({ route }) {
   useEffect(() => {
     (async () => {
       if (incomingReport) preset(incomingReport);
-   try {
-     const n = await AsyncStorage.getItem('user_name');
-     if (n) setEngineerName(n);
-   }  catch {}
       setLoading(false);
     })();
   }, []);
@@ -61,9 +57,6 @@ export default function CcrPdfFormScreen({ route }) {
   const preset = (r) => {
     setReport(r);
     setCaseId(r?.case_id || '');
-setConditionOfMachine(
-  (r?.condition_of_machine && String(r.condition_of_machine).trim()) || DEFAULT_CONDITION
-);
   };
 
   // ---- Date/Time helpers
@@ -111,68 +104,99 @@ setConditionOfMachine(
     } catch { return String(d); }
   };
 
-  const onSubmit = async () => {
-    const idForUrl = report?.id || caseId;
-    if (!idForUrl) return Alert.alert('Missing', 'Report ID / Case ID is required.');
-    if (!caseId)   return Alert.alert('Missing', 'Please enter Case ID.');
+const onSubmit = async () => {
+  const idForUrl = report?.id || caseId;
+  if (!idForUrl) return Alert.alert('Missing', 'Report ID / Case ID is required.');
+  if (!caseId)   return Alert.alert('Missing', 'Please enter Case ID.');
 
-    setSubmitting(true);
-    try {
-      const actionTakenFinal = actionTakenPreset || actionTaken.trim();
+  setSubmitting(true);
+  try {
+    const actionTakenFinal = actionTakenPreset || actionTaken.trim();
 
-      const payload = {
-        case_id: caseId,
-        problem_reported: problemReported,
-        call_log_time: callLogTime.toISOString(),
-        arrival_time: arrivalTime.toISOString(),
-        closure_time: closureTime.toISOString(),
-        condition_of_machine: conditionOfMachine,
-        defective_part_description: defectivePartDescription,
-        part_number: partNumber,
-        action_taken: actionTakenFinal,   // ← here
-        replace_part_description: replacePartDescription,
-        replace_part_number: replacePartNumber,
-        customer_signature: customerSignature,
-        engineer_name: engineerName,
-      };
+    const payload = {
+      case_id: caseId,
+      problem_reported: problemReported,
+      call_log_time: callLogTime.toISOString(),
+      arrival_time: arrivalTime.toISOString(),
+      closure_time: closureTime.toISOString(),
+      condition_of_machine: conditionOfMachine,
+      defective_part_description: defectivePartDescription,
+      part_number: partNumber,
+      action_taken: actionTakenFinal,
+      replace_part_description: replacePartDescription,
+      replace_part_number: replacePartNumber,
+      customer_signature: customerSignature,
+    };
 
-      const url = `${API_URL}/api/call_reports/${idForUrl}/generate_pdf`;
-      const resp = await axios.post(url, payload, {
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      });
+    const url = `${API_URL}/api/call_reports/${idForUrl}/generate_pdf`;
+    const resp = await axios.post(url, payload, {
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    });
 
-      const pdfUrl = resp?.data?.pdf_url;
-      if (!pdfUrl) return Alert.alert('Error', 'Backend did not return a pdf_url.');
+    const pdfUrl = resp?.data?.pdf_url;
+    if (!pdfUrl) return Alert.alert('Error', 'Backend did not return a pdf_url.');
 
-      const filename = `CCR_${caseId || idForUrl}.pdf`;
-      const localUri = FileSystem.documentDirectory + filename;
-      const dl = await FileSystem.downloadAsync(pdfUrl, localUri);
-      if (dl.status !== 200) return Alert.alert('Download Failed', `HTTP ${dl.status}`);
+    const filename = `CCR_${caseId || idForUrl}.pdf`;
+    const localUri = FileSystem.documentDirectory + filename;
+    const dl = await FileSystem.downloadAsync(pdfUrl, localUri);
+    if (dl.status !== 200) return Alert.alert('Download Failed', `HTTP ${dl.status}`);
 
-      if (Platform.OS === 'android') {
-        try {
-          const perm = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-          if (perm.granted) {
+    // ---- ANDROID: save to previously chosen folder without re-prompting
+    if (Platform.OS === 'android') {
+      try {
+        let dirUri = await AsyncStorage.getItem(SAF_DIR_KEY);
+
+        if (dirUri) {
+          try {
             const base64 = await FileSystem.readAsStringAsync(dl.uri, { encoding: FileSystem.EncodingType.Base64 });
             const destUri = await FileSystem.StorageAccessFramework.createFileAsync(
-              perm.directoryUri, filename, 'application/pdf'
+              dirUri, filename, 'application/pdf'
             );
             await FileSystem.writeAsStringAsync(destUri, base64, { encoding: FileSystem.EncodingType.Base64 });
-            Alert.alert('Saved', 'PDF saved to chosen folder.');
-            return;
+            Alert.alert('Saved', 'PDF saved to your chosen folder.');
+            return; // ✅ done, no fallback
+          } catch (e) {
+            console.log('Write to persisted folder failed, will re-prompt once:', e);
+            await AsyncStorage.removeItem(SAF_DIR_KEY);
+            dirUri = null;
           }
-        } catch (e) { console.log('SAF save error:', e); }
-      }
+        }
 
-      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(dl.uri);
-      else Alert.alert('Downloaded', `Saved to app files:\n${dl.uri}`);
-    } catch (err) {
-      console.log('Submit/gen error:', err?.response?.data || err.message);
-      Alert.alert('Error', 'Failed to generate/download PDF.');
-    } finally {
-      setSubmitting(false);
+        // No stored folder (first time or revoked): prompt ONCE and persist
+        if (!dirUri) {
+          const perm = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+          if (perm.granted) {
+            dirUri = perm.directoryUri;
+            await AsyncStorage.setItem(SAF_DIR_KEY, dirUri);
+
+            const base64 = await FileSystem.readAsStringAsync(dl.uri, { encoding: FileSystem.EncodingType.Base64 });
+            const destUri = await FileSystem.StorageAccessFramework.createFileAsync(
+              dirUri, filename, 'application/pdf'
+            );
+            await FileSystem.writeAsStringAsync(destUri, base64, { encoding: FileSystem.EncodingType.Base64 });
+            Alert.alert('Saved', 'PDF saved to your chosen folder.');
+            return; // ✅ done, no fallback
+          }
+        }
+      } catch (e) {
+        console.log('SAF save error:', e);
+      }
     }
-  };
+
+    // ---- 4) FALLBACKS: share sheet or keep in app sandbox (⟵ put it here)
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(dl.uri);
+    } else {
+      Alert.alert('Downloaded', `Saved to app files:\n${dl.uri}`);
+    }
+
+  } catch (err) {
+    console.log('Submit/gen error:', err?.response?.data || err.message);
+    Alert.alert('Error', 'Failed to generate/download PDF.');
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   if (loading) {
     return (
@@ -244,10 +268,12 @@ return (
           </View>
         ) : null}
 
- <View style={styles.kvRow}>
-   <Text style={styles.kvK}>Engineer</Text>
-   <Text style={styles.kvV}>{engineerName || '-'}</Text>
- </View>
+        {report?.status ? (
+          <View style={styles.kvRow}>
+            <Text style={styles.kvK}>Status</Text>
+            <Text style={styles.kvV}>{report.status}</Text>
+          </View>
+        ) : null}
       </View>
 
       {/* Form */}
@@ -531,6 +557,7 @@ pickerItem: {
 },
 
 });
+
 
 
 
