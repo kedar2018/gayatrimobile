@@ -340,14 +340,12 @@ return (
     style={styles.picker}           // ← selected text color/size
     itemStyle={styles.pickerItem}   // ← iOS wheel text
     dropdownIconColor="#0f172a"     // ← Android arrow color
-  >
+  > 
     <Picker.Item label="Select (optional)" value="" color="#64748b" />
-    <Picker.Item label="Inspection" value="Inspection" />
-    <Picker.Item label="Reset performed" value="Reset performed" />
-    <Picker.Item label="Part replaced" value="Part replaced" />
-    <Picker.Item label="Firmware updated" value="Firmware updated" />
-    <Picker.Item label="Calibration done" value="Calibration done" />
-    <Picker.Item label="No fault found" value="No fault found" />
+    <Picker.Item label="Ram has been replaced" value="Ram has been replaced" />
+    <Picker.Item label="Motherboard has been replaced" value="Motherboard has been replaced" />
+    <Picker.Item label="Processor has been replaced" value="Processor has been replaced" />
+    <Picker.Item label="Hard Disk/SSD has been replaced" value="Hard Disk/SSD has been replaced" />
   </Picker>
 </View>
 {/* Helper / clear */}
@@ -523,5 +521,6 @@ pickerItem: {
 },
 
 });
+
 
 
