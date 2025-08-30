@@ -328,6 +328,23 @@ return (
           onChangeText={setPartNumber}
         />
 
+        <Text style={styles.label}>Replace Part Description</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Replacement part details"
+          value={replacePartDescription}
+          onChangeText={setReplacePartDescription}
+          multiline
+        />
+
+        <Text style={styles.label}>Replace Part Number</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Replacement part number"
+          value={replacePartNumber}
+          onChangeText={setReplacePartNumber}
+        />
+
 <Text style={styles.label}>Action Taken</Text>
 
 {/* Preset dropdown */}
@@ -365,22 +382,7 @@ return (
   editable={!actionTakenPreset}   // disable when a preset is chosen
   multiline
 />
-        <Text style={styles.label}>Replace Part Description</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Replacement part details"
-          value={replacePartDescription}
-          onChangeText={setReplacePartDescription}
-          multiline
-        />
 
-        <Text style={styles.label}>Replace Part Number</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Replacement part number"
-          value={replacePartNumber}
-          onChangeText={setReplacePartNumber}
-        />
 
         <Text style={styles.label}>Customer Signature (text)</Text>
         <TextInput
@@ -521,6 +523,7 @@ pickerItem: {
 },
 
 });
+
 
 
 
