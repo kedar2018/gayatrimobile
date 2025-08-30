@@ -1,118 +1,159 @@
 // screens/CcrPdfFormScreen.js
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  Button,
-  Linking,
-  KeyboardAvoidingView,
-  Platform,
+  View, Text, TextInput, StyleSheet, ActivityIndicator, Alert,
+  ScrollView, Button, Platform,
 } from 'react-native';
 import axios from 'axios';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// TODO: replace with your real backend base URL or config import
+// import { API_URL } from '../utils/config';
 const API_URL = 'https://134.199.178.17/gayatri';
 
 export default function CcrPdfFormScreen({ route }) {
-  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
-  // Hide the bottom tab bar on this screen (safe even if no tabs parent)
-  useFocusEffect(
-    useCallback(() => {
-      const parent = navigation.getParent?.();
-      parent?.setOptions({ tabBarStyle: { display: 'none' } });
-      return () => parent?.setOptions({ tabBarStyle: undefined });
-    }, [navigation])
-  );
-
   const incomingReport = route?.params?.report || null;
-
   const [loading, setLoading] = useState(!incomingReport);
   const [submitting, setSubmitting] = useState(false);
   const [report, setReport] = useState(incomingReport);
 
-  // ---- Your requested fields ----
+  // Form fields (text)
+  const [caseId, setCaseId] = useState(incomingReport?.case_id || '');
   const [problemReported, setProblemReported] = useState('');
-  const [logInTime, setLogInTime] = useState(new Date());
-  const [arrivalTime, setArrivalTime] = useState(new Date());
-  const [closureTime, setClosureTime] = useState(new Date());
-  const [condition, setCondition] = useState('');
-  const [defectivePartDesc, setDefectivePartDesc] = useState('');
-  const [defectivePartNo, setDefectivePartNo] = useState('');
+  const [conditionOfMachine, setConditionOfMachine] = useState('');
+  const [defectivePartDescription, setDefectivePartDescription] = useState('');
+  const [partNumber, setPartNumber] = useState('');
   const [actionTaken, setActionTaken] = useState('');
-  const [replacedPartDesc, setReplacedPartDesc] = useState('');
-  const [replacedPartNo, setReplacedPartNo] = useState('');
+  const [replacePartDescription, setReplacePartDescription] = useState('');
+  const [replacePartNumber, setReplacePartNumber] = useState('');
   const [customerSignature, setCustomerSignature] = useState('');
 
-  // datetime pickers visibility
-  const [showLogPicker, setShowLogPicker] = useState(false);
-  const [showArrPicker, setShowArrPicker] = useState(false);
-  const [showClosePicker, setShowClosePicker] = useState(false);
+  // Date/Time fields
+  const [callLogTime, setCallLogTime] = useState(new Date());
+  const [arrivalTime, setArrivalTime] = useState(new Date());
+  const [closureTime, setClosureTime] = useState(new Date());
+
+  // iOS: which field is open
+  const [iosPickerFor, setIosPickerFor] = useState(null);
+  // Android two-step state
+  const [androidPicker, setAndroidPicker] = useState({ field: null, step: null }); // step: 'date' | 'time'
 
   useEffect(() => {
-    if (incomingReport) {
-      setReport(incomingReport);
-      // Prefill here if backend returns any of these keys on the report:
-      // setProblemReported(incomingReport.problem_reported || '');
+    (async () => {
+      if (incomingReport) preset(incomingReport);
       setLoading(false);
-    } else {
-      setLoading(false);
-    }
+    })();
   }, []);
 
+  const preset = (r) => {
+    setReport(r);
+    setCaseId(r?.case_id || '');
+  };
+
+  // ---- Date/Time helpers
+  const getFieldDate = (field) => (field === 'call' ? callLogTime : field === 'arrival' ? arrivalTime : closureTime);
+  const setFieldDate = (field, value) => {
+    if (!value) return;
+    if (field === 'call') setCallLogTime(value);
+    else if (field === 'arrival') setArrivalTime(value);
+    else setClosureTime(value);
+  };
+  const openPicker = (field) => {
+    if (Platform.OS === 'android') setAndroidPicker({ field, step: 'date' });
+    else setIosPickerFor(field);
+  };
+  const onAndroidDateChange = (event, selected) => {
+    const { field } = androidPicker;
+    // close date step first
+    setAndroidPicker((s) => ({ ...s, step: null }));
+    if (event.type === 'dismissed' || !selected) { setAndroidPicker({ field: null, step: null }); return; }
+    const base = new Date(getFieldDate(field));
+    base.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
+    setFieldDate(field, base);
+    setAndroidPicker({ field, step: 'time' });
+  };
+  const onAndroidTimeChange = (event, selected) => {
+    const { field } = androidPicker;
+    setAndroidPicker({ field: null, step: null });
+    if (event.type === 'dismissed' || !selected) return;
+    const base = new Date(getFieldDate(field));
+    base.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+    setFieldDate(field, base);
+  };
+  const onIOSChange = (event, selected) => {
+    const field = iosPickerFor;
+    setIosPickerFor(null);
+    if (event.type === 'dismissed' || !selected) return;
+    setFieldDate(field, selected);
+  };
+
+  const formatDateTime = (d) => {
+    try {
+      const date = d.toLocaleDateString();
+      const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `${date} ${time}`;
+    } catch { return String(d); }
+  };
+
   const onSubmit = async () => {
-    if (!report?.id) {
-      Alert.alert('Missing', 'Invalid report.');
-      return;
-    }
-    if (!problemReported.trim()) {
-      Alert.alert('Missing', 'Please fill Problem Reported.');
-      return;
-    }
-    if (!customerSignature.trim()) {
-      Alert.alert('Missing', 'Please fill Signature of Customer.');
-      return;
-    }
+    const idForUrl = report?.id || caseId;
+    if (!idForUrl) return Alert.alert('Missing', 'Report ID / Case ID is required.');
+    if (!caseId)   return Alert.alert('Missing', 'Please enter Case ID.');
 
     setSubmitting(true);
     try {
       const payload = {
+        case_id: caseId,
         problem_reported: problemReported,
-        call_log_in_time: logInTime.toISOString(),
-        actual_arrival_time: arrivalTime.toISOString(),
-        call_closure_time: closureTime.toISOString(),
-        condition_of_machine: condition,
-        defective_part_description: defectivePartDesc,
-        defective_part_number: defectivePartNo,
+        call_log_time: callLogTime.toISOString(),
+        arrival_time: arrivalTime.toISOString(),
+        closure_time: closureTime.toISOString(),
+        condition_of_machine: conditionOfMachine,
+        defective_part_description: defectivePartDescription,
+        part_number: partNumber,
         action_taken: actionTaken,
-        replaced_part_description: replacedPartDesc,
-        replaced_part_number: replacedPartNo,
-        customer_signature: customerSignature, // text for now
+        replace_part_description: replacePartDescription,
+        replace_part_number: replacePartNumber,
+        customer_signature: customerSignature,
       };
 
-      const url = `${API_URL}/api/call_reports/${report.id}/generate_pdf`;
-      const resp = await axios.post(url, payload);
-      const pdfUrl = resp?.data?.pdf_url || resp?.data?.url || resp?.data?.pdf;
+      const url = `${API_URL}/api/call_reports/${idForUrl}/generate_pdf`;
+      const resp = await axios.post(url, payload, {
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      });
 
-      if (!pdfUrl) {
-        Alert.alert('Error', 'Backend did not return a pdf_url.');
-        return;
+      const pdfUrl = resp?.data?.pdf_url;
+      if (!pdfUrl) return Alert.alert('Error', 'Backend did not return a pdf_url.');
+
+      const filename = `CCR_${caseId || idForUrl}.pdf`;
+      const localUri = FileSystem.documentDirectory + filename;
+      const dl = await FileSystem.downloadAsync(pdfUrl, localUri);
+      if (dl.status !== 200) return Alert.alert('Download Failed', `HTTP ${dl.status}`);
+
+      if (Platform.OS === 'android') {
+        try {
+          const perm = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+          if (perm.granted) {
+            const base64 = await FileSystem.readAsStringAsync(dl.uri, { encoding: FileSystem.EncodingType.Base64 });
+            const destUri = await FileSystem.StorageAccessFramework.createFileAsync(
+              perm.directoryUri, filename, 'application/pdf'
+            );
+            await FileSystem.writeAsStringAsync(destUri, base64, { encoding: FileSystem.EncodingType.Base64 });
+            Alert.alert('Saved', 'PDF saved to chosen folder.');
+            return;
+          }
+        } catch (e) { console.log('SAF save error:', e); }
       }
 
-      const ok = await Linking.openURL(pdfUrl).catch(() => false);
-      if (!ok) Alert.alert('Open Failed', 'Could not open the PDF URL.');
+      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(dl.uri);
+      else Alert.alert('Downloaded', `Saved to app files:\n${dl.uri}`);
     } catch (err) {
       console.log('Submit/gen error:', err?.response?.data || err.message);
-      Alert.alert('Error', 'Failed to generate/open PDF.');
+      Alert.alert('Error', 'Failed to generate/download PDF.');
     } finally {
       setSubmitting(false);
     }
@@ -128,210 +169,128 @@ export default function CcrPdfFormScreen({ route }) {
   }
 
   const cd = report?.customer_detail || {};
-
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f7f9fc' }}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
-      >
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={[
-            styles.container,
-            // Keep content above the bottom safe area (works with/without tabs)
-            { paddingBottom: 24 + insets.bottom },
-          ]}
-        >
-          <Text style={styles.title}>Generate PDF</Text>
+    <ScrollView
+      style={styles.flex}
+      contentContainerStyle={[
+        styles.containerContent,
+        {
+          paddingTop: insets.top + 8,
+          paddingBottom: Math.max(16, insets.bottom + 12),
+          paddingHorizontal: 16,
+          backgroundColor: '#f7f9fc',
+        },
+      ]}
+      keyboardShouldPersistTaps="handled"
+    >
+      <Text style={styles.title}>Generate PDF</Text>
 
-          {/* Case Details (read-only) */}
-          <View style={styles.card}>
-            <Text style={styles.cardHeader}>Case Details</Text>
-            <Text style={styles.kv}>
-              <Text style={styles.k}>Case ID:</Text> {report?.case_id || report?.id}
-            </Text>
-            {report?.serial_number ? (
-              <Text style={styles.kv}>
-                <Text style={styles.k}>Serial #:</Text> {report.serial_number}
-              </Text>
-            ) : null}
-            {cd?.customer_name ? (
-              <Text style={styles.kv}>
-                <Text style={styles.k}>Customer:</Text> {cd.customer_name}
-              </Text>
-            ) : null}
-            {(cd?.mobile_number || cd?.phone_number) ? (
-              <Text style={styles.kv}>
-                <Text style={styles.k}>Phone:</Text> {cd.mobile_number || cd.phone_number}
-              </Text>
-            ) : null}
-            {(report?.address || cd?.address) ? (
-              <Text style={styles.kv}>
-                <Text style={styles.k}>Address:</Text> {report?.address || cd?.address}
-                {cd?.city ? `, ${cd.city}` : ''}
-              </Text>
-            ) : null}
-            {report?.status ? (
-              <Text style={styles.kv}>
-                <Text style={styles.k}>Status:</Text> {report.status}
-              </Text>
-            ) : null}
-          </View>
+      <View style={styles.card}>
+        <Text style={styles.cardHeader}>Case Details</Text>
+        <Text style={styles.kv}><Text style={styles.k}>Case ID:</Text> {report?.case_id || report?.id || '-'}</Text>
+        {report?.serial_number ? (<Text style={styles.kv}><Text style={styles.k}>Serial #:</Text> {report.serial_number}</Text>) : null}
+        {cd?.customer_name ? (<Text style={styles.kv}><Text style={styles.k}>Customer:</Text> {cd.customer_name}</Text>) : null}
+        {(cd?.mobile_number || cd?.phone_number) ? (
+          <Text style={styles.kv}><Text style={styles.k}>Phone:</Text> {cd.mobile_number || cd.phone_number}</Text>
+        ) : null}
+        {(report?.address || cd?.address) ? (
+          <Text style={styles.kv}><Text style={styles.k}>Address:</Text> {report?.address || cd?.address}{cd?.city ? `, ${cd.city}` : ''}</Text>
+        ) : null}
+        {report?.status ? (<Text style={styles.kv}><Text style={styles.k}>Status:</Text> {report.status}</Text>) : null}
+      </View>
 
-          {/* Editable Fields */}
-          <View style={styles.card}>
-            <Text style={styles.cardHeader}>Fill Details</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardHeader}>Fill for PDF</Text>
 
-            <Text style={styles.label}>Problem Reported *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Describe the problem reported"
-              value={problemReported}
-              onChangeText={setProblemReported}
-              multiline
-            />
+        <Text style={styles.label}>Case ID *</Text>
+        <TextInput style={styles.input} placeholder="Enter Case ID" value={caseId} onChangeText={setCaseId} />
 
-            <Text style={styles.label}>Call Log In Time</Text>
-            <Button title={logInTime.toLocaleString()} onPress={() => setShowLogPicker(true)} />
-            {showLogPicker && (
-              <DateTimePicker
-                value={logInTime}
-                mode="datetime"
-                is24Hour
-                onChange={(e, d) => {
-                  setShowLogPicker(false);
-                  if (d) setLogInTime(d);
-                }}
-              />
-            )}
+        <Text style={styles.label}>Problem Reported</Text>
+        <TextInput style={styles.input} placeholder="Describe the problem" value={problemReported} onChangeText={setProblemReported} multiline />
 
-            <Text style={styles.label}>Actual Arrival Time</Text>
-            <Button title={arrivalTime.toLocaleString()} onPress={() => setShowArrPicker(true)} />
-            {showArrPicker && (
-              <DateTimePicker
-                value={arrivalTime}
-                mode="datetime"
-                is24Hour
-                onChange={(e, d) => {
-                  setShowArrPicker(false);
-                  if (d) setArrivalTime(d);
-                }}
-              />
-            )}
+        <Text style={styles.label}>Call Log Time</Text>
+        <Button title={formatDateTime(callLogTime)} onPress={() => openPicker('call')} />
 
-            <Text style={styles.label}>Call Closure Time</Text>
-            <Button title={closureTime.toLocaleString()} onPress={() => setShowClosePicker(true)} />
-            {showClosePicker && (
-              <DateTimePicker
-                value={closureTime}
-                mode="datetime"
-                is24Hour
-                onChange={(e, d) => {
-                  setShowClosePicker(false);
-                  if (d) setClosureTime(d);
-                }}
-              />
-            )}
+        <Text style={styles.label}>Arrival Time</Text>
+        <Button title={formatDateTime(arrivalTime)} onPress={() => openPicker('arrival')} />
 
-            <Text style={styles.label}>Condition of Machine</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., Working / Not working / Intermittent"
-              value={condition}
-              onChangeText={setCondition}
-            />
+        <Text style={styles.label}>Closure Time</Text>
+        <Button title={formatDateTime(closureTime)} onPress={() => openPicker('closure')} />
 
-            <Text style={[styles.cardHeader, { marginTop: 16 }]}>Defective Part</Text>
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter defective part description"
-              value={defectivePartDesc}
-              onChangeText={setDefectivePartDesc}
-            />
-            <Text style={styles.label}>Part Number</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter defective part number"
-              value={defectivePartNo}
-              onChangeText={setDefectivePartNo}
-            />
+        {/* iOS picker */}
+        {Platform.OS === 'ios' && iosPickerFor && (
+          <DateTimePicker
+            value={getFieldDate(iosPickerFor)}
+            mode="datetime"
+            display="spinner"
+            onChange={onIOSChange}
+          />
+        )}
 
-            <Text style={[styles.cardHeader, { marginTop: 16 }]}>Action Taken</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Describe the action taken"
-              value={actionTaken}
-              onChangeText={setActionTaken}
-              multiline
-            />
+        {/* Android pickers (two-step) */}
+        {Platform.OS === 'android' && androidPicker.step === 'date' && (
+          <DateTimePicker
+            value={getFieldDate(androidPicker.field)}
+            mode="date"
+            display="default"
+            onChange={onAndroidDateChange}
+          />
+        )}
+        {Platform.OS === 'android' && androidPicker.step === 'time' && (
+          <DateTimePicker
+            value={getFieldDate(androidPicker.field)}
+            mode="time"
+            display="default"
+            is24Hour
+            onChange={onAndroidTimeChange}
+          />
+        )}
 
-            <Text style={[styles.cardHeader, { marginTop: 16 }]}>Replaced Part</Text>
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter replaced part description"
-              value={replacedPartDesc}
-              onChangeText={setReplacedPartDesc}
-            />
-            <Text style={styles.label}>Part Number</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter replaced part number"
-              value={replacedPartNo}
-              onChangeText={setReplacedPartNo}
-            />
+        <Text style={styles.label}>Condition of Machine</Text>
+        <TextInput style={styles.input} placeholder="Condition of machine" value={conditionOfMachine} onChangeText={setConditionOfMachine} multiline />
 
-            <Text style={[styles.label, { marginTop: 16 }]}>Signature of Customer *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Type customer name as signature (can add signature pad later)"
-              value={customerSignature}
-              onChangeText={setCustomerSignature}
-            />
+        <Text style={styles.label}>Defective Part Description</Text>
+        <TextInput style={styles.input} placeholder="Defective part details" value={defectivePartDescription} onChangeText={setDefectivePartDescription} multiline />
 
-            <View style={{ marginTop: 16 }}>
-              <Button
-                title={submitting ? 'Submitting…' : 'Submit & Open PDF'}
-                onPress={onSubmit}
-                disabled={submitting}
-              />
-            </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        <Text style={styles.label}>Part Number</Text>
+        <TextInput style={styles.input} placeholder="Part number" value={partNumber} onChangeText={setPartNumber} />
+
+        <Text style={styles.label}>Action Taken</Text>
+        <TextInput style={styles.input} placeholder="Action taken" value={actionTaken} onChangeText={setActionTaken} multiline />
+
+        <Text style={styles.label}>Replace Part Description</Text>
+        <TextInput style={styles.input} placeholder="Replacement part details" value={replacePartDescription} onChangeText={setReplacePartDescription} multiline />
+
+        <Text style={styles.label}>Replace Part Number</Text>
+        <TextInput style={styles.input} placeholder="Replacement part number" value={replacePartNumber} onChangeText={setReplacePartNumber} />
+
+        <Text style={styles.label}>Customer Signature (text)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter customer signature text (e.g., typed name)"
+          value={customerSignature}
+          onChangeText={setCustomerSignature}
+          multiline
+        />
+
+        <View style={{ marginTop: 16, marginBottom: insets.bottom }}>
+          <Button title={submitting ? 'Submitting…' : 'Submit & Download PDF'} onPress={onSubmit} disabled={submitting} />
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: 16, paddingTop: 16 },
+  flex: { flex: 1 },
+  containerContent: { paddingBottom: 16 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
+  card: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginTop: 16, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
   cardHeader: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
   kv: { fontSize: 14, marginVertical: 2 },
   k: { fontWeight: '600' },
   label: { fontSize: 14, marginTop: 12, marginBottom: 6 },
-  input: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    padding: 10,
-    minHeight: 44,
-  },
+  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 10, minHeight: 44 },
 });
 
