@@ -1,291 +1,211 @@
+// screens/AttendanceScreen.js
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, TextInput, FlatList,
-  StyleSheet, Alert, TouchableOpacity, Platform
+  View, Text, TextInput, StyleSheet, FlatList, ActivityIndicator,
+  TouchableOpacity, RefreshControl, Alert, Platform
 } from 'react-native';
+import { api } from '../utils/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function AttendanceScreen() {
-  const [hour, setHour] = useState('9');
-  const [task, setTask] = useState('');
-  const [logs, setLogs] = useState([]);
+  const [items, setItems] = useState([]);
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  // form
+  const [task, setTask] = useState('');
+  const [startAt, setStartAt] = useState(new Date());
+  const [endAt, setEndAt] = useState(new Date());
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
+
+  const pad = (n) => (n < 10 ? `0${n}` : n);
+  const fmtDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const fmtTime = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+  const fetchAttendance = async () => {
+    try {
+      setError('');
+      setLoading(true);
+      const engineer_id = await AsyncStorage.getItem('user_id'); // optional
+      const res = await api.get('/attendance_logs', { params: { date: fmtDate(date), engineer_id } });
+      const data = Array.isArray(res.data) ? res.data : (res.data?.items || []);
+      setItems(data);
+    } catch (e) {
+      console.log('Attendance fetch error:', e?.response?.data || e.message);
+      setError('Failed to load attendance.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     fetchAttendance();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date]);
 
-  const fetchAttendance = async () => {
-    const userId = await AsyncStorage.getItem('user_id');
-    try {
-      const res = await axios.get(`https://134.199.178.17/gayatri/api/attendance_logs?user_id=${userId}`);
-      setLogs(res.data || []);
-    } catch (error) {
-      console.error('Error fetching attendance:', error);
-      setErrorMsg('Unable to load attendance logs right now.');
-    }
-  };
-
-  const extractApiErrors = (error) => {
-    if (error?.response?.data?.errors && Array.isArray(error.response.data.errors)) {
-      return error.response.data.errors.join('\n');
-    }
-    if (typeof error?.response?.data?.message === 'string') {
-      return error.response.data.message;
-    }
-    if (error?.message) return error.message;
-    return 'Something went wrong.';
+  const onRefresh = () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    fetchAttendance();
   };
 
   const submitAttendance = async () => {
-    // reset banners
-    setErrorMsg('');
-    setSuccessMsg('');
-
-    // client validations (same style we used on Leave)
-    if (!task.trim()) {
-      setErrorMsg('Task is required.');
-      return;
-    }
-
-    setSubmitting(true);
-    const userId = await AsyncStorage.getItem('user_id');
-
     try {
-      const { data } = await axios.post(`https://134.199.178.17/gayatri/api/attendance_logs`, {
-        user_id: userId,
-        hour: parseInt(hour, 10),
-        task: task.trim(),
-      });
-
-      // If your Rails returns {success:true,message:"..."} keep this:
-      if (data?.success === false) {
-        setErrorMsg((data.errors || []).join('\n') || 'Unable to log attendance.');
-        setSubmitting(false);
+      if (!task) {
+        Alert.alert('Missing info', 'Please enter the task description.');
         return;
       }
-
-      setSuccessMsg(data?.message || 'Attendance logged.');
+      const payload = {
+        date: fmtDate(date),
+        start_time: fmtTime(startAt),
+        end_time: fmtTime(endAt),
+        task_description: (task || '').trim(),
+      };
+      await api.post('/attendance_logs', payload);
       setTask('');
-      setHour('');
-      await fetchAttendance();
-    } catch (error) {
-      console.error('Error logging attendance:', error);
-      setErrorMsg(extractApiErrors(error));
-    } finally {
-      setSubmitting(false);
+      setStartAt(new Date());
+      setEndAt(new Date());
+      fetchAttendance();
+      Alert.alert('Success', 'Attendance saved.');
+    } catch (e) {
+      console.log('Attendance create error:', e?.response?.data || e.message);
+      Alert.alert('Error', String(e?.response?.data?.error || 'Failed to save attendance'));
     }
   };
 
+  const renderItem = ({ item }) => (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>
+        {item.date} • {item.start_time} → {item.end_time}
+      </Text>
+      {!!item.task_description && <Text style={styles.cardLine}>🧰 {item.task_description}</Text>}
+      {!!item.hours && <Text style={styles.cardLine}>⏱ {item.hours} hrs</Text>}
+    </View>
+  );
+
   return (
-  <FlatList
-    data={logs}
-    keyExtractor={(item, index) => index.toString()}
-    contentContainerStyle={styles.container}
-    ListHeaderComponent={
-      <>
-        <Text style={styles.title}>Log Attendance</Text>
+    <View style={styles.screen}>
+      <Text style={styles.h1}>Attendance</Text>
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-        {/* Banners */}
-        {!!errorMsg && (
-          <View style={[styles.banner, styles.errorBanner]}>
-            <Text style={styles.bannerText}>{errorMsg}</Text>
-            <TouchableOpacity onPress={() => setErrorMsg('')}>
-              <Text style={styles.bannerClose}>✕</Text>
-            </TouchableOpacity>
-          </View>
+      {/* Filters / Date */}
+      <View style={styles.form}>
+        <Text style={styles.label}>Date</Text>
+        <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateBtn}>
+          <Text style={styles.dateBtnText}>{fmtDate(date)}</Text>
+        </TouchableOpacity>
+        {showDatePicker && (
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={(e, d) => {
+              setShowDatePicker(false);
+              if (d) setDate(d);
+            }}
+          />
         )}
+      </View>
 
-        {!!successMsg && (
-          <View style={[styles.banner, styles.successBanner]}>
-            <Text style={styles.bannerText}>{successMsg}</Text>
-            <TouchableOpacity onPress={() => setSuccessMsg('')}>
-              <Text style={styles.bannerClose}>✕</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Hour Picker */}
-        <Text style={styles.label}>Hour</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={hour}
-            onValueChange={(val) => setHour(val)}
-            style={styles.picker}
-            dropdownIconColor="#333"
-            prompt="Select hour"
-          >
-            <Picker.Item label="Select hour" value="" enabled={false} />
-            {[...Array(24).keys()].map((h) => (
-              <Picker.Item key={h} label={`${h}:00`} value={h.toString()} />
-            ))}
-          </Picker>
-        </View>
-
-        {/* Task Input */}
+      {/* Add entry */}
+      <View style={styles.form}>
         <Text style={styles.label}>Task</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter task"
           value={task}
           onChangeText={setTask}
-          placeholderTextColor="#9aa3af"
+          placeholder="What did you work on?"
+          placeholderTextColor="#888"
         />
 
-        {/* Submit Button */}
-        <TouchableOpacity
-          onPress={submitAttendance}
-          disabled={submitting}
-          style={[styles.button, submitting && styles.buttonDisabled]}
-        >
-          <Text style={styles.buttonText}>
-            {submitting ? 'Submitting…' : 'Submit'}
-          </Text>
+        <Text style={styles.label}>Start Time</Text>
+        <TouchableOpacity onPress={() => setShowStartPicker(true)} style={styles.dateBtn}>
+          <Text style={styles.dateBtnText}>{fmtTime(startAt)}</Text>
         </TouchableOpacity>
-
-        {/* Header for Logs */}
-        <Text style={styles.subTitle}>Your Attendance Logs</Text>
-        {logs.length === 0 && (
-          <Text style={styles.noLogs}>No attendance yet.</Text>
+        {showStartPicker && (
+          <DateTimePicker
+            value={startAt}
+            mode="time"
+            is24Hour
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={(e, d) => {
+              setShowStartPicker(false);
+              if (d) setStartAt(d);
+            }}
+          />
         )}
-      </>
-    }
-    renderItem={({ item }) => (
-      <View style={styles.card}>
-        <Text style={styles.cardText}>📅 {item.log_date}</Text>
-        <Text style={styles.cardText}>⏱ {item.hour}:00</Text>
-        <Text style={styles.cardText}>📝 {item.task}</Text>
-      </View>
-    )}
-  />
-);
 
+        <Text style={styles.label}>End Time</Text>
+        <TouchableOpacity onPress={() => setShowEndPicker(true)} style={styles.dateBtn}>
+          <Text style={styles.dateBtnText}>{fmtTime(endAt)}</Text>
+        </TouchableOpacity>
+        {showEndPicker && (
+          <DateTimePicker
+            value={endAt}
+            mode="time"
+            is24Hour
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={(e, d) => {
+              setShowEndPicker(false);
+              if (d) setEndAt(d);
+            }}
+          />
+        )}
+
+        <TouchableOpacity style={styles.button} onPress={submitAttendance}>
+          <Text style={styles.buttonText}>Save Entry</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* List */}
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator />
+          <Text style={styles.loadingText}>Loading…</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(it, idx) => String(it.id ?? idx)}
+          renderItem={renderItem}
+          contentContainerStyle={{ paddingBottom: 30 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" colors={['#2563eb']} />
+          }
+          ListEmptyComponent={
+            <View style={{ alignItems: 'center', marginTop: 40 }}>
+              <Text style={{ color: '#555' }}>No attendance logs found for {fmtDate(date)}.</Text>
+            </View>
+          }
+        />
+      )}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: {
-  padding: 16,
-  backgroundColor: '#f8fafc',
-},
-
-title: {
-  fontSize: 20,
-  fontWeight: 'bold',
-  marginBottom: 12,
-  color: '#1e293b',
-},
-
-label: {
-  marginTop: 10,
-  fontSize: 14,
-  fontWeight: '600',
-  color: '#334155',
-},
-
-pickerContainer: {
-  borderWidth: 1,
-  borderColor: '#ccc',
-  borderRadius: 6,
-  marginBottom: 10,
-  overflow: 'hidden',
-},
-
-picker: {
-  height: 55,
-  width: '100%',
-  backgroundColor: '#fff',
-  color: '#1f2937',
-},
-
-input: {
-  height: 45,
-  borderWidth: 1,
-  borderColor: '#cbd5e1',
-  borderRadius: 6,
-  paddingHorizontal: 10,
-  backgroundColor: '#fff',
-  marginBottom: 12,
-},
-
-button: {
-  backgroundColor: '#004080',
-  padding: 12,
-  borderRadius: 6,
-  alignItems: 'center',
-  marginBottom: 16,
-},
-
-buttonDisabled: {
-  backgroundColor: '#94a3b8',
-},
-
-buttonText: {
-  color: '#fff',
-  fontWeight: '600',
-},
-
-subTitle: {
-  fontSize: 16,
-  fontWeight: 'bold',
-  marginVertical: 10,
-  color: '#1e293b',
-},
-
-card: {
-  backgroundColor: '#fff',
-  borderRadius: 6,
-  padding: 12,
-  marginVertical: 6,
-  shadowColor: '#000',
-  shadowOpacity: 0.1,
-  shadowRadius: 3,
-  elevation: 2,
-},
-
-cardText: {
-  fontSize: 14,
-  color: '#334155',
-},
-
-noLogs: {
-  color: '#9ca3af',
-  textAlign: 'center',
-  marginTop: 10,
-},
-
-banner: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: 10,
-  marginVertical: 5,
-  borderRadius: 5,
-},
-
-errorBanner: {
-  backgroundColor: '#fee2e2',
-},
-
-successBanner: {
-  backgroundColor: '#dcfce7',
-},
-
-bannerText: {
-  color: '#1e293b',
-  flex: 1,
-},
-
-bannerClose: {
-  marginLeft: 10,
-  fontSize: 16,
-  fontWeight: 'bold',
-  color: '#334155',
-},
-
+  screen: { flex: 1, backgroundColor: '#f2f4f7', paddingHorizontal: 16, paddingTop: 12 },
+  h1: { fontSize: 22, fontWeight: '700', color: '#111', marginBottom: 8 },
+  errorText: {
+    color: '#7f1d1d', backgroundColor: '#fecaca', borderColor: '#ef4444', borderWidth: 1, padding: 8, borderRadius: 8, marginBottom: 8,
+  },
+  form: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 12, borderColor: '#e5e7eb', borderWidth: 1 },
+  label: { color: '#333', fontSize: 13, marginBottom: 6, marginTop: 4 },
+  dateBtn: { height: 44, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, justifyContent: 'center', paddingHorizontal: 12, backgroundColor: '#fff' },
+  dateBtnText: { color: '#111', fontSize: 16 },
+  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12, color: '#111' },
+  button: { backgroundColor: '#004080', marginTop: 12, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  buttonText: { color: '#fff', fontWeight: '700' },
+  center: { alignItems: 'center', marginTop: 20 },
+  loadingText: { marginTop: 8, color: '#444' },
+  card: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 10, borderColor: '#e5e7eb', borderWidth: 1 },
+  cardTitle: { color: '#111', fontWeight: '700', marginBottom: 4 },
+  cardLine: { color: '#333' },
 });
-

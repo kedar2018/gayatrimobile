@@ -18,17 +18,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system'; // ✅ size fallback
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
+import { api } from '../utils/api';
 
 import ModalDropdown from '../components/ModalDropdown';
 
 /* ----------------------- Constants ----------------------- */
 
-const API_URL = 'https://134.199.178.17/gayatri';
-
 const MH_AREAS = [
-  // Mumbai & suburbs
   'Mumbai','Mumbai Central','Colaba','Fort','Churchgate','Marine Drive','Nariman Point',
   'Lower Parel','Worli','Prabhadevi','Dadar','Matunga','Sion','Mahim','Wadala','Sewri',
   'Byculla','Kurla','Saki Naka','Chandivali','Chembur','Govandi','Deonar','Mankhurd',
@@ -37,42 +35,22 @@ const MH_AREAS = [
   'Vile Parle East','Vile Parle West','Andheri East','Andheri West','Versova',
   'Jogeshwari','Goregaon East','Goregaon West','Malad East','Malad West',
   'Kandivali East','Kandivali West','Borivali East','Borivali West','Dahisar',
-
-  // Navi Mumbai
   'Navi Mumbai','Vashi','Sanpada','Turbhe','Kopar Khairane','Ghansoli','Airoli','Rabale',
   'Belapur','Seawoods','Nerul','Kharghar','Kalamboli','Kamothe','Taloja','Ulwe',
-
-  // Thane region
   'Thane','Thane West','Thane East','Mumbra','Kalwa','Bhiwandi','Kalyan','Dombivli',
   'Ulhasnagar','Ambarnath','Badlapur','Shahapur',
-
-  // Palghar region
   'Palghar','Vasai','Virar','Nalasopara','Boisar','Dahanu',
-
-  // Raigad / Konkan
   'Panvel','Uran','Alibag','Pen','Karjat','Khalapur','Mangaon','Mahad','Murud',
   'Ratnagiri','Chiplun','Dapoli',
   'Sindhudurg','Kankavli','Kudal','Sawantwadi',
-
-  // Pune & PCMC
   'Pune','Shivajinagar','Deccan','FC Road','Aundh','Baner','Pashan','Balewadi',
   'Wakad','Hinjewadi','Kothrud','Sinhagad Road','Bibwewadi','Kondhwa','Undri',
   'Hadapsar','Magarpatta','Kharadi','Viman Nagar','Yerawada','Koregaon Park','Camp',
   'Pimpri','Chinchwad','Bhosari','Nigdi','Talegaon','Chakan','Ranjangaon',
-
-  // Nashik
   'Nashik','Nashik Road','Panchavati','Satpur','Ambad MIDC','Sinnar','Igatpuri','Malegaon',
-
-  // Nagpur
   'Nagpur','Sitabuldi','Civil Lines','Dharampeth','Manish Nagar','MIHAN','Hingna','Koradi',
-
-  // Chhatrapati Sambhajinagar (Aurangabad)
   'Chhatrapati Sambhajinagar','Waluj MIDC','CIDCO','Garkheda','Paithan',
-
-  // Western & Southern MH
   'Kolhapur','Karveer','Ichalkaranji','Satara','Karad','Sangli','Miraj','Kupwad','Solapur','Akkalkot',
-
-  // North / Marathwada / Vidarbha hubs
   'Jalgaon','Bhusawal','Ahmednagar','Shrirampur','Latur','Udgir','Nanded','Deglur',
   'Amravati','Achalpur','Akola','Washim','Buldhana','Yavatmal','Wardha','Chandrapur','Ballarpur',
   'Gadchiroli','Gondia','Bhandara','Dhule','Nandurbar','Jalna','Beed','Parbhani','Hingoli',
@@ -83,7 +61,7 @@ const FIELDS = [
   { key: 'project',        label: 'PROJECT',       type: 'dropdown', icon: 'briefcase-outline' },
   { key: 'mode',           label: 'MODE',          type: 'dropdown', icon: 'car-outline' },
   { key: 'from_location',  label: 'FROM LOCATION', type: 'dropdown', icon: 'location-outline' },
-  { key: 'to_location',    label: 'TO LOCATION',   type: 'dropdown', icon: 'flag-outline' }, // searchable
+  { key: 'to_location',    label: 'TO LOCATION',   type: 'dropdown', icon: 'flag-outline' },
 ];
 
 const MAX_BYTES = 300 * 1024 * 1024; // 300 MB
@@ -174,7 +152,7 @@ const DateTimeField = React.memo(function DateTimeField({ label, value, onChange
     next.setMinutes(picked.getMinutes());
     setTempDate(next);
     setStep(null);
-    onChange?.(next.toISOString());
+    onChange?.(next.toISOString()); // store ISO
   };
 
   return (
@@ -218,6 +196,19 @@ const DateTimeField = React.memo(function DateTimeField({ label, value, onChange
   );
 });
 
+/* ----------------------- Helpers ----------------------- */
+
+const pad = (n) => (n < 10 ? `0${n}` : n);
+const toDateYYYYMMDD = (dOrISO) => {
+  const d = typeof dOrISO === 'string' ? new Date(dOrISO) : dOrISO;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+const toTimeHHMM = (iso) => {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 /* ----------------------- Screen ----------------------- */
 
 export default function LocalConveyanceFormScreen({ navigation }) {
@@ -227,9 +218,9 @@ export default function LocalConveyanceFormScreen({ navigation }) {
   const colors = useMemo(() => ({
     bg: '#f5f7fb',
     card: '#ffffff',
-    text: scheme === 'dark' ? '#0f172a' : '#0f172a',
-    subtext: scheme === 'dark' ? '#6b7280' : '#6b7280',
-    border: scheme === 'dark' ? '#e5e7eb' : '#e5e7eb',
+    text: '#0f172a',
+    subtext: '#6b7280',
+    border: '#e5e7eb',
     focus: '#2563eb',
     primary: '#2563eb',
     danger: '#ef4444',
@@ -259,25 +250,23 @@ export default function LocalConveyanceFormScreen({ navigation }) {
     request_id: '',
     ccr_no: '',
     project: '',
-    start_time: '',
-    arrived_time: '',
+    start_time: '',      // ISO when chosen
+    arrived_time: '',    // ISO when chosen
     mode: '',
     from_location: '',
     to_location: '',
     distance_km: '',
-    user_id: '',
+    user_id: '',         // optional (token is the source of truth server-side)
     call_report_id: null,
   });
 
   const openDropdown = (key) => {
     setDropdownSearch('');
-    // open after a frame for snappy feel
     (global?.requestAnimationFrame
       ? requestAnimationFrame(() => setTimeout(() => setActiveDropdown(key), 0))
       : setTimeout(() => setActiveDropdown(key), 0));
   };
   const closeDropdown = () => setActiveDropdown(null);
-
 
   const buildOptions = useCallback((key) => {
     if (key === 'ccr_no') {
@@ -285,14 +274,11 @@ export default function LocalConveyanceFormScreen({ navigation }) {
       return arr.map((it) => {
         const parts = [String(it.case_id).trim()];
         if (it.serial_number) parts.push(`SN: ${String(it.serial_number).trim()}`);
-        /*const cust = it.customer_detail?.name || it.customer_detail?.customer_name;
-        if (cust) parts.push(String(cust).trim());*/
         return { label: parts.join(' · '), value: String(it.case_id).trim() };
       });
     }
     return dropdownOptions[key] || [];
   }, [ccrList, dropdownOptions]);
-
 
   const loadUserId = useCallback(async () => {
     try {
@@ -308,16 +294,14 @@ export default function LocalConveyanceFormScreen({ navigation }) {
     if (!userId) return;
     try {
       const [ccrRes, optionsRes] = await Promise.all([
-        axios.get(`${API_URL}/api/fetch_ccr_list`, { params: { engineer_id: userId } }),
-        axios.get(`${API_URL}/api/static_options`),
+        api.get(`/fetch_ccr_list`, { params: { engineer_id: userId } }),
+        api.get(`/static_options`),
       ]);
       const ccrListData = ccrRes.data || [];
       setCcrList(ccrListData);
       const data = optionsRes.data || {};
       const apiLocations = Array.isArray(data.location) ? data.location : [];
-
       const mergedTo = Array.from(new Set([...(apiLocations || []), ...MH_AREAS]));
-
       setDropdownOptions((prev) => ({
         ...prev,
         project: data.project?.length ? data.project : prev.project,
@@ -353,23 +337,24 @@ export default function LocalConveyanceFormScreen({ navigation }) {
     if (picked?.serial_number && formData.request_id !== String(picked.serial_number)) {
       setFormData((prev) => ({ ...prev, request_id: String(picked.serial_number) }));
     }
-  }, [ccrList, formData.ccr_no, formData.request_id]);
+    if (picked?.project && !formData.project) {
+      setFormData((prev) => ({ ...prev, project: String(picked.project) }));
+    }
+  }, [ccrList, formData.ccr_no, formData.request_id, formData.project]);
 
   const handleSelect = (key, value) => {
-  if (key === 'to_location') {
-    const val = String(value || '').trim();
-    if (!val) return closeDropdown();
-    // set field value
-    setFormData((prev) => ({ ...prev, to_location: val }));
-    // add to options if not present (case-insensitive)
-    setDropdownOptions((prev) => {
-      const list = Array.isArray(prev.to_location) ? prev.to_location : [];
-      const exists = list.some((x) => String(x).trim().toLowerCase() === val.toLowerCase());
-      return exists ? prev : { ...prev, to_location: [val, ...list] };
-    });
-    closeDropdown();
-    return;
-  }
+    if (key === 'to_location') {
+      const val = String(value || '').trim();
+      if (!val) return closeDropdown();
+      setFormData((prev) => ({ ...prev, to_location: val }));
+      setDropdownOptions((prev) => {
+        const list = Array.isArray(prev.to_location) ? prev.to_location : [];
+        const exists = list.some((x) => String(x).trim().toLowerCase() === val.toLowerCase());
+        return exists ? prev : { ...prev, to_location: [val, ...list] };
+      });
+      closeDropdown();
+      return;
+    }
     if (key === 'ccr_no') {
       const picked = Array.isArray(ccrList)
         ? ccrList.find((r) => String(r.case_id).trim() === String(value).trim())
@@ -399,7 +384,14 @@ export default function LocalConveyanceFormScreen({ navigation }) {
 
   const validateAndSet = async (asset) => {
     if (!asset?.uri) return;
-    if (typeof asset.fileSize === 'number' && asset.fileSize > MAX_BYTES) {
+    let size = typeof asset.fileSize === 'number' ? asset.fileSize : undefined;
+    if (size == null) {
+      try {
+        const info = await FileSystem.getInfoAsync(asset.uri);
+        size = info?.size;
+      } catch {}
+    }
+    if (typeof size === 'number' && size > MAX_BYTES) {
       Alert.alert('Too large', 'Please choose a smaller image (under 300 MB).');
       return;
     }
@@ -407,7 +399,7 @@ export default function LocalConveyanceFormScreen({ navigation }) {
       uri: asset.uri,
       width: asset.width,
       height: asset.height,
-      fileSize: asset.fileSize,
+      fileSize: size,
       mime: asset.mimeType || mimeFromUri(asset.uri),
       name: filenameFromUri(asset.uri),
     });
@@ -442,7 +434,7 @@ export default function LocalConveyanceFormScreen({ navigation }) {
         exif: false,
         base64: false,
       });
-      if (result.canceled) return;
+    if (result.canceled) return;
       await validateAndSet(result.assets?.[0]);
     } catch (e) {
       console.log('captureImage error:', e);
@@ -470,15 +462,45 @@ export default function LocalConveyanceFormScreen({ navigation }) {
 
   const handleSubmit = async () => {
     if (isSubmitting) return;
+
+    // -- client-side validations
+    const missing = [];
+    if (!formData.request_id) missing.push('Request ID');
+    if (!formData.ccr_no) missing.push('CCR No');
+    if (!formData.project) missing.push('Project');
+    if (!formData.start_time) missing.push('Start time');
+    if (!formData.arrived_time) missing.push('Arrived time');
+    if (!formData.from_location) missing.push('From location');
+    if (!formData.to_location) missing.push('To location');
+    if (!formData.distance_km) missing.push('Distance (km)');
+
+    const distNum = parseFloat(String(formData.distance_km).replace(',', '.'));
+    if (!isNaN(distNum) && distNum < 0) {
+      Alert.alert('Invalid distance', 'Distance cannot be negative.');
+      return;
+    }
+
+    if (missing.length) {
+      Alert.alert('Missing info', `Please fill: ${missing.join(', ')}`);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      // Normalize formats for Rails (date already YYYY-MM-DD)
+      const normalized = {
+        ...formData,
+        start_time: toTimeHHMM(formData.start_time),    // "HH:MM"
+        arrived_time: toTimeHHMM(formData.arrived_time) // "HH:MM"
+      };
+
+      // Build multipart (nested params for Rails strong params)
       const payload = new FormData();
-      Object.keys(formData).forEach((key) => {
-        const val = formData[key];
-        if (val !== null && val !== '') {
-          payload.append(`tour_conveyance[${key}]`, String(val));
-        }
+      Object.entries(normalized).forEach(([key, val]) => {
+        if (val === null || val === '') return;
+        payload.append(`tour_conveyance[${key}]`, String(val));
       });
+
       if (selectedImage) {
         payload.append('tour_conveyance[image]', {
           uri: selectedImage.uri,
@@ -486,22 +508,24 @@ export default function LocalConveyanceFormScreen({ navigation }) {
           name: selectedImage.name || filenameFromUri(selectedImage.uri),
         });
       }
-      await axios.post(`${API_URL}/api/tour_conveyances`, payload, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 30000,
+
+      await api.post('/tour_conveyances', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' }, // axios will add boundary
+        timeout: 60000,
       });
+
       Alert.alert('Success', 'Entry added successfully');
       resetForm();
       navigation.goBack();
     } catch (err) {
-      console.log('Submit Error:', err.response?.data || err.message);
-      if (err.response?.status === 422 && err.response?.data?.errors) {
+      console.log('Submit Error:', err?.response?.data || err.message);
+      if (err?.response?.status === 422 && err.response?.data?.errors) {
         const msgs = Array.isArray(err.response.data.errors)
           ? err.response.data.errors.join('\n')
           : String(err.response.data.errors);
         Alert.alert('Validation Error', msgs);
       } else {
-        Alert.alert('Error', 'Something went wrong. Please try again.');
+        Alert.alert('Error', String(err?.response?.data?.error || 'Something went wrong. Please try again.'));
       }
     } finally {
       setIsSubmitting(false);
@@ -522,96 +546,94 @@ export default function LocalConveyanceFormScreen({ navigation }) {
         <Text style={[styles.title, { color: colors.text }]}>Add Local Conveyance</Text>
       </View>
 
+      {/* 1) Request ID */}
+      <FieldLabel icon="pricetag-outline" text="Request ID / SO No." colors={colors} />
+      <LabeledInput
+        icon="pricetag-outline"
+        fieldKey="request_id"
+        value={formData.request_id}
+        onChangeText={(v) => setFormData({ ...formData, request_id: v })}
+        placeholder="Enter Request No"
+        autoCapitalize="characters"
+        focusedKey={focusedKey}
+        setFocusedKey={setFocusedKey}
+        colors={colors}
+      />
 
-{/* 1) Request ID */}
-<FieldLabel icon="pricetag-outline" text="Request ID / SO No." colors={colors} />
-<LabeledInput
-  icon="pricetag-outline"
-  fieldKey="request_id"
-  value={formData.request_id}
-  onChangeText={(v) => setFormData({ ...formData, request_id: v })}
-  placeholder="Enter Request No"
-  autoCapitalize="characters"
-  focusedKey={focusedKey}
-  setFocusedKey={setFocusedKey}
-  colors={colors}
-/>
+      {/* 2) CCR NO */}
+      <FieldLabel icon="document-text-outline" text="CCR NO" colors={colors} />
+      <DropdownButton
+        label="CCR NO"
+        value={formData.ccr_no || ''}
+        onPress={() => openDropdown('ccr_no')}
+        colors={colors}
+      />
 
-{/* 2) CCR NO */}
-<FieldLabel icon="document-text-outline" text="CCR NO" colors={colors} />
-<DropdownButton
-  label="CCR NO"
-  value={formData.ccr_no || ''}
-  onPress={() => openDropdown('ccr_no')}
-  colors={colors}
-/>
+      {/* 3) PROJECT */}
+      <FieldLabel icon="briefcase-outline" text="PROJECT" colors={colors} />
+      <DropdownButton
+        label="PROJECT"
+        value={formData.project || (defaultValues.project || '')}
+        onPress={() => openDropdown('project')}
+        colors={colors}
+      />
 
-{/* 3) PROJECT */}
-<FieldLabel icon="briefcase-outline" text="PROJECT" colors={colors} />
-<DropdownButton
-  label="PROJECT"
-  value={formData.project || (defaultValues.project || '')}
-  onPress={() => openDropdown('project')}
-  colors={colors}
-/>
+      {/* 4) START TIME */}
+      <DateTimeField
+        label="Start Time"
+        value={formData.start_time}
+        onChange={(v) => setFormData({ ...formData, start_time: v })}
+        colors={colors}
+      />
 
-{/* 4) START TIME */}
-<DateTimeField
-  label="Start Time"
-  value={formData.start_time}
-  onChange={(v) => setFormData({ ...formData, start_time: v })}
-  colors={colors}
-/>
+      {/* 5) ARRIVED TIME */}
+      <DateTimeField
+        label="Arrived Time"
+        value={formData.arrived_time}
+        onChange={(v) => setFormData({ ...formData, arrived_time: v })}
+        colors={colors}
+      />
 
-{/* 5) ARRIVED TIME */}
-<DateTimeField
-  label="Arrived Time"
-  value={formData.arrived_time}
-  onChange={(v) => setFormData({ ...formData, arrived_time: v })}
-  colors={colors}
-/>
+      {/* 6) MODE */}
+      <FieldLabel icon="car-outline" text="MODE" colors={colors} />
+      <DropdownButton
+        label="MODE"
+        value={formData.mode || (defaultValues.mode || '')}
+        onPress={() => openDropdown('mode')}
+        colors={colors}
+      />
 
-{/* 6) MODE */}
-<FieldLabel icon="car-outline" text="MODE" colors={colors} />
-<DropdownButton
-  label="MODE"
-  value={formData.mode || (defaultValues.mode || '')}
-  onPress={() => openDropdown('mode')}
-  colors={colors}
-/>
+      {/* 7) FROM LOCATION */}
+      <FieldLabel icon="location-outline" text="FROM LOCATION" colors={colors} />
+      <DropdownButton
+        label="FROM LOCATION"
+        value={formData.from_location || (defaultValues.from_location || '')}
+        onPress={() => openDropdown('from_location')}
+        colors={colors}
+      />
 
-{/* 7) FROM LOCATION */}
-<FieldLabel icon="location-outline" text="FROM LOCATION" colors={colors} />
-<DropdownButton
-  label="FROM LOCATION"
-  value={formData.from_location || (defaultValues.from_location || '')}
-  onPress={() => openDropdown('from_location')}
-  colors={colors}
-/>
+      {/* 8) TO LOCATION */}
+      <FieldLabel icon="flag-outline" text="TO LOCATION" colors={colors} />
+      <DropdownButton
+        label="TO LOCATION"
+        value={formData.to_location || (defaultValues.to_location || '')}
+        onPress={() => openDropdown('to_location')}
+        colors={colors}
+      />
 
-{/* 8) TO LOCATION (search + free-text handled in ModalDropdown props) */}
-<FieldLabel icon="flag-outline" text="TO LOCATION" colors={colors} />
-<DropdownButton
-  label="TO LOCATION"
-  value={formData.to_location || (defaultValues.to_location || '')}
-  onPress={() => openDropdown('to_location')}
-  colors={colors}
-/>
-
-{/* 9) DISTANCE (km) */}
-<FieldLabel icon="map-outline" text="Distance (km)" colors={colors} />
-<LabeledInput
-  icon="map-outline"
-  fieldKey="distance_km"
-  value={formData.distance_km}
-  onChangeText={(v) => setFormData({ ...formData, distance_km: v })}
-  placeholder="e.g. 12.5"
-  keyboardType="numeric"
-  focusedKey={focusedKey}
-  setFocusedKey={setFocusedKey}
-  colors={colors}
-/>
-
+      {/* 9) DISTANCE (km) */}
+      <FieldLabel icon="map-outline" text="Distance (km)" colors={colors} />
+      <LabeledInput
+        icon="map-outline"
+        fieldKey="distance_km"
+        value={formData.distance_km}
+        onChangeText={(v) => setFormData({ ...formData, distance_km: v })}
+        placeholder="e.g. 12.5"
+        keyboardType="numeric"
+        focusedKey={focusedKey}
+        setFocusedKey={setFocusedKey}
+        colors={colors}
+      />
 
       <ModalDropdown
         visible={!!activeDropdown && FIELDS.find((f) => f.key === activeDropdown)?.type === 'dropdown'}
@@ -625,7 +647,7 @@ export default function LocalConveyanceFormScreen({ navigation }) {
         searchValue={activeDropdown === 'to_location' ? dropdownSearch : ''}
         onSearchChange={setDropdownSearch}
         searchPlaceholder="Search area/city"
-         allowFreeText={activeDropdown === 'to_location'}
+        allowFreeText={activeDropdown === 'to_location'}
       />
 
       <View style={{ marginVertical: 12 }}>
@@ -703,14 +725,12 @@ export default function LocalConveyanceFormScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { padding: 16 },
-
   titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   titleIconWrap: {
     width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#eef2ff', marginRight: 8,
   },
   title: { fontSize: 20, fontWeight: '700' },
-
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -721,62 +741,28 @@ const styles = StyleSheet.create({
   },
   leftIcon: { marginRight: 10, opacity: 0.9 },
   input: { flex: 1, fontSize: 15 },
-
   smallLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    color: '#6b7280',
+    fontSize: 11, fontWeight: '600', letterSpacing: 0.3, marginBottom: 4, textTransform: 'uppercase', color: '#6b7280',
   },
   valueRow: { flexDirection: 'row', alignItems: 'center' },
   pill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
   valueText: { fontSize: 14, fontWeight: '600' },
   placeholderText: { fontSize: 15, fontWeight: '500', color: '#6b7280' },
-
   row: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOpacity: 0.06, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6 },
-      android: { elevation: 1 },
-    }),
+    flex: 1, flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12,
+    ...Platform.select({ ios: { shadowColor: '#000', shadowOpacity: 0.06, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6 }, android: { elevation: 1 } }),
   },
   actionText: { fontSize: 14, fontWeight: '600' },
-
   previewWrap: { marginTop: 12, alignItems: 'flex-start' },
   previewImg: { width: 240, height: 240, borderRadius: 12 },
-
   bottomBar: { flexDirection: 'row', alignItems: 'center', marginTop: 16 },
   ctaBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 14,
-    ...Platform.select({
-      ios: { shadowColor: '#2563eb', shadowOpacity: 0.25, shadowOffset: { width: 0, height: 8 }, shadowRadius: 14 },
-      android: { elevation: 2 },
-    }),
+    flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 14, borderRadius: 14,
+    ...Platform.select({ ios: { shadowColor: '#2563eb', shadowOpacity: 0.25, shadowOffset: { width: 0, height: 8 }, shadowRadius: 14 }, android: { elevation: 2 } }),
   },
   ctaText: { fontSize: 15, fontWeight: '700' },
-  cancelBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
+  cancelBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, paddingVertical: 14, borderRadius: 14 },
   cancelText: { fontSize: 15, fontWeight: '700' },
 });
 
@@ -785,7 +771,7 @@ const styles = StyleSheet.create({
 function DropdownButton({ label, value, onPress, colors }) {
   return (
     <View style={{ marginBottom: 12 }}>
-      <View style={[styles.inputWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.inputWrap, { backgroundColor: 'white', borderColor: '#e5e7eb' }]}>
         <MaterialCommunityIcons name="form-select" size={18} color={colors.subtext} style={styles.leftIcon} />
         <Pressable onPress={onPress} style={{ flex: 1, paddingVertical: 2 }}>
           <Text style={{ color: value ? colors.text : colors.subtext, fontSize: 15 }} numberOfLines={1}>
@@ -797,4 +783,3 @@ function DropdownButton({ label, value, onPress, colors }) {
     </View>
   );
 }
-

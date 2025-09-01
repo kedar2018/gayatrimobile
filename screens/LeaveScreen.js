@@ -1,336 +1,222 @@
+// screens/LeaveScreen.js
 import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  Button,
-  FlatList,
-  StyleSheet,
-  Alert,
-  ScrollView,
-  ActivityIndicator,
+  View, Text, TextInput, StyleSheet, FlatList, ActivityIndicator,
+  TouchableOpacity, RefreshControl, Alert, Platform
 } from 'react-native';
+import { api } from '../utils/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import axios from 'axios';
 import { Picker } from '@react-native-picker/picker';
-const API_URL = 'https://134.199.178.17/gayatri';
 
+const LEAVE_TYPES = ['Casual', 'Sick', 'Paid'];
 
 export default function LeaveScreen() {
-  const [leaveTypes, setLeaveTypes] = useState([]); // start with empty array
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
+
+  // form
+  const [leaveType, setLeaveType] = useState(LEAVE_TYPES[0]);
   const [fromDate, setFromDate] = useState(new Date());
   const [toDate, setToDate] = useState(new Date());
-  const [reason, setReason] = useState('');
-  const [leaves, setLeaves] = useState([]);
+  const [remarks, setRemarks] = useState('');
+
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
-  const [selectedType, setSelectedType] = useState(''); 
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [userId, setUserId] = useState(null); // assuming user-specific leaves
 
-useEffect(() => {
-  if (userId) {
-    fetchLeaves(1, true);
-  }
-}, [userId]);
-
-
-useEffect(() => {
-  const getUser = async () => {
-    const id = await AsyncStorage.getItem('user_id');
-    setUserId(id);
+  const fmtDate = (d) => {
+    const pad = (n) => (n < 10 ? `0${n}` : n);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   };
-  getUser();
-}, []);
 
-/*const handleRefresh = () => {
-  setRefreshing(true);
-  setPage(1);
-  fetchLeaves(1, true);
-  setRefreshing(false);
-};
-*/
-const handleRefresh = () => {
-  setRefreshing(true);
-  setPage(1);
-  fetchLeaves(1, true).finally(() => {
-    setRefreshing(false);
-  });
-};
-
-
-
-const handleLoadMore = () => {
-  if (!loading && hasMore) {
-    fetchLeaves(page);
-  }
-};
-
-const fetchLeaves = async (pageToLoad = 1, isRefresh = false) => {
-  if (loading || (!isRefresh && !hasMore) || !userId) return;
-
-  setLoading(true);
-  try {
-    const res = await axios.get(`${API_URL}/api/leave_applications`, {
-      params: {
-        user_id: userId,
-        page: pageToLoad,
-        per_page: 10,
-      },
-    });
-    const newData = res.data;
-    if (isRefresh) {
-      setLeaves(newData);
-    } else {
-      setLeaves((prev) => [...prev, ...newData]);
+  const fetchLeaves = async () => {
+    try {
+      setError('');
+      setLoading(true);
+      // optional/backward compat
+      const engineer_id = await AsyncStorage.getItem('user_id');
+      const res = await api.get('/leaves', { params: { engineer_id } });
+      const data = Array.isArray(res.data) ? res.data : (res.data?.items || []);
+      setItems(data);
+    } catch (e) {
+      console.log('Leaves fetch error:', e?.response?.data || e.message);
+      setError('Failed to load leaves.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setHasMore(newData.length === 10);
-    setPage(pageToLoad + 1);
-  } catch (err) {
-    console.error('Leave fetch error:', err);
-  }
-  setLoading(false);
-};
-
+  };
 
   useEffect(() => {
-    fetch('https://134.199.178.17/gayatri/api/leave_types')
-      .then(res => res.json())
-      .then(data => setLeaveTypes(data.leave_types))
-      .catch(err => console.error(err));
+    fetchLeaves();
   }, []);
 
-
-  const submitLeave = async () => {
-    if (!selectedType || !reason) {
-      Alert.alert('Validation', 'Leave type and reason are required.');
-      return;
-    }
-    const userId = await AsyncStorage.getItem('user_id');
-    try {
-      const { data } = await axios.post(
-        'https://134.199.178.17/gayatri/api/leave_applications',
-        {
-          user_id: userId,
-          leave_type: selectedType,
-          from_date: fromDate.toISOString().split('T')[0],
-          to_date: toDate.toISOString().split('T')[0],
-          reason: reason,
-        }
-      );
-
-      // Success path
-      Alert.alert('Success', data?.message || 'Leave application submitted.');
-      setSelectedType('');   // reset to "Select type"
-      setReason(''); 
-      // Refresh leave list from page 1
-      await fetchLeaves(1, true);
-      setPage(2); // Reset page counter for pagination
-    } catch (error) {
-      // Server responded (4xx/5xx)
-      if (error.response) {
-        const apiErrors = error.response.data?.errors;
-        const apiMessage = error.response.data?.message;
-
-        const message =
-          (Array.isArray(apiErrors) && apiErrors.length
-            ? apiErrors.join('\n')
-            : apiMessage) || 'Something went wrong.';
-
-        Alert.alert('Error', message);
-      }
-      // No response (network, CORS, server down)
-      else if (error.request) {
-        Alert.alert(
-          'Network Error',
-          'Unable to reach the server. Please check your connection and try again.'
-        );
-      }
-      // Something else (code bug, thrown error)
-      else {
-        Alert.alert('Error', error.message || 'Unexpected error occurred.');
-      }
-      console.error('Error submitting leave:', error);
-  }
+  const onRefresh = () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    fetchLeaves();
   };
 
-return (
-  <>
-  <FlatList
-    style={styles.container}
-    data={leaves}
-    keyExtractor={(item, index) => index.toString()}
-    onEndReached={handleLoadMore}
-    onEndReachedThreshold={0.2}
-    onRefresh={handleRefresh}
-    refreshing={refreshing}
-    ListHeaderComponent={
-      <View style={styles.formCard}>
-        <Text style={styles.title}>📝 Apply for Leave</Text>
+  const submitLeave = async () => {
+    try {
+      if (!leaveType || !fromDate || !toDate) {
+        Alert.alert('Missing info', 'Please select type and dates.');
+        return;
+      }
+      const payload = {
+        leave_type: leaveType,
+        from_date: fmtDate(fromDate),
+        to_date: fmtDate(toDate),
+        remarks: (remarks || '').trim(),
+      };
+      await api.post('/leaves', payload);
+      Alert.alert('Success', 'Leave submitted.');
+      setRemarks('');
+      fetchLeaves();
+    } catch (e) {
+      console.log('Leave create error:', e?.response?.data || e.message);
+      Alert.alert('Error', String(e?.response?.data?.error || 'Failed to submit leave'));
+    }
+  };
 
+  const renderItem = ({ item }) => (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>
+        {item.leave_type} • {item.from_date} → {item.to_date}
+      </Text>
+      {!!item.remarks && <Text style={styles.cardLine}>📝 {item.remarks}</Text>}
+      {!!item.status && (
+        <View style={styles.badgeRow}>
+          <Text style={[styles.badge, badgeStyle(item.status)]}>{String(item.status).toUpperCase()}</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  return (
+    <View style={styles.screen}>
+      <Text style={styles.h1}>Leave Applications</Text>
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
+
+      {/* Form */}
+      <View style={styles.form}>
         <Text style={styles.label}>Leave Type</Text>
-        <View style={styles.pickerContainer}>
+        <View style={styles.pickerWrap}>
           <Picker
-            selectedValue={selectedType}
-            onValueChange={(value) => setSelectedType(value)}
-            style={styles.picker}
-            dropdownIconColor="#333"
+            selectedValue={leaveType}
+            onValueChange={(v) => setLeaveType(v)}
+            dropdownIconColor="#111"
           >
-            <Picker.Item label="Select type" value="" />
-            {(leaveTypes || []).map((type, index) => (
-              <Picker.Item key={index} label={type} value={type} />
+            {LEAVE_TYPES.map((t) => (
+              <Picker.Item key={t} label={t} value={t} />
             ))}
           </Picker>
         </View>
 
         <Text style={styles.label}>From Date</Text>
-        <Button title={fromDate.toDateString()} onPress={() => setShowFromPicker(true)} />
+        <TouchableOpacity onPress={() => setShowFromPicker(true)} style={styles.dateBtn}>
+          <Text style={styles.dateBtnText}>{fmtDate(fromDate)}</Text>
+        </TouchableOpacity>
         {showFromPicker && (
           <DateTimePicker
             value={fromDate}
             mode="date"
-            display="default"
-            onChange={(event, date) => {
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={(e, d) => {
               setShowFromPicker(false);
-              if (date) setFromDate(date);
+              if (d) setFromDate(d);
             }}
           />
         )}
 
         <Text style={styles.label}>To Date</Text>
-        <Button title={toDate.toDateString()} onPress={() => setShowToPicker(true)} />
+        <TouchableOpacity onPress={() => setShowToPicker(true)} style={styles.dateBtn}>
+          <Text style={styles.dateBtnText}>{fmtDate(toDate)}</Text>
+        </TouchableOpacity>
         {showToPicker && (
           <DateTimePicker
             value={toDate}
             mode="date"
-            display="default"
-            onChange={(event, date) => {
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={(e, d) => {
               setShowToPicker(false);
-              if (date) setToDate(date);
+              if (d) setToDate(d);
             }}
           />
         )}
 
-        <Text style={styles.label}>Reason</Text>
+        <Text style={styles.label}>Remarks</Text>
         <TextInput
-          style={[styles.input, { height: 80 }]}
-          placeholder="Enter reason for leave"
-          multiline
-          value={reason}
-          onChangeText={setReason}
+          style={styles.input}
+          value={remarks}
+          onChangeText={setRemarks}
+          placeholder="Optional"
+          placeholderTextColor="#888"
         />
 
-        <View style={styles.buttonWrapper}>
-          <Button
-            title="📤 Submit Leave Application"
-            color="#004080"
-            onPress={submitLeave}
-          />
+        <TouchableOpacity style={styles.button} onPress={submitLeave}>
+          <Text style={styles.buttonText}>Apply Leave</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* List */}
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator />
+          <Text style={styles.loadingText}>Loading…</Text>
         </View>
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(it, idx) => String(it.id ?? idx)}
+          renderItem={renderItem}
+          contentContainerStyle={{ paddingBottom: 30 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" colors={['#2563eb']} />
+          }
+          ListEmptyComponent={
+            <View style={{ alignItems: 'center', marginTop: 40 }}>
+              <Text style={{ color: '#555' }}>No leave records found.</Text>
+            </View>
+          }
+        />
+      )}
+    </View>
+  );
+}
 
-        <Text style={styles.subTitle}>📚 Your Previous Leaves</Text>
-        {leaves.length === 0 && (
-          <Text style={styles.noRecordText}>
-            No leave records found.
-          </Text>
-        )}
-      </View>
-    }
-    renderItem={({ item }) => (
-      <View style={styles.card}>
-        <Text style={styles.cardText}>📝 {item.leave_type}</Text>
-        <Text style={styles.cardText}>📅 {item.from_date} → {item.to_date}</Text>
-        <Text style={styles.cardText}>💬 {item.reason}</Text>
-        <Text style={styles.cardText}>✅ Status: {item.status}</Text>
-      </View>
-    )}
-  />
-  {loading && !refreshing && (
-  <ActivityIndicator size="small" color="#004080" style={{ marginVertical: 10 }} />
-)}
-  </>
-);
-
-
+function badgeStyle(status) {
+  const s = (status || '').toString().toLowerCase();
+  if (s.includes('approved')) return { backgroundColor: '#065f46' };
+  if (s.includes('rejected')) return { backgroundColor: '#7f1d1d' };
+  return { backgroundColor: '#1e3a8a' }; // pending/others
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 10,
-    backgroundColor: '#f5f6fa',
+  screen: { flex: 1, backgroundColor: '#f2f4f7', paddingHorizontal: 16, paddingTop: 12 },
+  h1: { fontSize: 22, fontWeight: '700', color: '#111', marginBottom: 8 },
+  errorText: {
+    color: '#7f1d1d', backgroundColor: '#fecaca', borderColor: '#ef4444', borderWidth: 1, padding: 8, borderRadius: 8, marginBottom: 8,
   },
-  formCard: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 20,
-    elevation: 3,
+  form: {
+    backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 12, borderColor: '#e5e7eb', borderWidth: 1,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#004080',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  subTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 20,
-    color: '#333',
-  },
-  label: {
-    marginTop: 10,
-    marginBottom: 4,
-    fontWeight: '600',
-    color: '#333',
-  },
-  input: {
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-    backgroundColor: '#fff',
-  },
-
-pickerContainer: {
-  borderWidth: 1,
-  borderColor: '#ccc',
-  borderRadius: 5,
-  marginBottom: 10,
-  overflow: 'hidden',
-},
-
-picker: {
-  height: 55,
-  width: '100%',
-  backgroundColor: '#fff',
-  color: '#333',
-  paddingHorizontal: 10,
-},
+  label: { color: '#333', fontSize: 13, marginTop: 8, marginBottom: 6 },
+  pickerWrap: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, overflow: 'hidden', backgroundColor: '#fff' },
+  dateBtn: { height: 44, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, justifyContent: 'center', paddingHorizontal: 12, backgroundColor: '#fff' },
+  dateBtnText: { color: '#111', fontSize: 16 },
+  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12, color: '#111' },
+  button: { backgroundColor: '#004080', marginTop: 12, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  buttonText: { color: '#fff', fontWeight: '700' },
+  center: { alignItems: 'center', marginTop: 20 },
+  loadingText: { marginTop: 8, color: '#444' },
   card: {
-    backgroundColor: '#ffffff',
-    padding: 15,
-    marginBottom: 10,
-    borderRadius: 10,
-    elevation: 2,
+    backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 10, borderColor: '#e5e7eb', borderWidth: 1,
   },
-  cardText: {
-    fontSize: 14,
-    marginBottom: 4,
-    color: '#333',
-  },
-  noRecordText: {
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 10,
-  },
-  buttonWrapper: {
-    marginTop: 15,
-  },
+  cardTitle: { color: '#111', fontWeight: '700', marginBottom: 4 },
+  cardLine: { color: '#333' },
+  badgeRow: { marginTop: 8, flexDirection: 'row', justifyContent: 'flex-end' },
+  badge: { color: '#f8fafc', fontWeight: '700', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, overflow: 'hidden', fontSize: 12 },
 });

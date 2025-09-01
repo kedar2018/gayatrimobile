@@ -1,7 +1,6 @@
 // screens/LocalConveyanceListScreen.js
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-
 import {
   View,
   Text,
@@ -9,100 +8,117 @@ import {
   TouchableOpacity,
   RefreshControl,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
-import axios from 'axios';
+import { api } from '../utils/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'https://134.199.178.17/gayatri';
+const PAGE_SIZE = 10;
 
 export default function LocalConveyanceListScreen({ navigation }) {
   const [entries, setEntries] = useState([]);
-  const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState(null);
+
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [loading, setLoading] = useState(false);
 
- 
-  
- 
-const fetchEntries = async (pageToLoad = 1, refreshing = false) => {
-console.log('Fetching with cccuserId:', userId);
-console.log(loading);
-console.log(refreshing)
-console.log(hasMore)
-  if (loading || (!refreshing && !hasMore)) return;
-console.log('Fetching with userId:', userId);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  setLoading(true);
+  const [error, setError] = useState('');
 
-  try {
-    const res = await axios.get(`${API_URL}/api/tour_conveyances`, {
-      params: { engineer_id: userId, page: pageToLoad, per_page: 10 },
-    });
+  // Load user id once (optional, token will be used on server anyway)
+  useEffect(() => {
+    (async () => {
+      const id = await AsyncStorage.getItem('user_id');
+      setUserId(id);
+    })();
+  }, []);
 
-    const newData = res.data;
-    if (refreshing) {
-      setEntries(newData);
-    } else {
-      setEntries((prev) => [...prev, ...newData]);
+  const parseResponse = (resData) => {
+    // Support both raw array and { items: [], next_page: true/false } shapes
+    if (Array.isArray(resData)) {
+      return { items: resData, nextPage: resData.length === PAGE_SIZE };
     }
-
-    setHasMore(newData.length === 10); // If less than 10, no more pages
-    setPage(pageToLoad + 1);
-  } catch (err) {
-    console.log('Pagination Fetch Error:', err);
-  }
-
-  setLoading(false);
-};
-
- 
-  
- /*
-useFocusEffect(
-  useCallback(() => {
-    fetchEntries();
-  }, [userId, fetchEntries])
-);
-*/
-
-useFocusEffect(
-  useCallback(() => {
-    if (userId) {
-      fetchEntries(1, true); // trigger initial fetch
-    }
-  }, [userId])
-);
-
- 
-useEffect(() => {
-  const loadUserId = async () => {
-    const id = await AsyncStorage.getItem('user_id');
-    setUserId(id);
+    const items = Array.isArray(resData?.items) ? resData.items : [];
+    const nextPage =
+      typeof resData?.next_page === 'boolean'
+        ? resData.next_page
+        : items.length === PAGE_SIZE;
+    return { items, nextPage };
   };
 
-  loadUserId();
-}, []);
+  const fetchEntries = useCallback(
+    async (pageToLoad = 1, replace = false) => {
+      try {
+        if (pageToLoad === 1) {
+          setInitialLoading(true);
+          setHasMore(true);
+        } else {
+          setLoadingMore(true);
+        }
+        setError('');
 
+        const params = {
+          page: pageToLoad,
+          per_page: PAGE_SIZE,
+        };
+        // Backward compatibility (server should ignore and use token)
+        if (userId) params.engineer_id = userId;
 
+        const res = await api.get('/tour_conveyances', { params });
+        const { items: newItems, nextPage } = parseResponse(res.data);
 
-const handleRefresh = () => {
-  setPage(1);
-  fetchEntries(1);
-};
+        if (replace) {
+          setEntries(newItems);
+        } else {
+          // de-dupe by id if possible
+          const merged = [...entries, ...newItems];
+          const seen = new Set();
+          const deduped = merged.filter((it) => {
+            const key = it?.id ?? `${it?.request_id}-${it?.date}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          setEntries(deduped);
+        }
 
- 
-const handleLoadMore = () => {
-  if (!loading && hasMore) {
-    fetchEntries(page);
-  }
-};
+        setHasMore(nextPage);
+        setPage(pageToLoad);
+      } catch (err) {
+        console.log('Conveyance fetch error:', err?.response?.data || err.message);
+        setError('Failed to load conveyance entries.');
+        setHasMore(false);
+      } finally {
+        setInitialLoading(false);
+        setLoadingMore(false);
+        setRefreshing(false);
+      }
+    },
+    [entries, userId]
+  );
 
+  // Fetch when the screen gains focus (and when userId is ready)
+  useFocusEffect(
+    useCallback(() => {
+      if (userId) {
+        fetchEntries(1, true);
+      }
+    }, [userId, fetchEntries])
+  );
 
- 
+  const handleRefresh = useCallback(() => {
+    if (refreshing) return;
+    setRefreshing(true);
+    fetchEntries(1, true);
+  }, [refreshing, fetchEntries]);
 
+  const handleLoadMore = useCallback(() => {
+    if (initialLoading || loadingMore || !hasMore) return;
+    fetchEntries(page + 1, false);
+  }, [initialLoading, loadingMore, hasMore, page, fetchEntries]);
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
@@ -162,19 +178,58 @@ const handleLoadMore = () => {
     </TouchableOpacity>
   );
 
+  const ListEmpty = () => {
+    if (initialLoading) return null;
+    return (
+      <View style={{ alignItems: 'center', marginTop: 40 }}>
+        <Text style={{ color: '#666' }}>No conveyance entries yet.</Text>
+      </View>
+    );
+  };
+
+  const ListFooter = () => {
+    if (!loadingMore) return <View style={{ height: 8 }} />;
+    return (
+      <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+        <ActivityIndicator />
+        <Text style={{ color: '#555', marginTop: 6 }}>Loading more…</Text>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
+      {!!error && (
+        <Text style={styles.errorText}>{error}</Text>
+      )}
 
+      {initialLoading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator />
+          <Text style={{ marginTop: 8 }}>Loading…</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={entries}
+          keyExtractor={(item, index) => String(item?.id ?? `${item?.request_id}-${index}`)}
+          renderItem={renderItem}
+          contentContainerStyle={{ paddingBottom: 80 }}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#2563eb"
+              colors={['#2563eb']}
+            />
+          }
+          ListEmptyComponent={ListEmpty}
+          ListFooterComponent={ListFooter}
+          removeClippedSubviews
+        />
+      )}
 
-<FlatList
-  data={entries}
-  keyExtractor={(item, index) => index.toString()}
-  renderItem={renderItem}
-  onEndReached={handleLoadMore}
-  onEndReachedThreshold={0.5}
-  onRefresh={handleRefresh}
-  refreshing={loading}
-/>
       <TouchableOpacity
         style={styles.addBtn}
         onPress={() => navigation.navigate('LocalConveyanceForm')}
@@ -187,7 +242,15 @@ const handleLoadMore = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 14, backgroundColor: '#f7f7f7' },
-  title: { fontSize: 20, fontWeight: '700', marginVertical: 10 },
+  errorText: {
+    color: '#7f1d1d',
+    backgroundColor: '#fecaca',
+    borderColor: '#ef4444',
+    borderWidth: 1,
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -199,11 +262,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   cardHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  chip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
+  chip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
   chipPrimary: { backgroundColor: '#e8f0fe' },
   chipNeutral: { backgroundColor: '#eee' },
   chipText: { fontSize: 12 },
@@ -214,15 +273,10 @@ const styles = StyleSheet.create({
   infoValue: { flex: 1, fontWeight: '500' },
   divider: { height: 1, backgroundColor: '#eee', marginVertical: 6 },
   cardFooter: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   badgeMeasure: { backgroundColor: '#f0f9ff' },
   badgeMoney: { backgroundColor: '#fff7ed' },
   badgeText: { fontSize: 12, fontWeight: '600' },
-
   addBtn: {
     position: 'absolute',
     right: 16,
@@ -235,4 +289,3 @@ const styles = StyleSheet.create({
   },
   btnText: { color: '#fff', fontWeight: '700' },
 });
-

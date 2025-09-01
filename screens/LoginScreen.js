@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api } from '../utils/api'; // ✅ new
+
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -35,12 +37,23 @@ export default function LoginScreen({ navigation }) {
     if (submitting) return;
     setSubmitting(true);
     try {
-      const res = await axios.post('https://134.199.178.17/gayatri/api/login', { email, password });
-      const { user_id, name, location } = res.data;
 
-      await AsyncStorage.setItem('user_id', String(user_id));
-      await AsyncStorage.setItem('user_name', name || '');
-      await AsyncStorage.setItem('DEFAULT_FROM_LOCATION', location || '');
+      const res = await axios.post('https://134.199.178.17/gayatri/api/login', { email, password });
+      const { user_id, name, location, api_token } = res.data;
+
+      await AsyncStorage.multiSet([
+        ['user_id', String(user_id)],
+        ['user_name', name || ''],
+        ['DEFAULT_FROM_LOCATION', location || ''],
+        ['api_token', api_token || ''],
+      ]);
+
+
+      // Optional: immediately set header on the api instance to avoid race condition
+      if (api_token) {
+        api.defaults.headers.Authorization = `Token token=${api_token}`;
+      }
+
 
       navigation.replace('MainTabs');
     } catch (err) {
@@ -117,6 +130,10 @@ export default function LoginScreen({ navigation }) {
             </View>
           </ScrollView>
         </View>
+
+        <TouchableOpacity style={{ marginTop: 16, alignItems: 'center' }} onPress={() => navigation.navigate('Register')}>
+          <Text style={{ color: '#004080', fontWeight: '600' }}>New here? Create an account</Text>
+        </TouchableOpacity>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
