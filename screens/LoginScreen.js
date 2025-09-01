@@ -127,14 +127,15 @@ export default function LoginScreen({ navigation }) {
                   <Text style={styles.buttonText}>Login</Text>
                 )}
               </TouchableOpacity>
+                      <TouchableOpacity style={{ marginTop: 16, alignItems: 'center' }} onPress={() => navigation.navigate('Register')}>
+          <Text style={{ color: '#004080', fontWeight: '600' }}>New here? Create an account</Text>
+        </TouchableOpacity>
+      </TouchableWithoutFeedback>
             </View>
           </ScrollView>
         </View>
 
-        <TouchableOpacity style={{ marginTop: 16, alignItems: 'center' }} onPress={() => navigation.navigate('Register')}>
-          <Text style={{ color: '#004080', fontWeight: '600' }}>New here? Create an account</Text>
-        </TouchableOpacity>
-      </TouchableWithoutFeedback>
+
     </KeyboardAvoidingView>
   );
 }
