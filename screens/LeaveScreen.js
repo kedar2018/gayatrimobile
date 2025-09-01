@@ -9,7 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 
-const LEAVE_TYPES = ['Casual', 'Sick', 'Paid'];
+const LEAVE_TYPES = [ 'Paid'];
 
 export default function LeaveScreen() {
   const [items, setItems] = useState([]);
@@ -37,7 +37,7 @@ export default function LeaveScreen() {
       setLoading(true);
       // optional/backward compat
       const engineer_id = await AsyncStorage.getItem('user_id');
-      const res = await api.get('/leaves', { params: { engineer_id } });
+      const res = await api.get('/leave_applications', { params: { engineer_id } });
       const data = Array.isArray(res.data) ? res.data : (res.data?.items || []);
       setItems(data);
     } catch (e) {
@@ -53,6 +53,29 @@ export default function LeaveScreen() {
     fetchLeaves();
   }, []);
 
+
+useEffect(() => {
+  const ctrl = new AbortController();
+
+  (async () => {
+    try {
+      const res = await api.get('/leave_types', { signal: ctrl.signal });
+      const list = Array.isArray(res.data?.leave_types)
+        ? res.data.leave_types
+        : Array.isArray(res.data)
+        ? res.data
+        : [];
+      setLeaveTypes(list);
+    } catch (err) {
+      // ignore abort; log others
+      if (err?.name !== 'CanceledError' && err?.code !== 'ERR_CANCELED') {
+        console.log('leave_types GET error:', err?.response?.data || err.message);
+      }
+    }
+  })();
+
+  return () => ctrl.abort();
+}, []);
   const onRefresh = () => {
     if (refreshing) return;
     setRefreshing(true);
@@ -71,7 +94,7 @@ export default function LeaveScreen() {
         to_date: fmtDate(toDate),
         remarks: (remarks || '').trim(),
       };
-      await api.post('/leaves', payload);
+      await api.post('/leave_applications', payload);
       Alert.alert('Success', 'Leave submitted.');
       setRemarks('');
       fetchLeaves();
