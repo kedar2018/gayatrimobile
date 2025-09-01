@@ -24,7 +24,7 @@ import LocalConveyanceListScreen from './screens/LocalConveyanceListScreen';
 import LocalConveyanceFormScreen from './screens/LocalConveyanceFormScreen';
 import CallReportsCardListScreen from './screens/CallReportsCardListScreen';
 import CcrPdfFormScreen from './screens/CcrPdfFormScreen';
-
+import RegistrationScreen from './screens/RegistrationScreen'
 
 
 const Stack = createStackNavigator();
