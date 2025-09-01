@@ -1,15 +1,13 @@
 // screens/LeaveScreen.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, TextInput, StyleSheet, FlatList, ActivityIndicator,
-  TouchableOpacity, RefreshControl, Alert, Platform
+  TouchableOpacity, RefreshControl, Alert, Platform,
 } from 'react-native';
 import { api } from '../utils/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
-
-const LEAVE_TYPES = [ 'Paid'];
 
 export default function LeaveScreen() {
   const [items, setItems] = useState([]);
@@ -17,8 +15,12 @@ export default function LeaveScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
+  // leave types (dynamic)
+  const [leaveTypes, setLeaveTypes] = useState([]); // [{label, value}]
+  const [loadingLT, setLoadingLT] = useState(false);
+
   // form
-  const [leaveType, setLeaveType] = useState(LEAVE_TYPES[0]);
+  const [leaveType, setLeaveType] = useState('');
   const [fromDate, setFromDate] = useState(new Date());
   const [toDate, setToDate] = useState(new Date());
   const [remarks, setRemarks] = useState('');
@@ -31,11 +33,44 @@ export default function LeaveScreen() {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   };
 
-  const fetchLeaves = async () => {
+  const normalizeLeaveTypes = (raw) => {
+    const arr = Array.isArray(raw?.leave_types) ? raw.leave_types
+              : Array.isArray(raw)             ? raw
+              : [];
+    return arr.map((t) => {
+      if (typeof t === 'string') return { label: t, value: t };
+      const value = t.id ?? t.code ?? t.value ?? t.name;
+      const label = t.name ?? t.label ?? String(value ?? '');
+      return { label: String(label), value: String(value ?? label ?? '') };
+    });
+  };
+
+  const fetchLeaveTypes = useCallback(async () => {
+    const ctrl = new AbortController();
+    setLoadingLT(true);
+    try {
+      const res = await api.get('/leave_types', { signal: ctrl.signal });
+      const normalized = normalizeLeaveTypes(res.data);
+      setLeaveTypes(normalized);
+      // set default selection if empty
+      if (!leaveType && normalized.length > 0) {
+        setLeaveType(normalized[0].value);
+      }
+    } catch (err) {
+      if (err?.name !== 'CanceledError' && err?.code !== 'ERR_CANCELED') {
+        console.log('leave_types GET error:', err?.response?.data || err.message);
+      }
+    } finally {
+      setLoadingLT(false);
+    }
+    return () => ctrl.abort();
+  }, [leaveType]);
+
+  const fetchLeaves = useCallback(async () => {
     try {
       setError('');
       setLoading(true);
-      // optional/backward compat
+      // optional/backward compat; server should use token anyway
       const engineer_id = await AsyncStorage.getItem('user_id');
       const res = await api.get('/leave_applications', { params: { engineer_id } });
       const data = Array.isArray(res.data) ? res.data : (res.data?.items || []);
@@ -47,35 +82,13 @@ export default function LeaveScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
-
-  useEffect(() => {
-    fetchLeaves();
   }, []);
 
+  useEffect(() => {
+    fetchLeaveTypes();
+    fetchLeaves();
+  }, [fetchLeaveTypes, fetchLeaves]);
 
-useEffect(() => {
-  const ctrl = new AbortController();
-
-  (async () => {
-    try {
-      const res = await api.get('/leave_types', { signal: ctrl.signal });
-      const list = Array.isArray(res.data?.leave_types)
-        ? res.data.leave_types
-        : Array.isArray(res.data)
-        ? res.data
-        : [];
-      setLeaveTypes(list);
-    } catch (err) {
-      // ignore abort; log others
-      if (err?.name !== 'CanceledError' && err?.code !== 'ERR_CANCELED') {
-        console.log('leave_types GET error:', err?.response?.data || err.message);
-      }
-    }
-  })();
-
-  return () => ctrl.abort();
-}, []);
   const onRefresh = () => {
     if (refreshing) return;
     setRefreshing(true);
@@ -86,6 +99,10 @@ useEffect(() => {
     try {
       if (!leaveType || !fromDate || !toDate) {
         Alert.alert('Missing info', 'Please select type and dates.');
+        return;
+      }
+      if (toDate < fromDate) {
+        Alert.alert('Invalid dates', '"To Date" cannot be before "From Date".');
         return;
       }
       const payload = {
@@ -100,7 +117,8 @@ useEffect(() => {
       fetchLeaves();
     } catch (e) {
       console.log('Leave create error:', e?.response?.data || e.message);
-      Alert.alert('Error', String(e?.response?.data?.error || 'Failed to submit leave'));
+      const msg = e?.response?.data?.errors || e?.response?.data?.error;
+      Alert.alert('Error', Array.isArray(msg) ? msg.join('\n') : String(msg || 'Failed to submit leave'));
     }
   };
 
@@ -130,10 +148,16 @@ useEffect(() => {
           <Picker
             selectedValue={leaveType}
             onValueChange={(v) => setLeaveType(v)}
+            enabled={!loadingLT && leaveTypes.length > 0}
             dropdownIconColor="#111"
           >
-            {LEAVE_TYPES.map((t) => (
-              <Picker.Item key={t} label={t} value={t} />
+            <Picker.Item
+              label={loadingLT ? 'Loading…' : (leaveTypes.length ? 'Select leave type' : 'No types available')}
+              value=""
+              color="#64748b"
+            />
+            {leaveTypes.map((t) => (
+              <Picker.Item key={t.value} label={t.label} value={t.value} />
             ))}
           </Picker>
         </View>
@@ -149,7 +173,10 @@ useEffect(() => {
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={(e, d) => {
               setShowFromPicker(false);
-              if (d) setFromDate(d);
+              if (d) {
+                setFromDate(d);
+                if (toDate < d) setToDate(d); // keep range valid
+              }
             }}
           />
         )}
@@ -179,7 +206,11 @@ useEffect(() => {
           placeholderTextColor="#888"
         />
 
-        <TouchableOpacity style={styles.button} onPress={submitLeave}>
+        <TouchableOpacity
+          style={[styles.button, (!leaveType || loadingLT) && { opacity: 0.6 }]}
+          onPress={submitLeave}
+          disabled={!leaveType || loadingLT}
+        >
           <Text style={styles.buttonText}>Apply Leave</Text>
         </TouchableOpacity>
       </View>
