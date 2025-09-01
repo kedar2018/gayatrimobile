@@ -1,168 +1,184 @@
-// screens/RegistrationScreen.js
+// screens/RegisterScreen.js
 import React, { useRef, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
-  TouchableWithoutFeedback, Keyboard
+  View, Text, TextInput, StyleSheet, TouchableOpacity,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
+  ScrollView, TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api } from '../utils/api'; // use shared client for /register
+import { api } from '../utils/api'; // baseURL should point to https://134.199.178.17/gayatri/api
 
-export default function RegistrationScreen({ navigation }) {
-  const [fullName, setFullName] = useState('');
-  const [location, setLocation]   = useState('');
-  const [email, setEmail]         = useState('');
-  const [password, setPassword]   = useState('');
-  const [confirm, setConfirm]     = useState('');
-  const [secure, setSecure]       = useState(true);
+export default function RegisterScreen({ navigation }) {
+  const [name, setName] = useState('');
+  const [mobile, setMobile] = useState('');
+  const [location, setLocation] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [password2, setPassword2] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const emailRef = useRef(null);
+  const mobileRef = useRef(null);
   const locationRef = useRef(null);
   const passwordRef = useRef(null);
-  const confirmRef = useRef(null);
+  const password2Ref = useRef(null);
+
+  const validate = () => {
+    if (!name || !email || !mobile || !password || !password2) {
+      Alert.alert('Missing info', 'Please fill all required fields.');
+      return false;
+    }
+    if (password !== password2) {
+      Alert.alert('Password mismatch', 'Passwords do not match.');
+      return false;
+    }
+    const clean = mobile.replace(/\s+/g, '');
+    if (!/^\+?\d{10,15}$/.test(clean)) {
+      Alert.alert('Invalid mobile', 'Enter a valid mobile number (10–15 digits, optional +).');
+      return false;
+    }
+    return true;
+  };
 
   const handleRegister = async () => {
     Keyboard.dismiss();
-
-    if (!fullName || !email || !password || !confirm) {
-      Alert.alert('Missing info', 'Please fill all required fields.');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      Alert.alert('Invalid email', 'Please enter a valid email address.');
-      return;
-    }
-    if (password.length < 6) {
-      Alert.alert('Weak password', 'Password must be at least 6 characters.');
-      return;
-    }
-    if (password !== confirm) {
-      Alert.alert('Password mismatch', 'Passwords do not match.');
-      return;
-    }
-
     if (submitting) return;
-    setSubmitting(true);
+    if (!validate()) return;
 
+    setSubmitting(true);
     try {
       const payload = {
-        name: fullName.trim(),
-        email: email.trim(),
-        password,
-        password_confirmation: confirm,
-        location: (location || '').trim(),
+        user: {
+          name,
+          email,
+          password,
+          password_confirmation: password2,
+          location,
+          mobile_no: mobile.replace(/\s+/g, ''),
+        },
       };
 
+      // POST /api/register
       const res = await api.post('/register', payload);
-      const { user_id, name, location: loc, api_token } = res.data || {};
-
-      if (!user_id || !api_token) throw new Error('Unexpected server response');
+      const { user_id, name: rName, location: rLoc, mobile_no, api_token } = res.data || {};
 
       await AsyncStorage.multiSet([
         ['user_id', String(user_id)],
-        ['user_name', name || payload.name || ''],
-        ['DEFAULT_FROM_LOCATION', loc || payload.location || ''],
-        ['api_token', api_token],
+        ['user_name', rName || name || ''],
+        ['DEFAULT_FROM_LOCATION', rLoc || location || ''],
+        ['api_token', api_token || ''],
+        ['user_mobile', mobile_no || mobile || ''],
+        ['user_email', email || ''],
       ]);
 
-      // optional: set header immediately
-      api.defaults.headers.Authorization = `Token token=${api_token}`;
+      if (api_token) {
+        api.defaults.headers.Authorization = `Token token=${api_token}`;
+      }
 
+      Alert.alert('Success', 'Account created.');
       navigation.replace('MainTabs');
     } catch (err) {
-      console.log('Registration Error:', err?.response?.data || err.message);
-      Alert.alert('Registration failed', String(err?.response?.data?.error || err.message || 'Please try again.'));
+      console.log('Register error:', err?.response?.data || err.message);
+      const serverErrors = err?.response?.data?.errors;
+      if (serverErrors) {
+        Alert.alert('Registration failed', Array.isArray(serverErrors) ? serverErrors.join('\n') : String(serverErrors));
+      } else {
+        Alert.alert('Registration failed', 'Please check your details and try again.');
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={20}>
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
             <View style={styles.inner}>
               <Text style={styles.title}>Create Account</Text>
 
-              <Text style={styles.label}>Full Name</Text>
               <TextInput
                 style={styles.input}
-                placeholder="First Last"
+                placeholder="Full Name"
                 placeholderTextColor="#888"
-                value={fullName}
-                onChangeText={setFullName}
+                value={name}
+                onChangeText={setName}
                 returnKeyType="next"
-                blurOnSubmit={false}
                 onSubmitEditing={() => emailRef.current?.focus?.()}
               />
 
-              <Text style={styles.label}>Email</Text>
               <TextInput
                 ref={emailRef}
                 style={styles.input}
-                placeholder="you@example.com"
+                placeholder="Email"
                 placeholderTextColor="#888"
-                keyboardType="email-address"
                 autoCapitalize="none"
+                keyboardType="email-address"
                 value={email}
                 onChangeText={setEmail}
                 returnKeyType="next"
-                blurOnSubmit={false}
+                onSubmitEditing={() => mobileRef.current?.focus?.()}
+              />
+
+              <TextInput
+                ref={mobileRef}
+                style={styles.input}
+                placeholder="Mobile Number"
+                placeholderTextColor="#888"
+                keyboardType="phone-pad"
+                value={mobile}
+                onChangeText={setMobile}
+                returnKeyType="next"
                 onSubmitEditing={() => locationRef.current?.focus?.()}
               />
 
-              <Text style={styles.label}>Location (optional)</Text>
               <TextInput
                 ref={locationRef}
                 style={styles.input}
-                placeholder="City / Office"
+                placeholder="Location (optional)"
                 placeholderTextColor="#888"
                 value={location}
                 onChangeText={setLocation}
                 returnKeyType="next"
-                blurOnSubmit={false}
                 onSubmitEditing={() => passwordRef.current?.focus?.()}
               />
 
-              <Text style={styles.label}>Password</Text>
               <TextInput
                 ref={passwordRef}
                 style={styles.input}
-                placeholder="••••••••"
+                placeholder="Password"
                 placeholderTextColor="#888"
-                secureTextEntry={secure}
+                secureTextEntry
                 value={password}
                 onChangeText={setPassword}
                 returnKeyType="next"
-                blurOnSubmit={false}
-                onSubmitEditing={() => confirmRef.current?.focus?.()}
+                onSubmitEditing={() => password2Ref.current?.focus?.()}
               />
 
-              <Text style={styles.label}>Confirm Password</Text>
               <TextInput
-                ref={confirmRef}
+                ref={password2Ref}
                 style={styles.input}
-                placeholder="••••••••"
+                placeholder="Confirm Password"
                 placeholderTextColor="#888"
-                secureTextEntry={secure}
-                value={confirm}
-                onChangeText={setConfirm}
+                secureTextEntry
+                value={password2}
+                onChangeText={setPassword2}
                 returnKeyType="go"
                 onSubmitEditing={handleRegister}
               />
 
-              <TouchableOpacity style={styles.toggle} onPress={() => setSecure(s => !s)} activeOpacity={0.7}>
-                <Text style={styles.toggleText}>{secure ? 'Show' : 'Hide'} Password</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={[styles.button, submitting && styles.buttonDisabled]} onPress={handleRegister} disabled={submitting} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleRegister}
+                disabled={submitting}
+                activeOpacity={0.85}
+              >
                 {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Register</Text>}
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.linkWrap} onPress={() => navigation.navigate('Login')}>
-                <Text style={styles.linkText}>Already have an account? Login</Text>
+              <TouchableOpacity style={{ marginTop: 16, alignItems: 'center' }} onPress={() => navigation.replace('Login')}>
+                <Text style={{ color: '#004080', fontWeight: '600' }}>Already have an account? Login</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -174,16 +190,19 @@ export default function RegistrationScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f2f4f7' },
-  scrollContainer: { flexGrow: 1 },
-  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 20 },
+  scroll: { flexGrow: 1 },
+  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 24 },
   title: { fontSize: 26, fontWeight: 'bold', color: '#004080', textAlign: 'center', marginBottom: 20 },
-  label: { color: '#333', fontSize: 13, marginBottom: 6, marginTop: 8 },
-  input: { backgroundColor: '#fff', padding: 12, borderRadius: 10, marginBottom: 6, fontSize: 16, borderColor: '#ccc', borderWidth: 1, color: '#000' },
-  toggle: { alignSelf: 'flex-end', marginTop: 6, marginBottom: 16 },
-  toggleText: { color: '#004080', fontSize: 13, fontWeight: '600' },
-  button: { backgroundColor: '#004080', paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
-  buttonDisabled: { opacity: 0.6 },
+  input: {
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+    fontSize: 16,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    color: '#000',
+  },
+  button: { backgroundColor: '#004080', paddingVertical: 14, borderRadius: 10, alignItems: 'center', marginTop: 4 },
   buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  linkWrap: { alignItems: 'center', marginTop: 16 },
-  linkText: { color: '#004080', fontWeight: '600' },
 });

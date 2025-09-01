@@ -157,6 +157,16 @@ export default function CallReportsCardListScreen({ navigation }) {
             {String(status).toUpperCase()}
           </Text>
         </View>
+     {/* Actions */}
+     <View style={styles.cardActions}>
+       <TouchableOpacity
+         onPress={() => navigation.navigate('CcrPdfForm', { report: item })}
+         activeOpacity={0.7}
+         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+       >
+         <Text style={styles.linkText}>Generate PDF</Text>
+       </TouchableOpacity>
+     </View>
       </TouchableOpacity>
     );
   };
@@ -296,4 +306,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 6,
   },
+ cardActions: { marginTop: 8, flexDirection: 'row', justifyContent: 'flex-end' },
+ linkText: { color: '#2563eb', fontWeight: '700', textDecorationLine: 'underline' },
 });
