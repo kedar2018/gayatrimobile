@@ -18,7 +18,6 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../utils/api'; // ✅ new
 
-
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,8 +25,7 @@ export default function LoginScreen({ navigation }) {
   const passwordRef = useRef(null);
 
   const handleLogin = async () => {
-    // ensure one tap both hides keyboard and triggers login
-    Keyboard.dismiss();
+    Keyboard.dismiss(); // one tap to hide keyboard and submit
 
     if (!email || !password) {
       Alert.alert('Please enter both email and password');
@@ -37,7 +35,6 @@ export default function LoginScreen({ navigation }) {
     if (submitting) return;
     setSubmitting(true);
     try {
-
       const res = await axios.post('https://134.199.178.17/gayatri/api/login', { email, password });
       const { user_id, name, location, api_token } = res.data;
 
@@ -48,17 +45,13 @@ export default function LoginScreen({ navigation }) {
         ['api_token', api_token || ''],
       ]);
 
-
-      // Optional: immediately set header on the api instance to avoid race condition
       if (api_token) {
         api.defaults.headers.Authorization = `Token token=${api_token}`;
       }
 
-
       navigation.replace('MainTabs');
     } catch (err) {
       console.log('Login Error:', err);
-
       if (err.response) {
         console.log('Status:', err.response.status);
         console.log('Data:', err.response.data);
@@ -68,7 +61,6 @@ export default function LoginScreen({ navigation }) {
       } else {
         console.log('Error Message:', err.message);
       }
-
       Alert.alert('Login failed', 'Invalid email or password');
     } finally {
       setSubmitting(false);
@@ -81,12 +73,10 @@ export default function LoginScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={20}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      {/* ✅ EXACTLY ONE CHILD for TouchableWithoutFeedback */}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={{ flex: 1 }}>
-          <ScrollView
-            contentContainerStyle={styles.scrollContainer}
-            keyboardShouldPersistTaps="handled"
-          >
+          <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
             <View style={styles.inner}>
               <Text style={styles.title}>Engineer Login</Text>
 
@@ -96,11 +86,13 @@ export default function LoginScreen({ navigation }) {
                 placeholderTextColor="#888"
                 keyboardType="email-address"
                 autoCapitalize="none"
-                onChangeText={setEmail}
+                autoCorrect={false}
                 selectionColor="#004080"
                 underlineColorAndroid="transparent"
                 returnKeyType="next"
                 blurOnSubmit={false}
+                value={email}
+                onChangeText={setEmail}
                 onSubmitEditing={() => passwordRef.current?.focus?.()}
               />
 
@@ -110,8 +102,9 @@ export default function LoginScreen({ navigation }) {
                 placeholder="Password"
                 placeholderTextColor="#888"
                 secureTextEntry
-                onChangeText={setPassword}
                 returnKeyType="go"
+                value={password}
+                onChangeText={setPassword}
                 onSubmitEditing={handleLogin}
               />
 
@@ -121,21 +114,21 @@ export default function LoginScreen({ navigation }) {
                 disabled={submitting}
                 activeOpacity={0.85}
               >
-                {submitting ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.buttonText}>Login</Text>
-                )}
+                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Login</Text>}
               </TouchableOpacity>
-                      <TouchableOpacity style={{ marginTop: 16, alignItems: 'center' }} onPress={() => navigation.navigate('Register')}>
-          <Text style={{ color: '#004080', fontWeight: '600' }}>New here? Create an account</Text>
-        </TouchableOpacity>
-      </TouchableWithoutFeedback>
+
+              <TouchableOpacity
+                style={{ marginTop: 16, alignItems: 'center' }}
+                onPress={() => navigation.navigate('Register')}
+              >
+                <Text style={{ color: '#004080', fontWeight: '600' }}>
+                  New here? Create an account
+                </Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         </View>
-
-
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
