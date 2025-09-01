@@ -5,7 +5,6 @@ import {
   Text,
   TextInput,
   ScrollView,
-  StyleSheet,
   Alert,
   Image,
   Platform,
@@ -79,7 +78,7 @@ const filenameFromUri = (uri = '') => uri.split('/').pop() || 'upload.jpg';
 
 const FieldLabel = React.memo(({ icon, text, colors }) => (
   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-    {icon ? <Ionicons name={icon} size={16} color={colors.subtext} style={styles.leftIcon} /> : null}
+    {icon ? <Ionicons name={icon} size={16} color={colors.subtext} style={S.leftIcon} /> : null}
     <Text style={{ fontSize: 13, fontWeight: '600', color: colors.subtext }}>{text}</Text>
   </View>
 ));
@@ -101,16 +100,16 @@ const LabeledInput = React.memo(function LabeledInput({
     <View style={{ marginBottom: 12 }}>
       <View
         style={[
-          styles.inputWrap,
+          S.inputWrap,
           {
             backgroundColor: colors.card,
             borderColor: focusedKey === fieldKey ? colors.focus : colors.border,
           },
         ]}
       >
-        <Ionicons name={icon} size={18} color={colors.subtext} style={styles.leftIcon} />
+        <Ionicons name={icon} size={18} color={colors.subtext} style={S.leftIcon} />
         <TextInput
-          style={[styles.input, { color: colors.text }]}
+          style={[S.input, { color: colors.text }]}
           placeholder={placeholder}
           placeholderTextColor={colors.subtext}
           value={value}
@@ -160,27 +159,27 @@ const DateTimeField = React.memo(function DateTimeField({ label, value, onChange
       <Pressable
         onPress={() => setStep('date')}
         style={[
-          styles.inputWrap,
+          S.inputWrap,
           { backgroundColor: colors.card, borderColor: colors.border, paddingVertical: 12 },
         ]}
         android_ripple={{ color: '#e6eefc' }}
       >
-        <Ionicons name="time-outline" size={18} color={colors.subtext} style={styles.leftIcon} />
+        <Ionicons name="time-outline" size={18} color={colors.subtext} style={S.leftIcon} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.smallLabel}>{label}</Text>
+          <Text style={S.smallLabel}>{label}</Text>
           {d ? (
-            <View style={styles.valueRow}>
-              <View style={[styles.pill, { backgroundColor: '#f5f7fb' }]}>
+            <View style={S.valueRow}>
+              <View style={[S.pill, { backgroundColor: '#f5f7fb' }]}>
                 <Ionicons name="calendar-outline" size={14} color={colors.subtext} style={{ marginRight: 6 }} />
-                <Text style={[styles.valueText, { color: colors.text }]} numberOfLines={1}>{dateStr}</Text>
+                <Text style={[S.valueText, { color: colors.text }]} numberOfLines={1}>{dateStr}</Text>
               </View>
-              <View style={[styles.pill, { backgroundColor: '#f5f7fb', marginLeft: 8 }]}>
+              <View style={[S.pill, { backgroundColor: '#f5f7fb', marginLeft: 8 }]}>
                 <Ionicons name="time-outline" size={14} color={colors.subtext} style={{ marginRight: 6 }} />
-                <Text style={[styles.valueText, { color: colors.text }]} numberOfLines={1}>{timeStr}</Text>
+                <Text style={[S.valueText, { color: colors.text }]} numberOfLines={1}>{timeStr}</Text>
               </View>
             </View>
           ) : (
-            <Text style={styles.placeholderText}>Select date & time</Text>
+            <Text style={S.placeholderText}>Select date & time</Text>
           )}
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.subtext} />
@@ -535,15 +534,15 @@ export default function LocalConveyanceFormScreen({ navigation }) {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={[styles.container, { paddingBottom: bottomOffset }]}
+      contentContainerStyle={[S.container, { paddingBottom: bottomOffset }]}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
     >
-      <View style={styles.titleRow}>
-        <View style={styles.titleIconWrap}>
+      <View style={S.titleRow}>
+        <View style={S.titleIconWrap}>
           <Ionicons name="receipt-outline" size={18} color={colors.primary} />
         </View>
-        <Text style={[styles.title, { color: colors.text }]}>Add Local Conveyance</Text>
+        <Text style={[S.title, { color: colors.text }]}>Add Local Conveyance</Text>
       </View>
 
       {/* 1) Request ID */}
@@ -651,46 +650,46 @@ export default function LocalConveyanceFormScreen({ navigation }) {
       />
 
       <View style={{ marginVertical: 12 }}>
-        <View style={styles.row}>
+        <View style={S.row}>
           <Pressable
             onPress={pickImage}
             style={({ pressed }) => [
-              styles.actionBtn,
+              S.actionBtn,
               { borderColor: colors.border, backgroundColor: pressed ? '#eef4ff' : colors.card },
             ]}
             android_ripple={{ color: '#e6eefc' }}
           >
             <Ionicons name="images-outline" size={18} color={colors.primary} style={{ marginRight: 8 }} />
-            <Text style={[styles.actionText, { color: colors.text }]} numberOfLines={1}>Gallery</Text>
+            <Text style={[S.actionText, { color: colors.text }]} numberOfLines={1}>Gallery</Text>
           </Pressable>
 
           <View style={{ width: 10 }} />
           <Pressable
             onPress={captureImage}
             style={({ pressed }) => [
-              styles.actionBtn,
+              S.actionBtn,
               { borderColor: colors.border, backgroundColor: pressed ? '#fff1f2' : colors.card },
             ]}
             android_ripple={{ color: '#fde2e2' }}
           >
             <Ionicons name="camera-outline" size={18} color="#e11d48" style={{ marginRight: 8 }} />
-            <Text style={[styles.actionText, { color: colors.text }]} numberOfLines={1}>Camera</Text>
+            <Text style={[S.actionText, { color: colors.text }]} numberOfLines={1}>Camera</Text>
           </Pressable>
         </View>
 
         {selectedImage ? (
-          <View style={styles.previewWrap}>
-            <Image source={{ uri: selectedImage.uri }} style={styles.previewImg} resizeMode="cover" />
+          <View style={S.previewWrap}>
+            <Image source={{ uri: selectedImage.uri }} style={S.previewImg} resizeMode="cover" />
           </View>
         ) : null}
       </View>
 
-      <View style={[styles.bottomBar, { marginBottom: bottomOffset }]}>
+      <View style={[S.bottomBar, { marginBottom: bottomOffset }]}>
         <Pressable
           onPress={handleSubmit}
           disabled={isSubmitting}
           style={({ pressed }) => [
-            styles.ctaBtn,
+            S.ctaBtn,
             { backgroundColor: colors.primary, opacity: isSubmitting ? 0.6 : pressed ? 0.95 : 1, marginRight: 10 },
           ]}
           android_ripple={{ color: '#c7d7fe' }}
@@ -700,7 +699,7 @@ export default function LocalConveyanceFormScreen({ navigation }) {
           ) : (
             <>
               <Ionicons name="checkmark-circle" size={18} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={[styles.ctaText, { color: '#fff' }]}>Submit</Text>
+              <Text style={[S.ctaText, { color: '#fff' }]}>Submit</Text>
             </>
           )}
         </Pressable>
@@ -708,13 +707,13 @@ export default function LocalConveyanceFormScreen({ navigation }) {
         <Pressable
           onPress={() => navigation.goBack()}
           style={({ pressed }) => [
-            styles.cancelBtn,
+            S.cancelBtn,
             { borderColor: colors.border, backgroundColor: pressed ? '#f3f4f6' : 'transparent' },
           ]}
           android_ripple={{ color: '#e5e7eb' }}
         >
           <Ionicons name="close-circle-outline" size={18} color={colors.danger} style={{ marginRight: 8 }} />
-          <Text style={[styles.cancelText, { color: colors.danger }]}>Cancel</Text>
+          <Text style={[S.cancelText, { color: colors.danger }]}>Cancel</Text>
         </Pressable>
       </View>
     </ScrollView>
@@ -723,56 +722,14 @@ export default function LocalConveyanceFormScreen({ navigation }) {
 
 /* ----------------------- Local styles ----------------------- */
 
-const styles = StyleSheet.create({
-  container: { padding: 16 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  titleIconWrap: {
-    width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#eef2ff', marginRight: 8,
-  },
-  title: { fontSize: 20, fontWeight: '700' },
-  inputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
-  },
-  leftIcon: { marginRight: 10, opacity: 0.9 },
-  input: { flex: 1, fontSize: 15 },
-  smallLabel: {
-    fontSize: 11, fontWeight: '600', letterSpacing: 0.3, marginBottom: 4, textTransform: 'uppercase', color: '#6b7280',
-  },
-  valueRow: { flexDirection: 'row', alignItems: 'center' },
-  pill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
-  valueText: { fontSize: 14, fontWeight: '600' },
-  placeholderText: { fontSize: 15, fontWeight: '500', color: '#6b7280' },
-  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  actionBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12,
-    ...Platform.select({ ios: { shadowColor: '#000', shadowOpacity: 0.06, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6 }, android: { elevation: 1 } }),
-  },
-  actionText: { fontSize: 14, fontWeight: '600' },
-  previewWrap: { marginTop: 12, alignItems: 'flex-start' },
-  previewImg: { width: 240, height: 240, borderRadius: 12 },
-  bottomBar: { flexDirection: 'row', alignItems: 'center', marginTop: 16 },
-  ctaBtn: {
-    flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 14, borderRadius: 14,
-    ...Platform.select({ ios: { shadowColor: '#2563eb', shadowOpacity: 0.25, shadowOffset: { width: 0, height: 8 }, shadowRadius: 14 }, android: { elevation: 2 } }),
-  },
-  ctaText: { fontSize: 15, fontWeight: '700' },
-  cancelBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, paddingVertical: 14, borderRadius: 14 },
-  cancelText: { fontSize: 15, fontWeight: '700' },
-});
 
 /* ----------------------- Dropdown Button (local) ----------------------- */
 
 function DropdownButton({ label, value, onPress, colors }) {
   return (
     <View style={{ marginBottom: 12 }}>
-      <View style={[styles.inputWrap, { backgroundColor: 'white', borderColor: '#e5e7eb' }]}>
-        <MaterialCommunityIcons name="form-select" size={18} color={colors.subtext} style={styles.leftIcon} />
+      <View style={[S.inputWrap, { backgroundColor: 'white', borderColor: '#e5e7eb' }]}>
+        <MaterialCommunityIcons name="form-select" size={18} color={colors.subtext} style={S.leftIcon} />
         <Pressable onPress={onPress} style={{ flex: 1, paddingVertical: 2 }}>
           <Text style={{ color: value ? colors.text : colors.subtext, fontSize: 15 }} numberOfLines={1}>
             {value || `Select ${label.toLowerCase()}`}

@@ -188,21 +188,3 @@ export default function RegisterScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f2f4f7' },
-  scroll: { flexGrow: 1 },
-  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 24 },
-  title: { fontSize: 26, fontWeight: 'bold', color: '#004080', textAlign: 'center', marginBottom: 20 },
-  input: {
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 12,
-    fontSize: 16,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    color: '#000',
-  },
-  button: { backgroundColor: '#004080', paddingVertical: 14, borderRadius: 10, alignItems: 'center', marginTop: 4 },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-});

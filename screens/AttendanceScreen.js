@@ -1,7 +1,7 @@
 // screens/AttendanceScreen.js
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, TextInput, StyleSheet, FlatList, ActivityIndicator,
+  View, Text, TextInput, FlatList, ActivityIndicator,
   TouchableOpacity, RefreshControl, Alert, Platform
 } from 'react-native';
 import { api } from '../utils/api';
@@ -81,25 +81,25 @@ export default function AttendanceScreen() {
   };
 
   const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>
+    <View style={S.card}>
+      <Text style={S.cardTitle}>
         {item.date} • {item.start_time} → {item.end_time}
       </Text>
-      {!!item.task_description && <Text style={styles.cardLine}>🧰 {item.task_description}</Text>}
-      {!!item.hours && <Text style={styles.cardLine}>⏱ {item.hours} hrs</Text>}
+      {!!item.task_description && <Text style={S.cardLine}>🧰 {item.task_description}</Text>}
+      {!!item.hours && <Text style={S.cardLine}>⏱ {item.hours} hrs</Text>}
     </View>
   );
 
   return (
-    <View style={styles.screen}>
-      <Text style={styles.h1}>Attendance</Text>
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
+    <View style={S.screen}>
+      <Text style={S.h1}>Attendance</Text>
+      {!!error && <Text style={S.errorText}>{error}</Text>}
 
       {/* Filters / Date */}
-      <View style={styles.form}>
-        <Text style={styles.label}>Date</Text>
-        <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateBtn}>
-          <Text style={styles.dateBtnText}>{fmtDate(date)}</Text>
+      <View style={S.form}>
+        <Text style={S.label}>Date</Text>
+        <TouchableOpacity onPress={() => setShowDatePicker(true)} style={S.dateBtn}>
+          <Text style={S.dateBtnText}>{fmtDate(date)}</Text>
         </TouchableOpacity>
         {showDatePicker && (
           <DateTimePicker
@@ -115,19 +115,19 @@ export default function AttendanceScreen() {
       </View>
 
       {/* Add entry */}
-      <View style={styles.form}>
-        <Text style={styles.label}>Task</Text>
+      <View style={S.form}>
+        <Text style={S.label}>Task</Text>
         <TextInput
-          style={styles.input}
+          style={S.input}
           value={task}
           onChangeText={setTask}
           placeholder="What did you work on?"
           placeholderTextColor="#888"
         />
 
-        <Text style={styles.label}>Start Time</Text>
-        <TouchableOpacity onPress={() => setShowStartPicker(true)} style={styles.dateBtn}>
-          <Text style={styles.dateBtnText}>{fmtTime(startAt)}</Text>
+        <Text style={S.label}>Start Time</Text>
+        <TouchableOpacity onPress={() => setShowStartPicker(true)} style={S.dateBtn}>
+          <Text style={S.dateBtnText}>{fmtTime(startAt)}</Text>
         </TouchableOpacity>
         {showStartPicker && (
           <DateTimePicker
@@ -142,9 +142,9 @@ export default function AttendanceScreen() {
           />
         )}
 
-        <Text style={styles.label}>End Time</Text>
-        <TouchableOpacity onPress={() => setShowEndPicker(true)} style={styles.dateBtn}>
-          <Text style={styles.dateBtnText}>{fmtTime(endAt)}</Text>
+        <Text style={S.label}>End Time</Text>
+        <TouchableOpacity onPress={() => setShowEndPicker(true)} style={S.dateBtn}>
+          <Text style={S.dateBtnText}>{fmtTime(endAt)}</Text>
         </TouchableOpacity>
         {showEndPicker && (
           <DateTimePicker
@@ -159,16 +159,16 @@ export default function AttendanceScreen() {
           />
         )}
 
-        <TouchableOpacity style={styles.button} onPress={submitAttendance}>
-          <Text style={styles.buttonText}>Save Entry</Text>
+        <TouchableOpacity style={S.button} onPress={submitAttendance}>
+          <Text style={S.buttonText}>Save Entry</Text>
         </TouchableOpacity>
       </View>
 
       {/* List */}
       {loading ? (
-        <View style={styles.center}>
+        <View style={S.center}>
           <ActivityIndicator />
-          <Text style={styles.loadingText}>Loading…</Text>
+          <Text style={S.loadingText}>Loading…</Text>
         </View>
       ) : (
         <FlatList
@@ -189,23 +189,3 @@ export default function AttendanceScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f2f4f7', paddingHorizontal: 16, paddingTop: 12 },
-  h1: { fontSize: 22, fontWeight: '700', color: '#111', marginBottom: 8 },
-  errorText: {
-    color: '#7f1d1d', backgroundColor: '#fecaca', borderColor: '#ef4444', borderWidth: 1, padding: 8, borderRadius: 8, marginBottom: 8,
-  },
-  form: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 12, borderColor: '#e5e7eb', borderWidth: 1 },
-  label: { color: '#333', fontSize: 13, marginBottom: 6, marginTop: 4 },
-  dateBtn: { height: 44, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, justifyContent: 'center', paddingHorizontal: 12, backgroundColor: '#fff' },
-  dateBtnText: { color: '#111', fontSize: 16 },
-  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12, color: '#111' },
-  button: { backgroundColor: '#004080', marginTop: 12, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  buttonText: { color: '#fff', fontWeight: '700' },
-  center: { alignItems: 'center', marginTop: 20 },
-  loadingText: { marginTop: 8, color: '#444' },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 10, borderColor: '#e5e7eb', borderWidth: 1 },
-  cardTitle: { color: '#111', fontWeight: '700', marginBottom: 4 },
-  cardLine: { color: '#333' },
-});

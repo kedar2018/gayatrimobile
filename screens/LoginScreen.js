@@ -5,7 +5,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -69,19 +68,19 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={S.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={20}
     >
       {/* ✅ EXACTLY ONE CHILD for TouchableWithoutFeedback */}
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
-            <View style={styles.inner}>
-              <Text style={styles.title}>Engineer Login</Text>
+          <ScrollView contentContainerStyle={S.scrollContainer} keyboardShouldPersistTaps="handled">
+            <View style={S.inner}>
+              <Text style={S.title}>Engineer Login</Text>
 
               <TextInput
-                style={styles.input}
+                style={S.input}
                 placeholder="Email"
                 placeholderTextColor="#888"
                 keyboardType="email-address"
@@ -98,7 +97,7 @@ export default function LoginScreen({ navigation }) {
 
               <TextInput
                 ref={passwordRef}
-                style={styles.input}
+                style={S.input}
                 placeholder="Password"
                 placeholderTextColor="#888"
                 secureTextEntry
@@ -109,12 +108,12 @@ export default function LoginScreen({ navigation }) {
               />
 
               <TouchableOpacity
-                style={styles.button}
+                style={S.button}
                 onPress={handleLogin}
                 disabled={submitting}
                 activeOpacity={0.85}
               >
-                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Login</Text>}
+                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={S.buttonText}>Login</Text>}
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -133,32 +132,3 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f2f4f7' },
-  scrollContainer: { flexGrow: 1 },
-  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 20 },
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#004080',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
-  input: {
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 15,
-    fontSize: 16,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    color: '#000',
-  },
-  button: {
-    backgroundColor: '#004080',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-});

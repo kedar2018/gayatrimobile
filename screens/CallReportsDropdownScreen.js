@@ -1,7 +1,7 @@
 //import React, { useEffect, useState } from 'react';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ActivityIndicator, Button, Alert, ScrollView, RefreshControl, TouchableOpacity, Linking, Dimensions
+  View, Text,  ActivityIndicator, Button, Alert, ScrollView, RefreshControl, TouchableOpacity, Linking, Dimensions
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -119,23 +119,23 @@ const handleCaseSelection = useCallback((caseId, list = caseList) => {
 
 
   if (loading) {
-    return <ActivityIndicator size="large" style={styles.loader} />;
+    return <ActivityIndicator size="large" style={S.loader} />;
   }
 
  return (
     <ScrollView
-      style={styles.container}
+      style={S.container}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <Text style={styles.label}>Select a Case ID</Text>
+      <Text style={S.label}>Select a Case ID</Text>
 
-      <View style={styles.pickerContainer}>
+      <View style={S.pickerContainer}>
         <Picker
           selectedValue={selectedCaseId}
           onValueChange={(itemValue) => handleCaseSelection(itemValue)}
-          style={styles.picker}
+          style={S.picker}
         >
           <Picker.Item label="Choose case ID" value={null} />
           {caseList.map((item) => (
@@ -145,36 +145,36 @@ const handleCaseSelection = useCallback((caseId, list = caseList) => {
       </View>
 
       {selectedReport && (
-        <View style={styles.card}>
-          <Text style={styles.detailText}>🔢 Serial No: {selectedReport.serial_number}</Text>
-          <Text style={styles.detailText}>📆 Age: {selectedReport.age} days</Text>
-          <Text style={styles.detailText}>👤 Customer: {selectedReport.customer_detail?.customer_name}</Text>
-          <Text style={styles.address}>🏠 {selectedReport.customer_detail?.address}</Text>
+        <View style={S.card}>
+          <Text style={S.detailText}>🔢 Serial No: {selectedReport.serial_number}</Text>
+          <Text style={S.detailText}>📆 Age: {selectedReport.age} days</Text>
+          <Text style={S.detailText}>👤 Customer: {selectedReport.customer_detail?.customer_name}</Text>
+          <Text style={S.address}>🏠 {selectedReport.customer_detail?.address}</Text>
 
           {selectedReport.customer_detail?.phone_number && (
             <TouchableOpacity
               onPress={() => Linking.openURL(`tel:${selectedReport.customer_detail.phone_number}`)}
-              style={styles.row}
+              style={S.row}
             >
               <MaterialIcons name="phone" size={20} color="#004080" />
-              <Text style={styles.phoneText}> {selectedReport.customer_detail.phone_number}</Text>
+              <Text style={S.phoneText}> {selectedReport.customer_detail.phone_number}</Text>
             </TouchableOpacity>
           )}
 
           {selectedReport.customer_detail?.mobile_number && (
             <TouchableOpacity
               onPress={() => Linking.openURL(`tel:${selectedReport.customer_detail.mobile_number}`)}
-              style={styles.row}
+              style={S.row}
             >
               <MaterialIcons name="smartphone" size={20} color="#004080" />
-              <Text style={styles.phoneText}> {selectedReport.customer_detail.mobile_number}</Text>
+              <Text style={S.phoneText}> {selectedReport.customer_detail.mobile_number}</Text>
             </TouchableOpacity>
           )}
 
-          <Text style={styles.detailText}>📌 Status: {selectedReport.status}</Text>
+          <Text style={S.detailText}>📌 Status: {selectedReport.status}</Text>
 
  
-          <View style={styles.buttonWrapper}>
+          <View style={S.buttonWrapper}>
             <Button
               title="Submit Report"
               color="#004080"

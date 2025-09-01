@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   FlatList,
   ActivityIndicator,
   RefreshControl,
@@ -95,10 +94,10 @@ export default function CallReportsCardListScreen({ navigation }) {
   const ListEmpty = () => {
     if (initialLoading) return null;
     return (
-      <View style={styles.emptyWrap}>
-        <Text style={styles.emptyIcon}>📭</Text>
-        <Text style={styles.emptyTitle}>No Call Reports</Text>
-        <Text style={styles.emptySub}>Pull down to refresh.</Text>
+      <View style={S.emptyWrap}>
+        <Text style={S.emptyIcon}>📭</Text>
+        <Text style={S.emptyTitle}>No Call Reports</Text>
+        <Text style={S.emptySub}>Pull down to refresh.</Text>
       </View>
     );
   };
@@ -106,9 +105,9 @@ export default function CallReportsCardListScreen({ navigation }) {
   const ListFooter = () => {
     if (!loadingMore) return <View style={{ height: 8 }} />;
     return (
-      <View style={styles.footerLoading}>
+      <View style={S.footerLoading}>
         <ActivityIndicator />
-        <Text style={styles.footerText}>Loading more…</Text>
+        <Text style={S.footerText}>Loading more…</Text>
       </View>
     );
   };
@@ -124,7 +123,7 @@ export default function CallReportsCardListScreen({ navigation }) {
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={S.card}
         activeOpacity={0.85}
         onPress={() => {
           // Navigate to a details screen if you have one
@@ -132,39 +131,39 @@ export default function CallReportsCardListScreen({ navigation }) {
           console.log('Tapped CallReport:', item.id);
         }}
       >
-        <Text style={styles.cardHeader}>
-          🧾 Case: <Text style={styles.bold}>{String(caseId || '-')}</Text>
+        <Text style={S.cardHeader}>
+          🧾 Case: <Text style={S.bold}>{String(caseId || '-')}</Text>
         </Text>
 
-        <Text style={styles.cardLine}>
-          🔧 Serial: <Text style={styles.mono}>{String(serial)}</Text>
+        <Text style={S.cardLine}>
+          🔧 Serial: <Text style={S.mono}>{String(serial)}</Text>
         </Text>
 
-        <Text style={styles.cardLine}>
+        <Text style={S.cardLine}>
           👤 {String(cust)}
         </Text>
 
-        <Text style={styles.cardLine}>
+        <Text style={S.cardLine}>
           📞 {String(mobile)}
         </Text>
 
-        <Text style={styles.cardLine} numberOfLines={2}>
+        <Text style={S.cardLine} numberOfLines={2}>
           📍 {String(addr)}
         </Text>
 
-        <View style={styles.cardFooter}>
-          <Text style={[styles.badge, statusBadgeStyle(status)]}>
+        <View style={S.cardFooter}>
+          <Text style={[S.badge, statusBadgeStyle(status)]}>
             {String(status).toUpperCase()}
           </Text>
         </View>
      {/* Actions */}
-     <View style={styles.cardActions}>
+     <View style={S.cardActions}>
        <TouchableOpacity
          onPress={() => navigation.navigate('CcrPdfForm', { report: item })}
          activeOpacity={0.7}
          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
        >
-         <Text style={styles.linkText}>Generate PDF</Text>
+         <Text style={S.linkText}>Generate PDF</Text>
        </TouchableOpacity>
      </View>
       </TouchableOpacity>
@@ -172,14 +171,14 @@ export default function CallReportsCardListScreen({ navigation }) {
   };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Text style={styles.h1}>Call Reports</Text>
-        {!!error && <Text style={styles.errorText}>{error}</Text>}
+    <View style={[S.screen, { paddingTop: insets.top }]}>
+      <View style={S.header}>
+        <Text style={S.h1}>Call Reports</Text>
+        {!!error && <Text style={S.errorText}>{error}</Text>}
       </View>
 
       {initialLoading ? (
-        <View style={styles.loadingWrap}>
+        <View style={S.loadingWrap}>
           <ActivityIndicator />
           <Text style={{ marginTop: 8 }}>Loading…</Text>
         </View>
@@ -225,87 +224,3 @@ function statusBadgeStyle(status) {
   return { backgroundColor: '#334155' }; // slate
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#0b1220',
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  h1: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#e5e7eb',
-  },
-  errorText: {
-    marginTop: 6,
-    color: '#fecaca',
-    backgroundColor: '#3b0d0d',
-    borderColor: '#7f1d1d',
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  loadingWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  card: {
-    backgroundColor: '#0f172a',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#1f2937',
-  },
-  cardHeader: {
-    color: '#e5e7eb',
-    fontWeight: '700',
-    marginBottom: 6,
-    fontSize: 16,
-  },
-  bold: { fontWeight: '800' },
-  mono: { fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }), color: '#cbd5e1' },
-  cardLine: {
-    color: '#cbd5e1',
-    marginTop: 2,
-    fontSize: 14,
-  },
-  cardFooter: {
-    marginTop: 10,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  badge: {
-    color: '#f8fafc',
-    fontWeight: '700',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    overflow: 'hidden',
-    fontSize: 12,
-  },
-  emptyWrap: {
-    alignItems: 'center',
-    marginTop: 80,
-  },
-  emptyIcon: { fontSize: 40, marginBottom: 8 },
-  emptyTitle: { color: '#e5e7eb', fontSize: 16, fontWeight: '700' },
-  emptySub: { color: '#9ca3af', marginTop: 4 },
-  footerLoading: {
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  footerText: {
-    color: '#cbd5e1',
-    fontSize: 12,
-    marginTop: 6,
-  },
- cardActions: { marginTop: 8, flexDirection: 'row', justifyContent: 'flex-end' },
- linkText: { color: '#2563eb', fontWeight: '700', textDecorationLine: 'underline' },
-});

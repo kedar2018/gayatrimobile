@@ -7,7 +7,6 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  StyleSheet,
   ActivityIndicator,
 } from 'react-native';
 import { api } from '../utils/api';
@@ -132,57 +131,57 @@ export default function LocalConveyanceListScreen({ navigation }) {
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
-      style={styles.card}
+      style={S.card}
       activeOpacity={0.85}
       onPress={() => console.log('Tapped:', item.request_id)}
       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
     >
       {/* Header */}
-      <View style={styles.cardHeaderRow}>
-        <View style={[styles.chip, styles.chipPrimary]}>
-          <Text style={styles.chipText}>📅 {item.date || '—'}</Text>
+      <View style={S.cardHeaderRow}>
+        <View style={[S.chip, S.chipPrimary]}>
+          <Text style={S.chipText}>📅 {item.date || '—'}</Text>
         </View>
-        <View style={styles.spacer} />
-        <View style={[styles.chip, styles.chipNeutral]}>
-          <Text style={styles.chipText}>🆔 {item.request_id || '—'}</Text>
+        <View style={S.spacer} />
+        <View style={[S.chip, S.chipNeutral]}>
+          <Text style={S.chipText}>🆔 {item.request_id || '—'}</Text>
         </View>
       </View>
 
-      <Text style={styles.cardTitle} numberOfLines={1}>
+      <Text style={S.cardTitle} numberOfLines={1}>
         🧾 CCR {item.ccr_no || '—'} • 🏗 {item.project || '—'}
       </Text>
 
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>Time</Text>
-        <Text style={styles.infoValue} numberOfLines={1}>
+      <View style={S.infoRow}>
+        <Text style={S.infoLabel}>Time</Text>
+        <Text style={S.infoValue} numberOfLines={1}>
           {item.start_time || '—'} → {item.arrived_time || '—'}
         </Text>
       </View>
 
-      <View style={styles.divider} />
+      <View style={S.divider} />
 
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>Mode</Text>
-        <Text style={styles.infoValue} numberOfLines={1}>
+      <View style={S.infoRow}>
+        <Text style={S.infoLabel}>Mode</Text>
+        <Text style={S.infoValue} numberOfLines={1}>
           {item.mode || '—'}
         </Text>
       </View>
 
-      <View style={styles.divider} />
+      <View style={S.divider} />
 
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>Route</Text>
-        <Text style={styles.infoValue} numberOfLines={2} ellipsizeMode="tail">
+      <View style={S.infoRow}>
+        <Text style={S.infoLabel}>Route</Text>
+        <Text style={S.infoValue} numberOfLines={2} ellipsizeMode="tail">
           {item.from_location || '—'} → {item.to_location || '—'}
         </Text>
       </View>
 
-      <View style={styles.cardFooter}>
-        <View style={[styles.badge, styles.badgeMeasure]}>
-          <Text style={styles.badgeText}>📏 {item.distance_km ?? '—'} km</Text>
+      <View style={S.cardFooter}>
+        <View style={[S.badge, S.badgeMeasure]}>
+          <Text style={S.badgeText}>📏 {item.distance_km ?? '—'} km</Text>
         </View>
-        <View style={[styles.badge, styles.badgeMoney]}>
-          <Text style={styles.badgeText}>💰 ₹{item.expense_rs ?? '—'}</Text>
+        <View style={[S.badge, S.badgeMoney]}>
+          <Text style={S.badgeText}>💰 ₹{item.expense_rs ?? '—'}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -208,8 +207,8 @@ export default function LocalConveyanceListScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
+    <View style={S.container}>
+      {!!error && <Text style={S.errorText}>{error}</Text>}
 
       {initialLoading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -241,61 +240,12 @@ export default function LocalConveyanceListScreen({ navigation }) {
       )}
 
       <TouchableOpacity
-        style={styles.addBtn}
+        style={S.addBtn}
         onPress={() => navigation.navigate('LocalConveyanceForm')}
       >
-        <Text style={styles.btnText}>+ Add Entry</Text>
+        <Text style={S.btnText}>+ Add Entry</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 14, backgroundColor: '#f7f7f7' },
-  errorText: {
-    color: '#7f1d1d',
-    backgroundColor: '#fecaca',
-    borderColor: '#ef4444',
-    borderWidth: 1,
-    padding: 8,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  cardHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  chip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
-  chipPrimary: { backgroundColor: '#e8f0fe' },
-  chipNeutral: { backgroundColor: '#eee' },
-  chipText: { fontSize: 12 },
-  spacer: { flex: 1 },
-  cardTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
-  infoRow: { flexDirection: 'row', marginBottom: 8 },
-  infoLabel: { width: 70, color: '#666' },
-  infoValue: { flex: 1, fontWeight: '500' },
-  divider: { height: 1, backgroundColor: '#eee', marginVertical: 6 },
-  cardFooter: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  badgeMeasure: { backgroundColor: '#f0f9ff' },
-  badgeMoney: { backgroundColor: '#fff7ed' },
-  badgeText: { fontSize: 12, fontWeight: '600' },
-  addBtn: {
-    position: 'absolute',
-    right: 16,
-    bottom: 20,
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 999,
-    elevation: 4,
-  },
-  btnText: { color: '#fff', fontWeight: '700' },
-});

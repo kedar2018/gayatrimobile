@@ -248,29 +248,3 @@ function badgeStyle(status) {
   return { backgroundColor: '#1e3a8a' }; // pending/others
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f2f4f7', paddingHorizontal: 16, paddingTop: 12 },
-  h1: { fontSize: 22, fontWeight: '700', color: '#111', marginBottom: 8 },
-  errorText: {
-    color: '#7f1d1d', backgroundColor: '#fecaca', borderColor: '#ef4444', borderWidth: 1, padding: 8, borderRadius: 8, marginBottom: 8,
-  },
-  form: {
-    backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 12, borderColor: '#e5e7eb', borderWidth: 1,
-  },
-  label: { color: '#333', fontSize: 13, marginTop: 8, marginBottom: 6 },
-  pickerWrap: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, overflow: 'hidden', backgroundColor: '#fff' },
-  dateBtn: { height: 44, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, justifyContent: 'center', paddingHorizontal: 12, backgroundColor: '#fff' },
-  dateBtnText: { color: '#111', fontSize: 16 },
-  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12, color: '#111' },
-  button: { backgroundColor: '#004080', marginTop: 12, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  buttonText: { color: '#fff', fontWeight: '700' },
-  center: { alignItems: 'center', marginTop: 20 },
-  loadingText: { marginTop: 8, color: '#444' },
-  card: {
-    backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 10, borderColor: '#e5e7eb', borderWidth: 1,
-  },
-  cardTitle: { color: '#111', fontWeight: '700', marginBottom: 4 },
-  cardLine: { color: '#333' },
-  badgeRow: { marginTop: 8, flexDirection: 'row', justifyContent: 'flex-end' },
-  badge: { color: '#f8fafc', fontWeight: '700', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, overflow: 'hidden', fontSize: 12 },
-});
