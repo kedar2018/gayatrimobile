@@ -13,6 +13,7 @@ import {
 import axios from 'axios';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // import { API_URL } from '../utils/config';
 const API_URL = 'https://134.199.178.17/gayatri';
@@ -63,8 +64,10 @@ export default function CallReportsCardListScreen() {
       if (loadingRef.current) return;
       loadingRef.current = true;
       try {
+        const userId = await AsyncStorage.getItem('user_id'); // get engineer_id
+
         const res = await axios.get(`${API_URL}/api/call_reports`, {
-          params: { page: targetPage, per_page: PER_PAGE },
+          params: { page: targetPage, per_page: PER_PAGE, engineer_id: userId  },
           headers: { Accept: 'application/json' },
           timeout: 20000,
         });
