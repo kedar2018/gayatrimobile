@@ -28,11 +28,22 @@ export default function LocalConveyanceListScreen({ navigation }) {
 
   const [error, setError] = useState('');
 
-  // Load user id once (optional, token will be used on server anyway)
+  // prevent overlapping loads & avoid state updates after unmount
+  const loadingRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // Load user id once (optional; server should use token anyway)
   useEffect(() => {
     (async () => {
-      const id = await AsyncStorage.getItem('user_id');
-      setUserId(id);
+      try {
+        const id = await AsyncStorage.getItem('user_id');
+        setUserId(id);
+      } catch {}
     })();
   }, []);
 
@@ -51,6 +62,8 @@ export default function LocalConveyanceListScreen({ navigation }) {
 
   const fetchEntries = useCallback(
     async (pageToLoad = 1, replace = false) => {
+      if (loadingRef.current) return;
+      loadingRef.current = true;
       try {
         if (pageToLoad === 1) {
           setInitialLoading(true);
@@ -60,30 +73,27 @@ export default function LocalConveyanceListScreen({ navigation }) {
         }
         setError('');
 
-        const params = {
-          page: pageToLoad,
-          per_page: PAGE_SIZE,
-        };
-        // Backward compatibility (server should ignore and use token)
+        const params = { page: pageToLoad, per_page: PAGE_SIZE };
+        // Backward-compat: server should ignore and use token
         if (userId) params.engineer_id = userId;
 
         const res = await api.get('/tour_conveyances', { params });
         const { items: newItems, nextPage } = parseResponse(res.data);
 
-        if (replace) {
-          setEntries(newItems);
-        } else {
-          // de-dupe by id if possible
-          const merged = [...entries, ...newItems];
+        setEntries((prev) => {
+          const base = replace ? [] : prev;
+          const merged = [...base, ...(newItems || [])];
           const seen = new Set();
-          const deduped = merged.filter((it) => {
+          const deduped = [];
+          for (const it of merged) {
             const key = it?.id ?? `${it?.request_id}-${it?.date}`;
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-          });
-          setEntries(deduped);
-        }
+            if (!seen.has(key)) {
+              seen.add(key);
+              deduped.push(it);
+            }
+          }
+          return deduped;
+        });
 
         setHasMore(nextPage);
         setPage(pageToLoad);
@@ -92,21 +102,21 @@ export default function LocalConveyanceListScreen({ navigation }) {
         setError('Failed to load conveyance entries.');
         setHasMore(false);
       } finally {
+        if (!mountedRef.current) return;
         setInitialLoading(false);
         setLoadingMore(false);
         setRefreshing(false);
+        loadingRef.current = false;
       }
     },
-    [entries, userId]
+    [userId]
   );
 
-  // Fetch when the screen gains focus (and when userId is ready)
+  // Fetch on screen focus (and when userId becomes available)
   useFocusEffect(
     useCallback(() => {
-      if (userId) {
-        fetchEntries(1, true);
-      }
-    }, [userId, fetchEntries])
+      fetchEntries(1, true);
+    }, [fetchEntries])
   );
 
   const handleRefresh = useCallback(() => {
@@ -199,9 +209,7 @@ export default function LocalConveyanceListScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {!!error && (
-        <Text style={styles.errorText}>{error}</Text>
-      )}
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
 
       {initialLoading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -211,7 +219,9 @@ export default function LocalConveyanceListScreen({ navigation }) {
       ) : (
         <FlatList
           data={entries}
-          keyExtractor={(item, index) => String(item?.id ?? `${item?.request_id}-${index}`)}
+          keyExtractor={(item, index) =>
+            String(item?.id ?? `${item?.request_id || 'req'}-${item?.date || 'date'}-${index}`)
+          }
           renderItem={renderItem}
           contentContainerStyle={{ paddingBottom: 80 }}
           onEndReached={handleLoadMore}
