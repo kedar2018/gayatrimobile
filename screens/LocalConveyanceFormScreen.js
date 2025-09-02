@@ -22,7 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../utils/api';
 
 import ModalDropdown from '../components/ModalDropdown';
-global.S = S;                         // ← optional: use global across screens
+import S from './styles/AppStyles';   // ← created once & cached
 
 /* ----------------------- Constants ----------------------- */
 

@@ -7,7 +7,7 @@ import {
 import { api } from '../utils/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
-global.S = S;                         // ← optional: use global across screens
+import S from './styles/AppStyles';   // ← created once & cached
 
 export default function AttendanceScreen() {
   const [items, setItems] = useState([]);

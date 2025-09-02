@@ -1,5 +1,3 @@
-import S from './styles/AppStyles';   // ← created once & cached
-global.S = S;  
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';

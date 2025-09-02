@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../utils/api';
-global.S = S;                         // ← optional: use global across screens
+import S from './styles/AppStyles';   // ← created once & cached
 
 export default function ProfileScreen({ navigation }) {
   const [userName, setUserName] = useState('');
