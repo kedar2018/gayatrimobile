@@ -16,6 +16,7 @@ import {
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../utils/api'; // ✅ new
+global.S = S;                         // ← optional: use global across screens
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');

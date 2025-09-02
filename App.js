@@ -25,7 +25,8 @@ import LocalConveyanceFormScreen from './screens/LocalConveyanceFormScreen';
 import CallReportsCardListScreen from './screens/CallReportsCardListScreen';
 import CcrPdfFormScreen from './screens/CcrPdfFormScreen';
 import RegistrationScreen from './screens/RegistrationScreen'
-
+import S from './styles/AppStyles';   // ← created once & cached
+global.S = S;  
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -98,3 +99,5 @@ export default function App() {
 
   );
 }
+
+

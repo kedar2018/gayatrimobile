@@ -1,13 +1,14 @@
 // screens/LeaveScreen.js
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, TextInput, StyleSheet, FlatList, ActivityIndicator,
+  View, Text, TextInput,  FlatList, ActivityIndicator,
   TouchableOpacity, RefreshControl, Alert, Platform,
 } from 'react-native';
 import { api } from '../utils/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
+global.S = S;                         // ← optional: use global across screens
 
 export default function LeaveScreen() {
   const [items, setItems] = useState([]);
@@ -123,28 +124,28 @@ export default function LeaveScreen() {
   };
 
   const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>
+    <View style={S.card}>
+      <Text style={S.cardTitle}>
         {item.leave_type} • {item.from_date} → {item.to_date}
       </Text>
-      {!!item.remarks && <Text style={styles.cardLine}>📝 {item.remarks}</Text>}
+      {!!item.remarks && <Text style={S.cardLine}>📝 {item.remarks}</Text>}
       {!!item.status && (
-        <View style={styles.badgeRow}>
-          <Text style={[styles.badge, badgeStyle(item.status)]}>{String(item.status).toUpperCase()}</Text>
+        <View style={S.badgeRow}>
+          <Text style={[S.badge, badgeStyle(item.status)]}>{String(item.status).toUpperCase()}</Text>
         </View>
       )}
     </View>
   );
 
   return (
-    <View style={styles.screen}>
-      <Text style={styles.h1}>Leave Applications</Text>
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
+    <View style={S.screen}>
+      <Text style={S.h1}>Leave Applications</Text>
+      {!!error && <Text style={S.errorText}>{error}</Text>}
 
       {/* Form */}
-      <View style={styles.form}>
-        <Text style={styles.label}>Leave Type</Text>
-        <View style={styles.pickerWrap}>
+      <View style={S.form}>
+        <Text style={S.label}>Leave Type</Text>
+        <View style={S.pickerWrap}>
           <Picker
             selectedValue={leaveType}
             onValueChange={(v) => setLeaveType(v)}
@@ -162,9 +163,9 @@ export default function LeaveScreen() {
           </Picker>
         </View>
 
-        <Text style={styles.label}>From Date</Text>
-        <TouchableOpacity onPress={() => setShowFromPicker(true)} style={styles.dateBtn}>
-          <Text style={styles.dateBtnText}>{fmtDate(fromDate)}</Text>
+        <Text style={S.label}>From Date</Text>
+        <TouchableOpacity onPress={() => setShowFromPicker(true)} style={S.dateBtn}>
+          <Text style={S.dateBtnText}>{fmtDate(fromDate)}</Text>
         </TouchableOpacity>
         {showFromPicker && (
           <DateTimePicker
@@ -181,9 +182,9 @@ export default function LeaveScreen() {
           />
         )}
 
-        <Text style={styles.label}>To Date</Text>
-        <TouchableOpacity onPress={() => setShowToPicker(true)} style={styles.dateBtn}>
-          <Text style={styles.dateBtnText}>{fmtDate(toDate)}</Text>
+        <Text style={S.label}>To Date</Text>
+        <TouchableOpacity onPress={() => setShowToPicker(true)} style={S.dateBtn}>
+          <Text style={S.dateBtnText}>{fmtDate(toDate)}</Text>
         </TouchableOpacity>
         {showToPicker && (
           <DateTimePicker
@@ -197,9 +198,9 @@ export default function LeaveScreen() {
           />
         )}
 
-        <Text style={styles.label}>Remarks</Text>
+        <Text style={S.label}>Remarks</Text>
         <TextInput
-          style={styles.input}
+          style={S.input}
           value={remarks}
           onChangeText={setRemarks}
           placeholder="Optional"
@@ -207,19 +208,19 @@ export default function LeaveScreen() {
         />
 
         <TouchableOpacity
-          style={[styles.button, (!leaveType || loadingLT) && { opacity: 0.6 }]}
+          style={[S.button, (!leaveType || loadingLT) && { opacity: 0.6 }]}
           onPress={submitLeave}
           disabled={!leaveType || loadingLT}
         >
-          <Text style={styles.buttonText}>Apply Leave</Text>
+          <Text style={S.buttonText}>Apply Leave</Text>
         </TouchableOpacity>
       </View>
 
       {/* List */}
       {loading ? (
-        <View style={styles.center}>
+        <View style={S.center}>
           <ActivityIndicator />
-          <Text style={styles.loadingText}>Loading…</Text>
+          <Text style={S.loadingText}>Loading…</Text>
         </View>
       ) : (
         <FlatList

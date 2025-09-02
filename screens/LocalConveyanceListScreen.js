@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { api } from '../utils/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+global.S = S;                         // ← optional: use global across screens
 
 const PAGE_SIZE = 10;
 

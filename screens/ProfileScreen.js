@@ -4,7 +4,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   Alert,
   TextInput,
   ActivityIndicator,
@@ -12,6 +11,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../utils/api';
+global.S = S;                         // ← optional: use global across screens
 
 export default function ProfileScreen({ navigation }) {
   const [userName, setUserName] = useState('');
@@ -138,41 +138,41 @@ export default function ProfileScreen({ navigation }) {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>👋 Hello{userName ? `, ${userName}` : ''}</Text>
-        <View style={styles.kv}>
-          <Text style={styles.k}>User ID</Text>
-          <Text style={styles.v}>{userId || '—'}</Text>
+    <ScrollView style={S.screen} contentContainerStyle={S.container}>
+      <View style={S.card}>
+        <Text style={S.title}>👋 Hello{userName ? `, ${userName}` : ''}</Text>
+        <View style={S.kv}>
+          <Text style={S.k}>User ID</Text>
+          <Text style={S.v}>{userId || '—'}</Text>
         </View>
-        <View style={styles.kv}>
-          <Text style={styles.k}>Name</Text>
-          <Text style={styles.v}>{userName || '—'}</Text>
+        <View style={S.kv}>
+          <Text style={S.k}>Name</Text>
+          <Text style={S.v}>{userName || '—'}</Text>
         </View>
-        <View style={styles.kv}>
-          <Text style={styles.k}>Email</Text>
-          <Text style={styles.v}>{userEmail || '—'}</Text>
+        <View style={S.kv}>
+          <Text style={S.k}>Email</Text>
+          <Text style={S.v}>{userEmail || '—'}</Text>
         </View>
-        <View style={styles.kv} >
-          <Text style={styles.k}>Role</Text>
-          <Text style={styles.v}>{role || '—'}</Text>
+        <View style={S.kv} >
+          <Text style={S.k}>Role</Text>
+          <Text style={S.v}>{role || '—'}</Text>
         </View>
 
         <TouchableOpacity
-          style={[styles.btn, styles.secondaryBtn]}
+          style={[S.btn, S.secondaryBtn]}
           onPress={handleSync}
           disabled={syncing}
         >
-          {syncing ? <ActivityIndicator /> : <Text style={styles.btnText}>Sync Profile</Text>}
+          {syncing ? <ActivityIndicator /> : <Text style={S.btnText}>Sync Profile</Text>}
         </TouchableOpacity>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Preferences</Text>
+      <View style={S.card}>
+        <Text style={S.sectionTitle}>Preferences</Text>
 
-        <Text style={styles.label}>Default “From Location”</Text>
+        <Text style={S.label}>Default “From Location”</Text>
         <TextInput
-          style={styles.input}
+          style={S.input}
           placeholder="e.g. Mumbai HQ"
           value={defaultFromLocation}
           onChangeText={setDefaultFromLocation}
@@ -180,22 +180,22 @@ export default function ProfileScreen({ navigation }) {
         />
 
         <TouchableOpacity
-          style={[styles.btn, styles.primaryBtn]}
+          style={[S.btn, S.primaryBtn]}
           onPress={handleSaveDefaults}
           disabled={saving}
         >
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={[styles.btnText, styles.primaryText]}>Save Changes</Text>}
+          {saving ? <ActivityIndicator color="#fff" /> : <Text style={[S.btnText, S.primaryText]}>Save Changes</Text>}
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.btn, styles.softDangerBtn]} onPress={handleClearCache}>
-          <Text style={[styles.btnText, styles.softDangerText]}>Clear Local Cache</Text>
+        <TouchableOpacity style={[S.btn, S.softDangerBtn]} onPress={handleClearCache}>
+          <Text style={[S.btnText, S.softDangerText]}>Clear Local Cache</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Session</Text>
-        <TouchableOpacity style={[styles.btn, styles.dangerBtn]} onPress={handleLogout}>
-          <Text style={[styles.btnText, styles.primaryText]}>Logout</Text>
+      <View style={S.card}>
+        <Text style={S.sectionTitle}>Session</Text>
+        <TouchableOpacity style={[S.btn, S.dangerBtn]} onPress={handleLogout}>
+          <Text style={[S.btnText, S.primaryText]}>Logout</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

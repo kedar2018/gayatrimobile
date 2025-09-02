@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../utils/api'; // baseURL should point to https://134.199.178.17/gayatri/api
+global.S = S;                         // ← optional: use global across screens
 
 export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState('');
@@ -91,15 +92,15 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={S.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-            <View style={styles.inner}>
-              <Text style={styles.title}>Create Account</Text>
+          <ScrollView contentContainerStyle={S.scroll} keyboardShouldPersistTaps="handled">
+            <View style={S.inner}>
+              <Text style={S.title}>Create Account</Text>
 
               <TextInput
-                style={styles.input}
+                style={S.input}
                 placeholder="Full Name"
                 placeholderTextColor="#888"
                 value={name}
@@ -110,7 +111,7 @@ export default function RegisterScreen({ navigation }) {
 
               <TextInput
                 ref={emailRef}
-                style={styles.input}
+                style={S.input}
                 placeholder="Email"
                 placeholderTextColor="#888"
                 autoCapitalize="none"
@@ -123,7 +124,7 @@ export default function RegisterScreen({ navigation }) {
 
               <TextInput
                 ref={mobileRef}
-                style={styles.input}
+                style={S.input}
                 placeholder="Mobile Number"
                 placeholderTextColor="#888"
                 keyboardType="phone-pad"
@@ -135,7 +136,7 @@ export default function RegisterScreen({ navigation }) {
 
               <TextInput
                 ref={locationRef}
-                style={styles.input}
+                style={S.input}
                 placeholder="Location (optional)"
                 placeholderTextColor="#888"
                 value={location}
@@ -146,7 +147,7 @@ export default function RegisterScreen({ navigation }) {
 
               <TextInput
                 ref={passwordRef}
-                style={styles.input}
+                style={S.input}
                 placeholder="Password"
                 placeholderTextColor="#888"
                 secureTextEntry
@@ -158,7 +159,7 @@ export default function RegisterScreen({ navigation }) {
 
               <TextInput
                 ref={password2Ref}
-                style={styles.input}
+                style={S.input}
                 placeholder="Confirm Password"
                 placeholderTextColor="#888"
                 secureTextEntry
@@ -169,12 +170,12 @@ export default function RegisterScreen({ navigation }) {
               />
 
               <TouchableOpacity
-                style={styles.button}
+                style={S.button}
                 onPress={handleRegister}
                 disabled={submitting}
                 activeOpacity={0.85}
               >
-                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Register</Text>}
+                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={S.buttonText}>Register</Text>}
               </TouchableOpacity>
 
               <TouchableOpacity style={{ marginTop: 16, alignItems: 'center' }} onPress={() => navigation.replace('Login')}>

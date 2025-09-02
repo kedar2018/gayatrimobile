@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+global.S = S;                         // ← optional: use global across screens
 
 export default function SplashScreen({ navigation }) {
   useEffect(() => {
