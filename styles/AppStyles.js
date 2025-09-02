@@ -1,39 +1,48 @@
 // styles/AppStyles.js
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, StatusBar } from 'react-native'; // ⬅️ add StatusBar
 
 /**
  * Design tokens (tweak these to re-theme the whole app)
  */
 export const colors = {
-  bg:        '#f6f8fb',
-  card:      '#ffffff',
-  text:      '#0f172a',
-  subtext:   '#64748b',
-  border:    '#e5e7eb',
-  focus:     '#2563eb',
-  primary:   '#2563eb',
-  danger:    '#dc3545',
-  success:   '#065f46',
-  warning:   '#f59e0b',
-  chipBg:    '#f8fafc',
-  divider:   '#eef2f7',
+  bg: '#f6f8fb',
+  card: '#ffffff',
+  text: '#0f172a',
+  subtext: '#64748b',
+  border: '#e5e7eb',
+  focus: '#2563eb',
+  primary: '#2563eb',
+  danger: '#dc3545',
+  success: '#065f46',
+  warning: '#f59e0b',
+  chipBg: '#f8fafc',
+  divider: '#eef2f7',
 };
 
-export const radius   = { sm: 8, md: 10, lg: 12, xl: 14, pill: 999 };
-export const spacing  = { xs: 6, sm: 8, md: 10, lg: 12, xl: 16, xxl: 20 };
-export const shadow   = Platform.select({
-  ios:   { shadowColor: '#000', shadowOpacity: 0.06, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10 },
+export const radius  = { sm: 8, md: 10, lg: 12, xl: 14, pill: 999 };
+export const spacing = { xs: 6, sm: 8, md: 10, lg: 12, xl: 16, xxl: 20 };
+
+export const shadow = Platform.select({
+  ios:     { shadowColor: '#000', shadowOpacity: 0.06, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10 },
   android: { elevation: 2 },
 });
 
+// ⬇️ safe top gap we can reuse on pages that start at the very top
+const STATUSBAR_GAP = Platform.select({
+  ios: 16, // small notch/bounce
+  android: (StatusBar.currentHeight || 0) + 12,
+});
+
 /**
- * Global, merged styles used across all screens
- * Replace your local StyleSheet.create(...) with these keys.
+ * Global, merged styles
  */
 const S = StyleSheet.create({
   // Layout
   flex: { flex: 1 },
   screen: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: spacing.xl, paddingTop: spacing.md },
+  // ⬇️ apply this in addition to `screen` where you want extra safe top space
+  screenPadTop: { paddingTop: STATUSBAR_GAP + spacing.md },
+
   container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
@@ -58,7 +67,7 @@ const S = StyleSheet.create({
   cardHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
   cardFooter: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
 
-  // Key/Value rows
+  // Key/Value rows + aliases
   kvRow: {
     flexDirection: 'row',
     paddingVertical: spacing.sm,
@@ -67,6 +76,16 @@ const S = StyleSheet.create({
   },
   kvK: { width: 120, fontWeight: '600', color: '#334155' },
   kvV: { flex: 1, color: colors.text, fontWeight: '500' },
+
+  kv: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
+  },
+  k: { width: 120, fontWeight: '700', color: '#334155' },
+  v: { flex: 1, color: colors.text, fontWeight: '500' },
 
   // Chips / Badges
   chip: {
@@ -119,7 +138,7 @@ const S = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
     backgroundColor: colors.card, overflow: 'hidden', height: 48, justifyContent: 'center',
   },
-  picker: { color: colors.text, height: 58, fontSize: 14 },
+  picker: { color: colors.text, height: 48, fontSize: 14 },
   pickerItem: { color: colors.text, fontSize: 16 },
   dateBtn: { height: 44, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, justifyContent: 'center', paddingHorizontal: spacing.md, backgroundColor: colors.card },
   dateBtnText: { color: colors.text, fontSize: 16 },
@@ -130,33 +149,82 @@ const S = StyleSheet.create({
   infoLabel: { width: 70, color: '#666' },
   infoValue: { flex: 1, fontWeight: '500' },
   divider: { height: 1, backgroundColor: colors.divider, marginVertical: spacing.md },
+
   addBtn: {
     position: 'absolute', right: 16, bottom: 20, backgroundColor: colors.primary,
     paddingHorizontal: 16, paddingVertical: 12, borderRadius: radius.pill, ...shadow,
   },
-  btnText: { color: '#fff', fontWeight: '700' },
 
-  // Actions / Links
+  // Buttons
+  btn: {
+    marginTop: spacing.md,
+    paddingVertical: 12,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnText: { color: colors.text, fontWeight: '700', fontSize: 15 },
+
+  primaryBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow,
+  },
+  primaryText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+
+  secondaryBtn: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOpacity: 0.05, shadowOffset: { width: 0, height: 2 }, shadowRadius: 4 },
+      android: { elevation: 1 },
+    }),
+  },
+  secondaryText: { color: colors.text, fontWeight: '700', fontSize: 15 },
+
+  softDangerBtn: {
+    backgroundColor: '#fee2e2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  softDangerText: { color: '#7f1d1d', fontWeight: '700', fontSize: 15 },
+
+  dangerBtn: {
+    backgroundColor: colors.danger,
+    ...Platform.select({
+      ios: { shadowColor: '#b91c1c', shadowOpacity: 0.25, shadowOffset: { width: 0, height: 8 }, shadowRadius: 14 },
+      android: { elevation: 2 },
+    }),
+  },
+
   button: { backgroundColor: '#004080', paddingVertical: 14, borderRadius: radius.md, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  primaryBtn: { backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', ...shadow },
-  primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+
   btnDisabled: { opacity: 0.6 },
   ctaBtn: {
     flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    paddingVertical: 14, borderRadius: 14, ...Platform.select({ ios: { shadowColor: colors.primary, shadowOpacity: 0.25, shadowOffset: { width: 0, height: 8 }, shadowRadius: 14 }, android: { elevation: 2 } }),
+    paddingVertical: 14, borderRadius: 14,
+    ...Platform.select({
+      ios: { shadowColor: colors.primary, shadowOpacity: 0.25, shadowOffset: { width: 0, height: 8 }, shadowRadius: 14 },
+      android: { elevation: 2 },
+    }),
   },
   ctaText: { fontSize: 15, fontWeight: '700', color: '#fff' },
   cancelBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, paddingVertical: 14, borderRadius: 14, borderColor: colors.border },
   cancelText: { fontSize: 15, fontWeight: '700', color: colors.danger },
   cardActions: { marginTop: 8, flexDirection: 'row', justifyContent: 'flex-end' },
-  linkText: { color: colors.focus, fontWeight: '700', textDecorationLine: 'underline' },
 
   // Bars
   actionBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     paddingHorizontal: spacing.xl, paddingTop: spacing.sm,
-    backgroundColor: '#ffffffee', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border,
+    backgroundColor: '#ffffffee',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
   bottomBar: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md },
 
@@ -166,7 +234,8 @@ const S = StyleSheet.create({
   loadingText: { marginTop: 8, color: '#444' },
   errorText: {
     color: '#7f1d1d', backgroundColor: '#fecaca',
-    borderColor: '#ef4444', borderWidth: 1, padding: spacing.sm, borderRadius: radius.md, marginBottom: spacing.sm,
+    borderColor: '#ef4444', borderWidth: 1, padding: spacing.sm,
+    borderRadius: radius.md, marginBottom: spacing.sm,
   },
 
   // Media helpers
@@ -174,7 +243,10 @@ const S = StyleSheet.create({
   actionBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center',
     borderWidth: 1, paddingVertical: 12, paddingHorizontal: 14, borderRadius: radius.lg,
-    ...Platform.select({ ios: { shadowColor: '#000', shadowOpacity: 0.06, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6 }, android: { elevation: 1 } }),
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOpacity: 0.06, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6 },
+      android: { elevation: 1 },
+    }),
     borderColor: colors.border, backgroundColor: colors.card,
   },
   actionText: { fontSize: 14, fontWeight: '600', color: colors.text },
@@ -190,7 +262,7 @@ const S = StyleSheet.create({
   scrollContainer: { flexGrow: 1 },
   inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 24 },
 
-  // Extra for Leave screen
+  // Extras
   cardLine: { color: '#333' },
   footerLoading: { paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center' },
   footerText: { color: '#cbd5e1', fontSize: 12, marginTop: 6 },
@@ -201,3 +273,4 @@ const S = StyleSheet.create({
 });
 
 export default S;
+

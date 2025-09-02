@@ -208,7 +208,7 @@ export default function LocalConveyanceListScreen({ navigation }) {
   };
 
   return (
-    <View style={S.container}>
+    <View style={[S.screen, S.screenPadTop]}>
       {!!error && <Text style={S.errorText}>{error}</Text>}
 
       {initialLoading ? (

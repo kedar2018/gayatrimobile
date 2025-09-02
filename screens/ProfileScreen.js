@@ -138,7 +138,7 @@ export default function ProfileScreen({ navigation }) {
   };
 
   return (
-    <ScrollView style={S.screen} contentContainerStyle={S.container}>
+   <ScrollView style={[S.screen, S.screenPadTop]} contentContainerStyle={S.container}>
       <View style={S.card}>
         <Text style={S.title}>👋 Hello{userName ? `, ${userName}` : ''}</Text>
         <View style={S.kv}>
