@@ -1,7 +1,7 @@
 // screens/RegisterScreen.js
 import React, { useRef, useState } from 'react';
 import {
-  View, Text, TextInput, StyleSheet, TouchableOpacity,
+  View, Text, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
   ScrollView, TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
