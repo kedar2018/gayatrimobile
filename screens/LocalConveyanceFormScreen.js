@@ -12,17 +12,19 @@ import {
   Pressable,
   useColorScheme,
   Keyboard,
+  KeyboardAvoidingView,
+  StyleSheet,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system'; // ✅ size fallback
+import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../utils/api';
 
 import ModalDropdown from '../components/ModalDropdown';
-import S from '../styles/AppStyles';   // ← created once & cached
+import S from '../styles/AppStyles';
 
 /* ----------------------- Constants ----------------------- */
 
@@ -159,28 +161,25 @@ const DateTimeField = React.memo(function DateTimeField({ label, value, onChange
     <View style={{ marginBottom: 12 }}>
       <Pressable
         onPress={() => setStep('date')}
-        style={[
-          S.inputWrap,
-          { backgroundColor: colors.card, borderColor: colors.border, paddingVertical: 12 },
-        ]}
+        style={[S.inputWrap, { backgroundColor: colors.card, borderColor: colors.border, paddingVertical: 12 }]}
         android_ripple={{ color: '#e6eefc' }}
       >
         <Ionicons name="time-outline" size={18} color={colors.subtext} style={S.leftIcon} />
         <View style={{ flex: 1 }}>
           <Text style={S.smallLabel}>{label}</Text>
           {d ? (
-            <View style={S.valueRow}>
-              <View style={[S.pill, { backgroundColor: '#f5f7fb' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: '#f5f7fb' }}>
                 <Ionicons name="calendar-outline" size={14} color={colors.subtext} style={{ marginRight: 6 }} />
-                <Text style={[S.valueText, { color: colors.text }]} numberOfLines={1}>{dateStr}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }} numberOfLines={1}>{dateStr}</Text>
               </View>
-              <View style={[S.pill, { backgroundColor: '#f5f7fb', marginLeft: 8 }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: '#f5f7fb', marginLeft: 8 }}>
                 <Ionicons name="time-outline" size={14} color={colors.subtext} style={{ marginRight: 6 }} />
-                <Text style={[S.valueText, { color: colors.text }]} numberOfLines={1}>{timeStr}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }} numberOfLines={1}>{timeStr}</Text>
               </View>
             </View>
           ) : (
-            <Text style={S.placeholderText}>Select date & time</Text>
+            <Text style={{ color: colors.subtext, marginTop: 2 }}>Select date & time</Text>
           )}
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.subtext} />
@@ -199,10 +198,6 @@ const DateTimeField = React.memo(function DateTimeField({ label, value, onChange
 /* ----------------------- Helpers ----------------------- */
 
 const pad = (n) => (n < 10 ? `0${n}` : n);
-const toDateYYYYMMDD = (dOrISO) => {
-  const d = typeof dOrISO === 'string' ? new Date(dOrISO) : dOrISO;
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
 const toTimeHHMM = (iso) => {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '';
@@ -214,6 +209,7 @@ const toTimeHHMM = (iso) => {
 export default function LocalConveyanceFormScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
+  const [footerH, setFooterH] = useState(88); // baseline until measured
 
   const colors = useMemo(() => ({
     bg: '#f5f7fb',
@@ -225,8 +221,6 @@ export default function LocalConveyanceFormScreen({ navigation }) {
     primary: '#2563eb',
     danger: '#ef4444',
   }), [scheme]);
-
-  const bottomOffset = Math.max(16, (insets?.bottom || 0) + 16);
 
   const [focusedKey, setFocusedKey] = useState(null);
   const [userId, setUserId] = useState(null);
@@ -434,7 +428,7 @@ export default function LocalConveyanceFormScreen({ navigation }) {
         exif: false,
         base64: false,
       });
-    if (result.canceled) return;
+      if (result.canceled) return;
       await validateAndSet(result.assets?.[0]);
     } catch (e) {
       console.log('captureImage error:', e);
@@ -460,10 +454,11 @@ export default function LocalConveyanceFormScreen({ navigation }) {
     setSelectedImage(null);
   };
 
+  const toHHMM = (iso) => toTimeHHMM(iso);
+
   const handleSubmit = async () => {
     if (isSubmitting) return;
 
-    // -- client-side validations
     const missing = [];
     if (!formData.request_id) missing.push('Request ID');
     if (!formData.ccr_no) missing.push('CCR No');
@@ -487,14 +482,12 @@ export default function LocalConveyanceFormScreen({ navigation }) {
 
     setIsSubmitting(true);
     try {
-      // Normalize formats for Rails (date already YYYY-MM-DD)
       const normalized = {
         ...formData,
-        start_time: toTimeHHMM(formData.start_time),    // "HH:MM"
-        arrived_time: toTimeHHMM(formData.arrived_time) // "HH:MM"
+        start_time: toHHMM(formData.start_time),
+        arrived_time: toHHMM(formData.arrived_time),
       };
 
-      // Build multipart (nested params for Rails strong params)
       const payload = new FormData();
       Object.entries(normalized).forEach(([key, val]) => {
         if (val === null || val === '') return;
@@ -510,7 +503,7 @@ export default function LocalConveyanceFormScreen({ navigation }) {
       }
 
       await api.post('/tour_conveyances', payload, {
-        headers: { 'Content-Type': 'multipart/form-data' }, // axios will add boundary
+        headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 60000,
       });
 
@@ -533,196 +526,218 @@ export default function LocalConveyanceFormScreen({ navigation }) {
   };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={[S.container, { paddingBottom: bottomOffset }]}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-    >
-      <View style={S.titleRow}>
-        <View style={S.titleIconWrap}>
-          <Ionicons name="receipt-outline" size={18} color={colors.primary} />
-        </View>
-        <Text style={[S.title, { color: colors.text }]}>Add Local Conveyance</Text>
-      </View>
-
-      {/* 1) Request ID */}
-      <FieldLabel icon="pricetag-outline" text="Request ID / SO No." colors={colors} />
-      <LabeledInput
-        icon="pricetag-outline"
-        fieldKey="request_id"
-        value={formData.request_id}
-        onChangeText={(v) => setFormData({ ...formData, request_id: v })}
-        placeholder="Enter Request No"
-        autoCapitalize="characters"
-        focusedKey={focusedKey}
-        setFocusedKey={setFocusedKey}
-        colors={colors}
-      />
-
-      {/* 2) CCR NO */}
-      <FieldLabel icon="document-text-outline" text="CCR NO" colors={colors} />
-      <DropdownButton
-        label="CCR NO"
-        value={formData.ccr_no || ''}
-        onPress={() => openDropdown('ccr_no')}
-        colors={colors}
-      />
-
-      {/* 3) PROJECT */}
-      <FieldLabel icon="briefcase-outline" text="PROJECT" colors={colors} />
-      <DropdownButton
-        label="PROJECT"
-        value={formData.project || (defaultValues.project || '')}
-        onPress={() => openDropdown('project')}
-        colors={colors}
-      />
-
-      {/* 4) START TIME */}
-      <DateTimeField
-        label="Start Time"
-        value={formData.start_time}
-        onChange={(v) => setFormData({ ...formData, start_time: v })}
-        colors={colors}
-      />
-
-      {/* 5) ARRIVED TIME */}
-      <DateTimeField
-        label="Arrived Time"
-        value={formData.arrived_time}
-        onChange={(v) => setFormData({ ...formData, arrived_time: v })}
-        colors={colors}
-      />
-
-      {/* 6) MODE */}
-      <FieldLabel icon="car-outline" text="MODE" colors={colors} />
-      <DropdownButton
-        label="MODE"
-        value={formData.mode || (defaultValues.mode || '')}
-        onPress={() => openDropdown('mode')}
-        colors={colors}
-      />
-
-      {/* 7) FROM LOCATION */}
-      <FieldLabel icon="location-outline" text="FROM LOCATION" colors={colors} />
-      <DropdownButton
-        label="FROM LOCATION"
-        value={formData.from_location || (defaultValues.from_location || '')}
-        onPress={() => openDropdown('from_location')}
-        colors={colors}
-      />
-
-      {/* 8) TO LOCATION */}
-      <FieldLabel icon="flag-outline" text="TO LOCATION" colors={colors} />
-      <DropdownButton
-        label="TO LOCATION"
-        value={formData.to_location || (defaultValues.to_location || '')}
-        onPress={() => openDropdown('to_location')}
-        colors={colors}
-      />
-
-      {/* 9) DISTANCE (km) */}
-      <FieldLabel icon="map-outline" text="Distance (km)" colors={colors} />
-      <LabeledInput
-        icon="map-outline"
-        fieldKey="distance_km"
-        value={formData.distance_km}
-        onChangeText={(v) => setFormData({ ...formData, distance_km: v })}
-        placeholder="e.g. 12.5"
-        keyboardType="numeric"
-        focusedKey={focusedKey}
-        setFocusedKey={setFocusedKey}
-        colors={colors}
-      />
-
-      <ModalDropdown
-        visible={!!activeDropdown && FIELDS.find((f) => f.key === activeDropdown)?.type === 'dropdown'}
-        title={FIELDS.find((f) => f.key === activeDropdown)?.label}
-        options={buildOptions(activeDropdown)}
-        selectedValue={formData[activeDropdown] ?? null}
-        defaultValue={defaultValues[activeDropdown] ?? null}
-        onSelect={(item) => handleSelect(activeDropdown, item)}
-        onClose={closeDropdown}
-        searchEnabled={activeDropdown === 'to_location'}
-        searchValue={activeDropdown === 'to_location' ? dropdownSearch : ''}
-        onSearchChange={setDropdownSearch}
-        searchPlaceholder="Search area/city"
-        allowFreeText={activeDropdown === 'to_location'}
-      />
-
-      <View style={{ marginVertical: 12 }}>
-        <View style={S.row}>
-          <Pressable
-            onPress={pickImage}
-            style={({ pressed }) => [
-              S.actionBtn,
-              { borderColor: colors.border, backgroundColor: pressed ? '#eef4ff' : colors.card },
-            ]}
-            android_ripple={{ color: '#e6eefc' }}
-          >
-            <Ionicons name="images-outline" size={18} color={colors.primary} style={{ marginRight: 8 }} />
-            <Text style={[S.actionText, { color: colors.text }]} numberOfLines={1}>Gallery</Text>
-          </Pressable>
-
-          <View style={{ width: 10 }} />
-          <Pressable
-            onPress={captureImage}
-            style={({ pressed }) => [
-              S.actionBtn,
-              { borderColor: colors.border, backgroundColor: pressed ? '#fff1f2' : colors.card },
-            ]}
-            android_ripple={{ color: '#fde2e2' }}
-          >
-            <Ionicons name="camera-outline" size={18} color="#e11d48" style={{ marginRight: 8 }} />
-            <Text style={[S.actionText, { color: colors.text }]} numberOfLines={1}>Camera</Text>
-          </Pressable>
-        </View>
-
-        {selectedImage ? (
-          <View style={S.previewWrap}>
-            <Image source={{ uri: selectedImage.uri }} style={S.previewImg} resizeMode="cover" />
+    <View style={[S.screen, S.screenPadTop]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top + 8}
+      >
+        <ScrollView
+          style={{ flex: 1, backgroundColor: colors.bg }}
+          contentContainerStyle={[S.formContent, { paddingBottom: footerH + 8 }]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentInsetAdjustmentBehavior="automatic"
+          overScrollMode="always"
+          stickyHeaderIndices={[0]}
+        >
+          {/* Sticky header */}
+          <View style={S.titleRow}>
+            <View style={S.titleIconWrap}>
+              <Ionicons name="receipt-outline" size={18} color={colors.primary} />
+            </View>
+            <Text style={[S.title, { color: colors.text }]}>Add Local Conveyance</Text>
           </View>
-        ) : null}
-      </View>
 
-      <View style={[S.bottomBar, { marginBottom: bottomOffset }]}>
-        <Pressable
-          onPress={handleSubmit}
-          disabled={isSubmitting}
-          style={({ pressed }) => [
-            S.ctaBtn,
-            { backgroundColor: colors.primary, opacity: isSubmitting ? 0.6 : pressed ? 0.95 : 1, marginRight: 10 },
-          ]}
-          android_ripple={{ color: '#c7d7fe' }}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="checkmark-circle" size={18} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={[S.ctaText, { color: '#fff' }]}>Submit</Text>
-            </>
-          )}
-        </Pressable>
+          {/* Fields card */}
+          <View style={S.card}>
+            <FieldLabel icon="pricetag-outline" text="Request ID / SO No." colors={colors} />
+            <LabeledInput
+              icon="pricetag-outline"
+              fieldKey="request_id"
+              value={formData.request_id}
+              onChangeText={(v) => setFormData({ ...formData, request_id: v })}
+              placeholder="Enter Request No"
+              autoCapitalize="characters"
+              focusedKey={focusedKey}
+              setFocusedKey={setFocusedKey}
+              colors={colors}
+            />
 
-        <Pressable
-          onPress={() => navigation.goBack()}
-          style={({ pressed }) => [
-            S.cancelBtn,
-            { borderColor: colors.border, backgroundColor: pressed ? '#f3f4f6' : 'transparent' },
-          ]}
-          android_ripple={{ color: '#e5e7eb' }}
+            <FieldLabel icon="document-text-outline" text="CCR NO" colors={colors} />
+            <DropdownButton
+              label="CCR NO"
+              value={formData.ccr_no || ''}
+              onPress={() => openDropdown('ccr_no')}
+              colors={colors}
+            />
+
+            <FieldLabel icon="briefcase-outline" text="PROJECT" colors={colors} />
+            <DropdownButton
+              label="PROJECT"
+              value={formData.project || (defaultValues.project || '')}
+              onPress={() => openDropdown('project')}
+              colors={colors}
+            />
+
+            <DateTimeField
+              label="Start Time"
+              value={formData.start_time}
+              onChange={(v) => setFormData({ ...formData, start_time: v })}
+              colors={colors}
+            />
+
+            <DateTimeField
+              label="Arrived Time"
+              value={formData.arrived_time}
+              onChange={(v) => setFormData({ ...formData, arrived_time: v })}
+              colors={colors}
+            />
+
+            <FieldLabel icon="car-outline" text="MODE" colors={colors} />
+            <DropdownButton
+              label="MODE"
+              value={formData.mode || (defaultValues.mode || '')}
+              onPress={() => openDropdown('mode')}
+              colors={colors}
+            />
+
+            <FieldLabel icon="location-outline" text="FROM LOCATION" colors={colors} />
+            <DropdownButton
+              label="FROM LOCATION"
+              value={formData.from_location || (defaultValues.from_location || '')}
+              onPress={() => openDropdown('from_location')}
+              colors={colors}
+            />
+
+            <FieldLabel icon="flag-outline" text="TO LOCATION" colors={colors} />
+            <DropdownButton
+              label="TO LOCATION"
+              value={formData.to_location || (defaultValues.to_location || '')}
+              onPress={() => openDropdown('to_location')}
+              colors={colors}
+            />
+
+            <FieldLabel icon="map-outline" text="Distance (km)" colors={colors} />
+            <LabeledInput
+              icon="map-outline"
+              fieldKey="distance_km"
+              value={formData.distance_km}
+              onChangeText={(v) => setFormData({ ...formData, distance_km: v })}
+              placeholder="e.g. 12.5"
+              keyboardType="numeric"
+              focusedKey={focusedKey}
+              setFocusedKey={setFocusedKey}
+              colors={colors}
+            />
+          </View>
+
+          {/* Media card */}
+          <View style={S.card}>
+            <View style={S.row}>
+              <Pressable
+                onPress={pickImage}
+                style={({ pressed }) => [
+                  S.actionBtn,
+                  { borderColor: colors.border, backgroundColor: pressed ? '#eef4ff' : colors.card },
+                ]}
+                android_ripple={{ color: '#e6eefc' }}
+              >
+                <Ionicons name="images-outline" size={18} color={colors.primary} style={{ marginRight: 8 }} />
+                <Text style={[S.actionText, { color: colors.text }]} numberOfLines={1}>Gallery</Text>
+              </Pressable>
+
+              <View style={{ width: 10 }} />
+
+              <Pressable
+                onPress={captureImage}
+                style={({ pressed }) => [
+                  S.actionBtn,
+                  { borderColor: colors.border, backgroundColor: pressed ? '#fff1f2' : colors.card },
+                ]}
+                android_ripple={{ color: '#fde2e2' }}
+              >
+                <Ionicons name="camera-outline" size={18} color="#e11d48" style={{ marginRight: 8 }} />
+                <Text style={[S.actionText, { color: colors.text }]} numberOfLines={1}>Camera</Text>
+              </Pressable>
+            </View>
+
+            {selectedImage ? (
+              <View style={S.previewWrap}>
+                <Image source={{ uri: selectedImage.uri }} style={S.previewImg} resizeMode="cover" />
+              </View>
+            ) : null}
+          </View>
+
+          {/* Dropdown modal */}
+          <ModalDropdown
+            visible={!!activeDropdown && FIELDS.find((f) => f.key === activeDropdown)?.type === 'dropdown'}
+            title={FIELDS.find((f) => f.key === activeDropdown)?.label}
+            options={buildOptions(activeDropdown)}
+            selectedValue={formData[activeDropdown] ?? null}
+            defaultValue={defaultValues[activeDropdown] ?? null}
+            onSelect={(item) => handleSelect(activeDropdown, item)}
+            onClose={closeDropdown}
+            searchEnabled={activeDropdown === 'to_location'}
+            searchValue={activeDropdown === 'to_location' ? dropdownSearch : ''}
+            onSearchChange={setDropdownSearch}
+            searchPlaceholder="Search area/city"
+            allowFreeText={activeDropdown === 'to_location'}
+          />
+        </ScrollView>
+
+        {/* Sticky footer in SafeAreaView so it's above nav bar */}
+        <SafeAreaView
+          edges={['bottom']}
+          style={[S.actionBar, styles.footerBar, { paddingBottom: Math.max(insets.bottom, 12) }]}
+          onLayout={(e) => setFooterH(e.nativeEvent.layout.height)}
         >
-          <Ionicons name="close-circle-outline" size={18} color={colors.danger} style={{ marginRight: 8 }} />
-          <Text style={[S.cancelText, { color: colors.danger }]}>Cancel</Text>
-        </Pressable>
-      </View>
-    </ScrollView>
+          <View style={S.bottomBar}>
+            <Pressable
+              onPress={handleSubmit}
+              disabled={isSubmitting}
+              style={({ pressed }) => [
+                S.ctaBtn,
+                { backgroundColor: colors.primary, opacity: isSubmitting ? 0.6 : pressed ? 0.95 : 1, marginRight: 10 },
+              ]}
+              android_ripple={{ color: '#c7d7fe' }}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle" size={18} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={[S.ctaText, { color: '#fff' }]}>Submit</Text>
+                </>
+              )}
+            </Pressable>
+
+            <Pressable
+              onPress={() => navigation.goBack()}
+              style={({ pressed }) => [
+                S.cancelBtn,
+                { borderColor: colors.border, backgroundColor: pressed ? '#f3f4f6' : 'transparent' },
+              ]}
+              android_ripple={{ color: '#e5e7eb' }}
+            >
+              <Ionicons name="close-circle-outline" size={18} color={colors.danger} style={{ marginRight: 8 }} />
+              <Text style={[S.cancelText, { color: colors.danger }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 /* ----------------------- Local styles ----------------------- */
 
+const styles = StyleSheet.create({
+  footerBar: {
+    zIndex: 50,
+    ...Platform.select({ android: { elevation: 8 } }),
+  },
+});
 
 /* ----------------------- Dropdown Button (local) ----------------------- */
 
@@ -741,3 +756,4 @@ function DropdownButton({ label, value, onPress, colors }) {
     </View>
   );
 }
+

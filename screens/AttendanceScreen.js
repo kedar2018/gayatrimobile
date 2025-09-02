@@ -92,12 +92,15 @@ export default function AttendanceScreen() {
   );
 
   return (
-    <View style={S.screen}>
-      <Text style={S.h1}>Attendance</Text>
-      {!!error && <Text style={S.errorText}>{error}</Text>}
+    <View style={[S.screen, S.screenPadTop]}>
+      {/* Header */}
+      <View style={S.header}>
+        <Text style={S.h1}>Attendance</Text>
+        {!!error && <Text style={S.errorText}>{error}</Text>}
+      </View>
 
       {/* Filters / Date */}
-      <View style={S.form}>
+      <View style={{ paddingHorizontal: 16 }}>
         <Text style={S.label}>Date</Text>
         <TouchableOpacity onPress={() => setShowDatePicker(true)} style={S.dateBtn}>
           <Text style={S.dateBtnText}>{fmtDate(date)}</Text>
@@ -116,7 +119,7 @@ export default function AttendanceScreen() {
       </View>
 
       {/* Add entry */}
-      <View style={S.form}>
+      <View style={{ paddingHorizontal: 16 }}>
         <Text style={S.label}>Task</Text>
         <TextInput
           style={S.input}
@@ -160,7 +163,7 @@ export default function AttendanceScreen() {
           />
         )}
 
-        <TouchableOpacity style={S.button} onPress={submitAttendance}>
+        <TouchableOpacity style={[S.button, { marginTop: 12 }]} onPress={submitAttendance}>
           <Text style={S.buttonText}>Save Entry</Text>
         </TouchableOpacity>
       </View>
@@ -176,13 +179,19 @@ export default function AttendanceScreen() {
           data={items}
           keyExtractor={(it, idx) => String(it.id ?? idx)}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 30 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: 30 }}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" colors={['#2563eb']} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#2563eb"
+              colors={['#2563eb']}
+            />
           }
           ListEmptyComponent={
-            <View style={{ alignItems: 'center', marginTop: 40 }}>
-              <Text style={{ color: '#555' }}>No attendance logs found for {fmtDate(date)}.</Text>
+            <View style={S.emptyWrap}>
+              <Text style={S.emptyIcon}>🗓️</Text>
+              <Text style={S.emptyTitle}>No attendance logs found for {fmtDate(date)}.</Text>
             </View>
           }
         />

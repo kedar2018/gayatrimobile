@@ -225,6 +225,8 @@ const S = StyleSheet.create({
     backgroundColor: '#ffffffee',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
+     zIndex: 50,
+ ...Platform.select({ android: { elevation: 8 } }),
   },
   bottomBar: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md },
 
@@ -270,6 +272,30 @@ const S = StyleSheet.create({
   emptyIcon: { fontSize: 40, marginBottom: 8 },
   emptyTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
   emptySub: { color: colors.subtext, marginTop: 4 },
+
+
+// Add these to S = StyleSheet.create({...})
+formContent: {
+  paddingHorizontal: spacing.xl,
+  paddingTop: spacing.lg,
+  // NOTE: no flex here — lets content grow and scroll
+  rowGap: spacing.md, // RN >=0.71, else remove
+},
+titleRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: colors.bg,
+  paddingBottom: spacing.sm,
+  marginBottom: spacing.sm,
+},
+titleIconWrap: {
+  width: 28, height: 28, borderRadius: 14,
+  alignItems: 'center', justifyContent: 'center',
+  backgroundColor: '#e8f0fe',
+  marginRight: 8,
+},
+
+
 });
 
 export default S;
