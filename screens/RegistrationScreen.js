@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../utils/api'; // baseURL should point to https://134.199.178.17/gayatri/api
-import S from './styles/AppStyles';   // ← created once & cached
+import S from '../styles/AppStyles';   // ← created once & cached
 
 export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState('');

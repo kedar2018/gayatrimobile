@@ -22,7 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../utils/api';
 
 import ModalDropdown from '../components/ModalDropdown';
-import S from './styles/AppStyles';   // ← created once & cached
+import S from '../styles/AppStyles';   // ← created once & cached
 
 /* ----------------------- Constants ----------------------- */
 

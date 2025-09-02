@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../utils/api'; // ✅ use shared client (token auto-added)
-import S from './styles/AppStyles';   // ← created once & cached
+import S from '../styles/AppStyles';   // ← created once & cached
 
 // NOTE: removed API_URL and axios
 

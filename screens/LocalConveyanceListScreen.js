@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { api } from '../utils/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import S from './styles/AppStyles';   // ← created once & cached
+import S from '../styles/AppStyles';   // ← created once & cached
 
 const PAGE_SIZE = 10;
 

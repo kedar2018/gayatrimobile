@@ -12,7 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../utils/api';
-import S from './styles/AppStyles';   // ← created once & cached
+import S from '../styles/AppStyles';   // ← created once & cached
 
 const PAGE_SIZE = 20;
 

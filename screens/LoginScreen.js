@@ -16,7 +16,7 @@ import {
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../utils/api'; // ✅ new
-import S from './styles/AppStyles';   // ← created once & cached
+import S from '../styles/AppStyles';   // ← created once & cached
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
