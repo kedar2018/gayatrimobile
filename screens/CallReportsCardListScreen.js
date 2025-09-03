@@ -83,7 +83,6 @@ export default function CallReportsCardListScreen({ navigation }) {
         headers: { Accept: 'application/json' },
       });
 
-     console.log(res.data);
       if (mySeq !== reqSeq.current) return; // ignore stale responses
 
       const { items: list, meta, hasMore } = normalizeCallReportsResponse(res, pageNum, PAGE_SIZE);

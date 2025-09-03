@@ -142,10 +142,6 @@ export default function ProfileScreen({ navigation }) {
       <View style={S.card}>
         <Text style={S.title}>👋 Hello{userName ? `, ${userName}` : ''}</Text>
         <View style={S.kv}>
-          <Text style={S.k}>User ID</Text>
-          <Text style={S.v}>{userId || '—'}</Text>
-        </View>
-        <View style={S.kv}>
           <Text style={S.k}>Name</Text>
           <Text style={S.v}>{userName || '—'}</Text>
         </View>
