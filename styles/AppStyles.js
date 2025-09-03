@@ -74,8 +74,16 @@ const S = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
-  kvK: { width: 120, fontWeight: '600', color: '#334155' },
-  kvV: { flex: 1, color: colors.text, fontWeight: '500' },
+
+kvK: {
+  fontWeight: '600',
+  color: '#334155',
+  marginRight: 4,
+},
+kvV: {
+  color: colors.text,
+  fontWeight: '500',
+},
 
   kv: {
     flexDirection: 'row',
@@ -84,8 +92,15 @@ const S = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
-  k: { width: 120, fontWeight: '700', color: '#334155' },
-  v: { flex: 1, color: colors.text, fontWeight: '500' },
+k: {
+  fontWeight: '700',
+  color: '#334155',
+  marginRight: 4,        // tiny gap instead of fixed width
+},
+v: {
+  color: colors.text,
+  fontWeight: '500',
+},
 
   // Chips / Badges
   chip: {

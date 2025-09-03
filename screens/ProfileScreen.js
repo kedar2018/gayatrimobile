@@ -78,7 +78,7 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-  const handleSaveDefaults = async () => {
+/*  const handleSaveDefaults = async () => {
     setSaving(true);
     try {
       await AsyncStorage.setItem('DEFAULT_FROM_LOCATION', defaultFromLocation || '');
@@ -89,6 +89,28 @@ export default function ProfileScreen({ navigation }) {
       setSaving(false);
     }
   };
+*/
+
+const handleSaveDefaults = async () => {
+  try {
+    setSaving(true);
+    const token = await AsyncStorage.getItem('api_token');  // or however you store it
+
+    await api.patch(
+      `/me`,
+      { user: { location: defaultFromLocation } },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    Alert.alert('Success', 'Preferences updated!');
+  } catch (err) {
+    console.error('Save error:', err);
+    Alert.alert('Error', 'Failed to update preferences.');
+  } finally {
+    setSaving(false);
+  }
+};
+
 
   const handleClearCache = async () => {
     Alert.alert(

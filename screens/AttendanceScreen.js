@@ -139,10 +139,23 @@ export default function AttendanceScreen() {
       setEndAt(new Date());
       await fetchAttendance();
       Alert.alert('Success', 'Attendance saved.');
-    } catch (e) {
-      console.log('Attendance create error:', e?.response?.data || e.message);
-      Alert.alert('Error', String(e?.response?.data?.error || 'Failed to save attendance'));
-    }
+    } 
+
+ catch (e) {
+  console.log('Attendance create error:', e?.response?.data || e.message);
+
+  const data = e?.response?.data;
+  let msg = 'Failed to save attendance';
+
+  if (data?.errors) {
+    // Join multiple errors into one string
+    msg = Array.isArray(data.errors) ? data.errors.join('\n') : String(data.errors);
+  } else if (data?.error) {
+    msg = String(data.error);
+  }
+
+  Alert.alert('Error', msg);
+}
   };
 
   const renderItem = ({ item }) => (
