@@ -28,36 +28,6 @@ import S from '../styles/AppStyles';
 
 /* ----------------------- Constants ----------------------- */
 
-const MH_AREAS = [
-  'Mumbai','Mumbai Central','Colaba','Fort','Churchgate','Marine Drive','Nariman Point',
-  'Lower Parel','Worli','Prabhadevi','Dadar','Matunga','Sion','Mahim','Wadala','Sewri',
-  'Byculla','Kurla','Saki Naka','Chandivali','Chembur','Govandi','Deonar','Mankhurd',
-  'Ghatkopar','Vikhroli','Bhandup','Mulund East','Mulund West','Powai',
-  'Bandra East','Bandra West','Khar','Santacruz East','Santacruz West',
-  'Vile Parle East','Vile Parle West','Andheri East','Andheri West','Versova',
-  'Jogeshwari','Goregaon East','Goregaon West','Malad East','Malad West',
-  'Kandivali East','Kandivali West','Borivali East','Borivali West','Dahisar',
-  'Navi Mumbai','Vashi','Sanpada','Turbhe','Kopar Khairane','Ghansoli','Airoli','Rabale',
-  'Belapur','Seawoods','Nerul','Kharghar','Kalamboli','Kamothe','Taloja','Ulwe',
-  'Thane','Thane West','Thane East','Mumbra','Kalwa','Bhiwandi','Kalyan','Dombivli',
-  'Ulhasnagar','Ambarnath','Badlapur','Shahapur',
-  'Palghar','Vasai','Virar','Nalasopara','Boisar','Dahanu',
-  'Panvel','Uran','Alibag','Pen','Karjat','Khalapur','Mangaon','Mahad','Murud',
-  'Ratnagiri','Chiplun','Dapoli',
-  'Sindhudurg','Kankavli','Kudal','Sawantwadi',
-  'Pune','Shivajinagar','Deccan','FC Road','Aundh','Baner','Pashan','Balewadi',
-  'Wakad','Hinjewadi','Kothrud','Sinhagad Road','Bibwewadi','Kondhwa','Undri',
-  'Hadapsar','Magarpatta','Kharadi','Viman Nagar','Yerawada','Koregaon Park','Camp',
-  'Pimpri','Chinchwad','Bhosari','Nigdi','Talegaon','Chakan','Ranjangaon',
-  'Nashik','Nashik Road','Panchavati','Satpur','Ambad MIDC','Sinnar','Igatpuri','Malegaon',
-  'Nagpur','Sitabuldi','Civil Lines','Dharampeth','Manish Nagar','MIHAN','Hingna','Koradi',
-  'Chhatrapati Sambhajinagar','Waluj MIDC','CIDCO','Garkheda','Paithan',
-  'Kolhapur','Karveer','Ichalkaranji','Satara','Karad','Sangli','Miraj','Kupwad','Solapur','Akkalkot',
-  'Jalgaon','Bhusawal','Ahmednagar','Shrirampur','Latur','Udgir','Nanded','Deglur',
-  'Amravati','Achalpur','Akola','Washim','Buldhana','Yavatmal','Wardha','Chandrapur','Ballarpur',
-  'Gadchiroli','Gondia','Bhandara','Dhule','Nandurbar','Jalna','Beed','Parbhani','Hingoli',
-];
-
 const FIELDS = [
   { key: 'ccr_no',         label: 'CCR NO',        type: 'dropdown', icon: 'document-text-outline' },
   { key: 'project',        label: 'PROJECT',       type: 'dropdown', icon: 'briefcase-outline' },
@@ -229,7 +199,7 @@ export default function LocalConveyanceFormScreen({ navigation }) {
     project: ['Alpha Project', 'Beta Launch', 'Support Visit'],
     mode: ['Auto', 'Bike', 'Walk', 'Train'],
     from_location: ['Pune Office', 'Mumbai HQ', 'Nashik Depot'],
-    to_location: MH_AREAS,
+    to_location: [], // <-- now driven by server areas
     ccr_no: ['ask admin to assign'],
   });
 
@@ -284,6 +254,32 @@ export default function LocalConveyanceFormScreen({ navigation }) {
     } catch {}
   }, []);
 
+  // NEW: Load areas from cache, fall back to API (/areas uses current_user.handle_location)
+  const loadAreas = useCallback(async () => {
+    try {
+      // 1) Try cached areas from registration/login
+      const cached = await AsyncStorage.getItem('areas');
+      let list = [];
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) list = parsed;
+        } catch {}
+      }
+
+      // 2) If no cache, fetch from server (server infers from current_user.handle_location)
+      if (!list.length) {
+        const res = await api.get('/areas');
+        list = Array.isArray(res?.data?.areas) ? res.data.areas : [];
+        if (list.length) await AsyncStorage.setItem('areas', JSON.stringify(list));
+      }
+
+      setDropdownOptions(prev => ({ ...prev, to_location: list }));
+    } catch (e) {
+      console.log('loadAreas error:', e?.response?.data || e.message);
+    }
+  }, []);
+
   const fetchOptions = useCallback(async () => {
     if (!userId) return;
     try {
@@ -295,13 +291,13 @@ export default function LocalConveyanceFormScreen({ navigation }) {
       setCcrList(ccrListData);
       const data = optionsRes.data || {};
       const apiLocations = Array.isArray(data.location) ? data.location : [];
-      const mergedTo = Array.from(new Set([...(apiLocations || []), ...MH_AREAS]));
+
+      // Note: to_location now comes from loadAreas(); do NOT merge here.
       setDropdownOptions((prev) => ({
         ...prev,
         project: data.project?.length ? data.project : prev.project,
         mode: data.mode?.length ? data.mode : prev.mode,
         from_location: apiLocations.length ? apiLocations : prev.from_location,
-        to_location: mergedTo,
         ccr_no: ccrListData.length ? ccrListData.map((it) => it.case_id) : prev.ccr_no,
       }));
     } catch (e) {
@@ -323,6 +319,7 @@ export default function LocalConveyanceFormScreen({ navigation }) {
     })();
   }, []);
 
+  useEffect(() => { loadAreas(); }, [loadAreas]);
   useEffect(() => { fetchOptions(); }, [fetchOptions]);
 
   useEffect(() => {
@@ -681,7 +678,7 @@ export default function LocalConveyanceFormScreen({ navigation }) {
             searchEnabled={activeDropdown === 'to_location'}
             searchValue={activeDropdown === 'to_location' ? dropdownSearch : ''}
             onSearchChange={setDropdownSearch}
-            searchPlaceholder="Search area/city"
+            searchPlaceholder="Search area"
             allowFreeText={activeDropdown === 'to_location'}
           />
         </ScrollView>

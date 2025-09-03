@@ -1,9 +1,9 @@
 // screens/RegisterScreen.js
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
-  ScrollView, TouchableWithoutFeedback, Keyboard,
+  ScrollView, TouchableWithoutFeedback, Keyboard, Modal, Pressable,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../utils/api'; // baseURL should point to https://134.199.178.17/gayatri/api
@@ -18,11 +18,42 @@ export default function RegisterScreen({ navigation }) {
   const [password2, setPassword2] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Cities for handle_location
+  const [cities, setCities] = useState([]);
+  const [loadingCities, setLoadingCities] = useState(false);
+  const [selectedCities, setSelectedCities] = useState([]);
+  const [cityModalOpen, setCityModalOpen] = useState(false);
+  const selectedCitiesSet = useMemo(() => new Set(selectedCities), [selectedCities]);
+
   const emailRef = useRef(null);
   const mobileRef = useRef(null);
   const locationRef = useRef(null);
   const passwordRef = useRef(null);
   const password2Ref = useRef(null);
+
+  useEffect(() => {
+    const loadCities = async () => {
+      try {
+        setLoadingCities(true);
+        const res = await api.get('/areas/cities');
+        const arr = Array.isArray(res?.data?.cities) ? res.data.cities : [];
+        setCities(arr);
+      } catch (e) {
+        console.log('Cities fetch error:', e?.response?.data || e.message);
+        Alert.alert('Network', 'Could not load city list. You can still register without selecting handled cities.');
+      } finally {
+        setLoadingCities(false);
+      }
+    };
+    loadCities();
+  }, []);
+
+  const toggleCity = (city) => {
+    setSelectedCities((prev) => {
+      if (prev.includes(city)) return prev.filter((c) => c !== city);
+      return [...prev, city];
+    });
+  };
 
   const validate = () => {
     if (!name || !email || !mobile || !password || !password2) {
@@ -38,6 +69,8 @@ export default function RegisterScreen({ navigation }) {
       Alert.alert('Invalid mobile', 'Enter a valid mobile number (10–15 digits, optional +).');
       return false;
     }
+    // handled cities are optional during registration; enforce if you want:
+    // if (!selectedCities.length) { Alert.alert('Handled cities', 'Please select at least one handled city.'); return false; }
     return true;
   };
 
@@ -56,12 +89,22 @@ export default function RegisterScreen({ navigation }) {
           password_confirmation: password2,
           location,
           mobile_no: mobile.replace(/\s+/g, ''),
+          handle_location: selectedCities, // array of city names
         },
       };
 
-      // POST /api/register
       const res = await api.post('/register', payload);
-      const { user_id, name: rName, location: rLoc, mobile_no, api_token } = res.data || {};
+
+      const {
+        user_id,
+        name: rName,
+        location: rLoc,
+        mobile_no,
+        api_token,
+        handle_cities,
+        areas,
+        areas_by_city,
+      } = res.data || {};
 
       await AsyncStorage.multiSet([
         ['user_id', String(user_id)],
@@ -70,6 +113,10 @@ export default function RegisterScreen({ navigation }) {
         ['api_token', api_token || ''],
         ['user_mobile', mobile_no || mobile || ''],
         ['user_email', email || ''],
+        // new:
+        ['handle_cities', JSON.stringify(handle_cities || selectedCities || [])],
+        ['areas', JSON.stringify(areas || [])],
+        ['areas_by_city', JSON.stringify(areas_by_city || {})],
       ]);
 
       if (api_token) {
@@ -145,6 +192,98 @@ export default function RegisterScreen({ navigation }) {
                 onSubmitEditing={() => passwordRef.current?.focus?.()}
               />
 
+              {/* Handled Cities multi-select */}
+              <View style={{ marginTop: 8, marginBottom: 12 }}>
+                <Text style={[S.label, { marginBottom: 6 }]}>Handled Cities (optional)</Text>
+
+                <TouchableOpacity
+                  style={[S.input, { justifyContent: 'center' }]}
+                  onPress={() => setCityModalOpen(true)}
+                  activeOpacity={0.85}
+                  disabled={loadingCities}
+                >
+                  {loadingCities ? (
+                    <Text style={{ color: '#888' }}>Loading cities…</Text>
+                  ) : selectedCities.length ? (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                      {selectedCities.map((c) => (
+                        <View key={c} style={{
+                          paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999,
+                          backgroundColor: '#eef2ff', marginRight: 8, marginBottom: 6,
+                        }}>
+                          <Text style={{ color: '#1e3a8a', fontWeight: '600' }}>{c}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={{ color: '#888' }}>Select handled cities</Text>
+                  )}
+                </TouchableOpacity>
+
+                <Modal
+                  visible={cityModalOpen}
+                  animationType="slide"
+                  transparent
+                  onRequestClose={() => setCityModalOpen(false)}
+                >
+                  <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' }} onPress={() => setCityModalOpen(false)}>
+                    <Pressable style={{
+                      marginTop: 'auto',
+                      backgroundColor: '#fff',
+                      borderTopLeftRadius: 16,
+                      borderTopRightRadius: 16,
+                      padding: 16,
+                      maxHeight: '70%',
+                    }}>
+                      <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 10 }}>Select handled cities</Text>
+                      <ScrollView>
+                        {cities.map((c) => {
+                          const checked = selectedCitiesSet.has(c);
+                          return (
+                            <Pressable
+                              key={c}
+                              onPress={() => toggleCity(c)}
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                paddingVertical: 12,
+                                borderBottomWidth: 1,
+                                borderBottomColor: '#eee',
+                              }}
+                            >
+                              <View style={{
+                                width: 22, height: 22, marginRight: 12, borderRadius: 4,
+                                borderWidth: 2, borderColor: checked ? '#2563eb' : '#94a3b8',
+                                backgroundColor: checked ? '#2563eb' : 'transparent',
+                                alignItems: 'center', justifyContent: 'center',
+                              }}>
+                                {checked ? <Text style={{ color: '#fff', fontWeight: '800' }}>✓</Text> : null}
+                              </View>
+                              <Text style={{ fontSize: 15, color: '#0f172a' }}>{c}</Text>
+                            </Pressable>
+                          );
+                        })}
+                      </ScrollView>
+
+                      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
+                        <TouchableOpacity
+                          onPress={() => setCityModalOpen(false)}
+                          style={{ paddingHorizontal: 14, paddingVertical: 10, marginRight: 10 }}
+                        >
+                          <Text style={{ color: '#ef4444', fontWeight: '600' }}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => setCityModalOpen(false)}
+                          style={{ paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#2563eb', borderRadius: 8 }}
+                        >
+                          <Text style={{ color: '#fff', fontWeight: '700' }}>Done</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </Pressable>
+                  </Pressable>
+                </Modal>
+              </View>
+
               <TextInput
                 ref={passwordRef}
                 style={S.input}
@@ -188,4 +327,3 @@ export default function RegisterScreen({ navigation }) {
     </KeyboardAvoidingView>
   );
 }
-
