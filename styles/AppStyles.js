@@ -42,7 +42,10 @@ const S = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: spacing.xl, paddingTop: spacing.md },
   // ⬇️ apply this in addition to `screen` where you want extra safe top space
   screenPadTop: { paddingTop: STATUSBAR_GAP + spacing.md },
-
+form: {
+  marginTop: spacing.md,
+  marginBottom: spacing.md,
+},
   container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 

@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import S from '../styles/AppStyles';   // ← created once & cached
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LeaveScreen() {
   const [items, setItems] = useState([]);
@@ -138,7 +139,7 @@ export default function LeaveScreen() {
   );
 
   return (
-    <View style={S.screen}>
+    <SafeAreaView style={S.screen}>
       <Text style={S.h1}>Leave Applications</Text>
       {!!error && <Text style={S.errorText}>{error}</Text>}
 
@@ -225,6 +226,7 @@ export default function LeaveScreen() {
       ) : (
         <FlatList
           data={items}
+	  style={{ flex: 1 }}      // 👈 makes the list take remaining height
           keyExtractor={(it, idx) => String(it.id ?? idx)}
           renderItem={renderItem}
           contentContainerStyle={{ paddingBottom: 30 }}
@@ -236,9 +238,10 @@ export default function LeaveScreen() {
               <Text style={{ color: '#555' }}>No leave records found.</Text>
             </View>
           }
+	  keyboardShouldPersistTaps="handled"
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
