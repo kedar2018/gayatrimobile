@@ -43,6 +43,7 @@ export default function LoginScreen({ navigation }) {
         ['user_name', name || ''],
         ['DEFAULT_FROM_LOCATION', location || ''],
         ['api_token', api_token || ''],
+        ['areas', JSON.stringify(areas || [])],
       ]);
 
       if (api_token) {

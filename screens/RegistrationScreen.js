@@ -35,7 +35,7 @@ export default function RegisterScreen({ navigation }) {
     const loadCities = async () => {
       try {
         setLoadingCities(true);
-        const res = await api.get('/areas/cities');
+        const res = await api.get('/areas');
         const arr = Array.isArray(res?.data?.cities) ? res.data.cities : [];
         setCities(arr);
       } catch (e) {
