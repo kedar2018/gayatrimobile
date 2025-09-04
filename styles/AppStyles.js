@@ -316,5 +316,17 @@ titleIconWrap: {
 
 });
 
+S.colorsFor = (_scheme) => ({
+  bg: colors.bg,
+  card: colors.card,
+  text: colors.text,
+  subtext: colors.subtext,
+  border: colors.border,
+  primary: colors.primary,
+  danger: colors.danger,
+  focus: colors.focus,
+});
+
+
 export default S;
 

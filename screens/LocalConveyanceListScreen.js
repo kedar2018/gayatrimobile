@@ -246,6 +246,8 @@ export default function LocalConveyanceListScreen({ navigation }) {
       >
         <Text style={S.btnText}>+ Add Entry</Text>
       </TouchableOpacity>
+
+
     </View>
   );
 }

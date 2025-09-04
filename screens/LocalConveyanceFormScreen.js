@@ -1,756 +1,797 @@
 // screens/LocalConveyanceFormScreen.js
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   ScrollView,
+  TouchableOpacity,
+  Modal,
+  FlatList,
   Alert,
-  Image,
   Platform,
-  ActivityIndicator,
-  Pressable,
-  useColorScheme,
-  Keyboard,
   KeyboardAvoidingView,
+  ActivityIndicator,
+  Image,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { api } from '../utils/api';
 
-import ModalDropdown from '../components/ModalDropdown';
-import S from '../styles/AppStyles';
+/* ----------------------- Constants & helpers ----------------------- */
 
-/* ----------------------- Constants ----------------------- */
+const MAX_IMAGE_BYTES = 300 * 1024 * 1024; // 300 MB cap
 
-const FIELDS = [
-  { key: 'ccr_no',         label: 'CCR NO',        type: 'dropdown', icon: 'document-text-outline' },
-  { key: 'project',        label: 'PROJECT',       type: 'dropdown', icon: 'briefcase-outline' },
-  { key: 'mode',           label: 'MODE',          type: 'dropdown', icon: 'car-outline' },
-  { key: 'from_location',  label: 'FROM LOCATION', type: 'dropdown', icon: 'location-outline' },
-  { key: 'to_location',    label: 'TO LOCATION',   type: 'dropdown', icon: 'flag-outline' },
-];
+const fmt2 = (n) => (n < 10 ? `0${n}` : `${n}`);
+const monthShort = (i) =>
+  ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i];
 
-const MAX_BYTES = 300 * 1024 * 1024; // 300 MB
+function formatDateTime12(d) {
+  if (!d) return '';
+  const day = fmt2(d.getDate());
+  const mon = monthShort(d.getMonth());
+  const yr = d.getFullYear();
+  let hh = d.getHours();
+  const mm = fmt2(d.getMinutes());
+  const ampm = hh >= 12 ? 'PM' : 'AM';
+  hh = hh % 12;
+  if (hh === 0) hh = 12;
+  return `${day}-${mon}-${yr} ${fmt2(hh)}:${mm} ${ampm}`;
+}
 
-const mimeFromUri = (uri = '') => {
-  const u = uri.toLowerCase();
-  if (u.endsWith('.png')) return 'image/png';
-  if (u.endsWith('.webp')) return 'image/webp';
-  if (u.endsWith('.heic') || u.endsWith('.heif')) return 'image/heic';
-  return 'image/jpeg';
-};
-const filenameFromUri = (uri = '') => uri.split('/').pop() || 'upload.jpg';
+function filenameFromUri(uri) {
+  const last = (uri || '').split('/').pop() || 'photo.jpg';
+  return last.includes('.') ? last : `${last}.jpg`;
+}
 
-/* ----------------------- Small UI atoms ----------------------- */
+/* ----------------------- Tiny UI atoms ----------------------- */
 
-const FieldLabel = React.memo(({ icon, text, colors }) => (
-  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-    {icon ? <Ionicons name={icon} size={16} color={colors.subtext} style={S.leftIcon} /> : null}
-    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.subtext }}>{text}</Text>
-  </View>
-));
+const Label = ({ children }) => <Text style={styles.label}>{children}</Text>;
 
-const LabeledInput = React.memo(function LabeledInput({
-  icon = 'document-text-outline',
-  value,
-  onChangeText,
-  placeholder,
-  keyboardType = 'default',
-  autoCapitalize = 'sentences',
-  onSubmitEditing = () => Keyboard.dismiss(),
-  fieldKey,
-  focusedKey,
-  setFocusedKey,
-  colors,
-}) {
+const Input = (props) => (
+  <TextInput
+    {...props}
+    style={[styles.input, props.style]}
+    placeholderTextColor="#9aa5b1"
+  />
+);
+
+function FieldButton({ value, placeholder, onPress }) {
   return (
-    <View style={{ marginBottom: 12 }}>
-      <View
-        style={[
-          S.inputWrap,
-          {
-            backgroundColor: colors.card,
-            borderColor: focusedKey === fieldKey ? colors.focus : colors.border,
-          },
-        ]}
-      >
-        <Ionicons name={icon} size={18} color={colors.subtext} style={S.leftIcon} />
-        <TextInput
-          style={[S.input, { color: colors.text }]}
-          placeholder={placeholder}
-          placeholderTextColor={colors.subtext}
-          value={value}
-          onChangeText={onChangeText}
-          keyboardType={keyboardType}
-          autoCapitalize={autoCapitalize}
-          returnKeyType="next"
-          blurOnSubmit={false}
-          onSubmitEditing={onSubmitEditing}
-          onFocus={() => setFocusedKey(fieldKey)}
-          onBlur={() => setFocusedKey(null)}
-        />
-      </View>
-    </View>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={styles.input}>
+      <Text style={[styles.inputText, !value && { color: '#9aa5b1' }]}>
+        {value || placeholder}
+      </Text>
+    </TouchableOpacity>
   );
-});
+}
 
-const DateTimeField = React.memo(function DateTimeField({ label, value, onChange, colors }) {
-  const [step, setStep] = useState(null); // 'date' | 'time' | null
-  const [tempDate, setTempDate] = useState(value ? new Date(value) : new Date());
-  useEffect(() => {
-    if (value) setTempDate(new Date(value));
-  }, [value]);
-
-  const d = value ? new Date(value) : null;
-  const dateStr = d ? d.toLocaleDateString(undefined, { dateStyle: 'medium' }) : '';
-  const timeStr = d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-
-  const onDateChange = (event, picked) => {
-    if (event.type === 'dismissed') return setStep(null);
-    const next = picked || tempDate;
-    setTempDate(next);
-    setStep('time');
-  };
-  const onTimeChange = (event, picked) => {
-    if (event.type === 'dismissed') return setStep(null);
-    const next = new Date(tempDate);
-    next.setHours(picked.getHours());
-    next.setMinutes(picked.getMinutes());
-    setTempDate(next);
-    setStep(null);
-    onChange?.(next.toISOString()); // store ISO
-  };
-
+function PrimaryButton({ title, onPress, disabled, loading }) {
   return (
-    <View style={{ marginBottom: 12 }}>
-      <Pressable
-        onPress={() => setStep('date')}
-        style={[S.inputWrap, { backgroundColor: colors.card, borderColor: colors.border, paddingVertical: 12 }]}
-        android_ripple={{ color: '#e6eefc' }}
-      >
-        <Ionicons name="time-outline" size={18} color={colors.subtext} style={S.leftIcon} />
-        <View style={{ flex: 1 }}>
-          <Text style={S.smallLabel}>{label}</Text>
-          {d ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: '#f5f7fb' }}>
-                <Ionicons name="calendar-outline" size={14} color={colors.subtext} style={{ marginRight: 6 }} />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }} numberOfLines={1}>{dateStr}</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: '#f5f7fb', marginLeft: 8 }}>
-                <Ionicons name="time-outline" size={14} color={colors.subtext} style={{ marginRight: 6 }} />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }} numberOfLines={1}>{timeStr}</Text>
-              </View>
-            </View>
-          ) : (
-            <Text style={{ color: colors.subtext, marginTop: 2 }}>Select date & time</Text>
-          )}
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      disabled={disabled || loading}
+      style={[styles.btnPrimary, (disabled || loading) && { opacity: 0.6 }]}
+    >
+      {loading ? <ActivityIndicator /> : <Text style={styles.btnPrimaryText}>{title}</Text>}
+    </TouchableOpacity>
+  );
+}
+
+function SecondaryButton({ title, onPress }) {
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={styles.btnSecondary}>
+      <Text style={styles.btnSecondaryText}>{title}</Text>
+    </TouchableOpacity>
+  );
+}
+
+/* Simple modal dropdown (consistent size with inputs) */
+function SimpleDropdown({ visible, onClose, title, options = [], keyExtractor, renderLabel, onSelect }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>{title}</Text>
+          <FlatList
+            data={options}
+            keyExtractor={(item, idx) => (keyExtractor ? keyExtractor(item) : String(idx))}
+            ItemSeparatorComponent={() => <View style={styles.modalDivider} />}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                onPress={() => {
+                  onSelect && onSelect(item);
+                  onClose && onClose();
+                }}
+                style={styles.modalItem}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalItemText}>
+                  {renderLabel ? renderLabel(item) : String(item)}
+                </Text>
+              </TouchableOpacity>
+            )}
+            style={{ maxHeight: '70%' }}
+          />
+          <SecondaryButton title="Cancel" onPress={onClose} />
         </View>
-        <Ionicons name="chevron-forward" size={18} color={colors.subtext} />
-      </Pressable>
-
-      {step === 'date' && (
-        <DateTimePicker value={tempDate} mode="date" display="default" onChange={onDateChange} />
-      )}
-      {step === 'time' && (
-        <DateTimePicker value={tempDate} mode="time" display="default" onChange={onTimeChange} />
-      )}
-    </View>
+      </View>
+    </Modal>
   );
-});
-
-/* ----------------------- Helpers ----------------------- */
-
-const pad = (n) => (n < 10 ? `0${n}` : n);
-const toTimeHHMM = (iso) => {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
+}
 
 /* ----------------------- Screen ----------------------- */
 
 export default function LocalConveyanceFormScreen({ navigation }) {
-  const insets = useSafeAreaInsets();
-  const scheme = useColorScheme();
-  const [footerH, setFooterH] = useState(88); // baseline until measured
+  const [loadingLists, setLoadingLists] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
-  const colors = useMemo(() => ({
-    bg: '#f5f7fb',
-    card: '#ffffff',
-    text: '#0f172a',
-    subtext: '#6b7280',
-    border: '#e5e7eb',
-    focus: '#2563eb',
-    primary: '#2563eb',
-    danger: '#ef4444',
-  }), [scheme]);
+  // Lists
+  const [ccrList, setCcrList] = useState([]); // [{id, case_id, serial_number, customer_detail, ...}]
+  const [projectList, setProjectList] = useState([]); // string[]
+  const [modeList, setModeList] = useState([]); // string[]
+  const [cityList, setCityList] = useState([]); // string[]
 
-  const [focusedKey, setFocusedKey] = useState(null);
-  const [userId, setUserId] = useState(null);
-  const [ccrList, setCcrList] = useState([]);
-  const [dropdownOptions, setDropdownOptions] = useState({
-    project: ['Alpha Project', 'Beta Launch', 'Support Visit'],
-    mode: ['Auto', 'Bike', 'Walk', 'Train'],
-    from_location: ['Pune Office', 'Mumbai HQ', 'Nashik Depot'],
-    to_location: [], // <-- now driven by server areas
-    ccr_no: ['ask admin to assign'],
-  });
+  // Modal controls
+  const [showCcr, setShowCcr] = useState(false);
+  const [showProject, setShowProject] = useState(false);
+  const [showMode, setShowMode] = useState(false);
+  const [showFromCity, setShowFromCity] = useState(false);
+  const [showToCity, setShowToCity] = useState(false);
 
-  const [activeDropdown, setActiveDropdown] = useState(null);
-  const [dropdownSearch, setDropdownSearch] = useState('');
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [defaultValues, setDefaultValues] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Date/time pickers
+  const [showStartDate, setShowStartDate] = useState(false);
+  const [showStartTime, setShowStartTime] = useState(false);
+  const [showArriveDate, setShowArriveDate] = useState(false);
+  const [showArriveTime, setShowArriveTime] = useState(false);
 
-  const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    request_id: '',
-    ccr_no: '',
-    project: '',
-    start_time: '',      // ISO when chosen
-    arrived_time: '',    // ISO when chosen
-    mode: '',
-    from_location: '',
-    to_location: '',
-    distance_km: '',
-    user_id: '',         // optional (token is the source of truth server-side)
-    call_report_id: null,
-  });
+  // Form data
+  const [requestId, setRequestId] = useState('');             // text
+  const [ccrNo, setCcrNo] = useState('');                     // display case_id
+  const [callReportId, setCallReportId] = useState(null);     // payload only
+  const [project, setProject] = useState('');
+  const [startTime, setStartTime] = useState(null);
+  const [arrivedTime, setArrivedTime] = useState(null);
+  const [mode, setMode] = useState('');
+  const [fromLocation, setFromLocation] = useState('');
+  const [toLocation, setToLocation] = useState('');
+  const [distanceKm, setDistanceKm] = useState('');
+  const [image, setImage] = useState(null); // { uri, name, type }
 
-  const openDropdown = (key) => {
-    setDropdownSearch('');
-    (global?.requestAnimationFrame
-      ? requestAnimationFrame(() => setTimeout(() => setActiveDropdown(key), 0))
-      : setTimeout(() => setActiveDropdown(key), 0));
-  };
-  const closeDropdown = () => setActiveDropdown(null);
+  const startTimeLabel = useMemo(() => formatDateTime12(startTime), [startTime]);
+  const arrivedTimeLabel = useMemo(() => formatDateTime12(arrivedTime), [arrivedTime]);
 
-  const buildOptions = useCallback((key) => {
-    if (key === 'ccr_no') {
-      const arr = Array.isArray(ccrList) ? ccrList : [];
-      return arr.map((it) => {
-        const parts = [String(it.case_id).trim()];
-        if (it.serial_number) parts.push(`SN: ${String(it.serial_number).trim()}`);
-        return { label: parts.join(' · '), value: String(it.case_id).trim() };
-      });
-    }
-    return dropdownOptions[key] || [];
-  }, [ccrList, dropdownOptions]);
-
-  const loadUserId = useCallback(async () => {
-    try {
-      const id = await AsyncStorage.getItem('user_id');
-      if (id) {
-        setUserId(id);
-        setFormData((p) => ({ ...p, user_id: id }));
-      }
-    } catch {}
-  }, []);
-
-  // NEW: Load areas from cache, fall back to API (/areas uses current_user.handle_location)
-  const loadAreas = useCallback(async () => {
-    try {
-      // 1) Try cached areas from registration/login
-      const cached = await AsyncStorage.getItem('areas');
-      let list = [];
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed)) list = parsed;
-        } catch {}
-      }
-
-      // 2) If no cache, fetch from server (server infers from current_user.handle_location)
-      if (!list.length) {
-        const res = await api.get('/areas');
-        list = Array.isArray(res?.data?.areas) ? res.data.areas : [];
-        if (list.length) await AsyncStorage.setItem('areas', JSON.stringify(list));
-      }
-
-      setDropdownOptions(prev => ({ ...prev, to_location: list }));
-    } catch (e) {
-      console.log('loadAreas error:', e?.response?.data || e.message);
-    }
-  }, []);
-
-  const fetchOptions = useCallback(async () => {
-    if (!userId) return;
-    try {
-      const [ccrRes, optionsRes] = await Promise.all([
-        api.get(`/fetch_ccr_list`, { params: { engineer_id: userId } }),
-        api.get(`/static_options`),
-      ]);
-      const ccrListData = ccrRes.data || [];
-      setCcrList(ccrListData);
-      const data = optionsRes.data || {};
-      const apiLocations = Array.isArray(data.location) ? data.location : [];
-
-      // Note: to_location now comes from loadAreas(); do NOT merge here.
-      setDropdownOptions((prev) => ({
-        ...prev,
-        project: data.project?.length ? data.project : prev.project,
-        mode: data.mode?.length ? data.mode : prev.mode,
-        from_location: apiLocations.length ? apiLocations : prev.from_location,
-        ccr_no: ccrListData.length ? ccrListData.map((it) => it.case_id) : prev.ccr_no,
-      }));
-    } catch (e) {
-      console.log('Options fetch error:', e?.response?.data || e.message);
-    }
-  }, [userId]);
-
-  useEffect(() => { loadUserId(); }, [loadUserId]);
-
+  /* ---------- Fetch lists ---------- */
   useEffect(() => {
     (async () => {
       try {
-        const saved = await AsyncStorage.getItem('DEFAULT_FROM_LOCATION');
-        if (saved) {
-          setDefaultValues((p) => ({ ...p, from_location: saved }));
-          setFormData((p) => (p.from_location ? p : { ...p, from_location: saved }));
-        }
-      } catch {}
+        setLoadingLists(true);
+        const userId = await AsyncStorage.getItem('user_id');
+
+        // CCR list
+        const ccrRes = await api.get('/fetch_ccr_list', { params: { engineer_id: userId } });
+        setCcrList(Array.isArray(ccrRes.data) ? ccrRes.data : []);
+
+        // Static options (project, mode)
+        const [projRes, modeRes] = await Promise.all([
+          api.get('/static_options', { params: { category: 'project' } }),
+          api.get('/static_options', { params: { category: 'mode' } }),
+        ]);
+        const proj = projRes.data?.project || projRes.data?.projects || projRes.data || [];
+        const modes = modeRes.data?.mode || modeRes.data?.modes || modeRes.data || [];
+        setProjectList(Array.isArray(proj) ? proj : []);
+        setModeList(Array.isArray(modes) ? modes : []);
+
+        // Areas
+        const areaRes = await api.get('/areas');
+        const cities = areaRes.data?.cities || [];
+        setCityList(Array.isArray(cities) ? cities : []);
+      } catch (e) {
+        console.log('List fetch error:', e);
+        const msg = e?.response?.data ? JSON.stringify(e.response.data) : (e?.message || 'Failed to fetch lists');
+        Alert.alert('Error', msg);
+      } finally {
+        setLoadingLists(false);
+      }
     })();
   }, []);
 
-  useEffect(() => { loadAreas(); }, [loadAreas]);
-  useEffect(() => { fetchOptions(); }, [fetchOptions]);
-
+  /* ---------- Handle Android camera restart (pending result) ---------- */
   useEffect(() => {
-    if (!formData.ccr_no || !ccrList.length) return;
-    const picked = ccrList.find((r) => String(r.case_id).trim() === String(formData.ccr_no).trim());
-    if (picked?.serial_number && formData.request_id !== String(picked.serial_number)) {
-      setFormData((prev) => ({ ...prev, request_id: String(picked.serial_number) }));
-    }
-    if (picked?.project && !formData.project) {
-      setFormData((prev) => ({ ...prev, project: String(picked.project) }));
-    }
-  }, [ccrList, formData.ccr_no, formData.request_id, formData.project]);
-
-  const handleSelect = (key, value) => {
-    if (key === 'to_location') {
-      const val = String(value || '').trim();
-      if (!val) return closeDropdown();
-      setFormData((prev) => ({ ...prev, to_location: val }));
-      setDropdownOptions((prev) => {
-        const list = Array.isArray(prev.to_location) ? prev.to_location : [];
-        const exists = list.some((x) => String(x).trim().toLowerCase() === val.toLowerCase());
-        return exists ? prev : { ...prev, to_location: [val, ...list] };
-      });
-      closeDropdown();
-      return;
-    }
-    if (key === 'ccr_no') {
-      const picked = Array.isArray(ccrList)
-        ? ccrList.find((r) => String(r.case_id).trim() === String(value).trim())
-        : null;
-      setFormData((prev) => ({
-        ...prev,
-        ccr_no: value || '',
-        call_report_id: picked?.id ?? null,
-        request_id: picked?.serial_number ? String(picked.serial_number) : prev.request_id,
-      }));
-      closeDropdown();
-      return;
-    }
-    setFormData((prev) => ({ ...prev, [key]: value }));
-    closeDropdown();
-  };
-
-  const ensurePermissions = async () => {
-    const { status: libStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    const { status: camStatus } = await ImagePicker.requestCameraPermissionsAsync();
-    if (libStatus !== 'granted' || camStatus !== 'granted') {
-      Alert.alert('Permissions needed', 'Please allow camera and media library access.');
-      return false;
-    }
-    return true;
-  };
-
-  const validateAndSet = async (asset) => {
-    if (!asset?.uri) return;
-    let size = typeof asset.fileSize === 'number' ? asset.fileSize : undefined;
-    if (size == null) {
+    let mounted = true;
+    (async () => {
       try {
-        const info = await FileSystem.getInfoAsync(asset.uri);
-        size = info?.size;
-      } catch {}
-    }
-    if (typeof size === 'number' && size > MAX_BYTES) {
-      Alert.alert('Too large', 'Please choose a smaller image (under 300 MB).');
-      return;
-    }
-    setSelectedImage({
-      uri: asset.uri,
-      width: asset.width,
-      height: asset.height,
-      fileSize: size,
-      mime: asset.mimeType || mimeFromUri(asset.uri),
-      name: filenameFromUri(asset.uri),
-    });
-  };
-
-  const pickImage = async () => {
-    try {
-      const ok = await ensurePermissions();
-      if (!ok) return;
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.9,
-        allowsMultipleSelection: false,
-        exif: false,
-        base64: false,
-      });
-      if (result.canceled) return;
-      await validateAndSet(result.assets?.[0]);
-    } catch (e) {
-      console.log('pickImage error:', e);
-      Alert.alert('Error', 'Could not pick image.');
-    }
-  };
-
-  const captureImage = async () => {
-    try {
-      const ok = await ensurePermissions();
-      if (!ok) return;
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.9,
-        exif: false,
-        base64: false,
-      });
-      if (result.canceled) return;
-      await validateAndSet(result.assets?.[0]);
-    } catch (e) {
-      console.log('captureImage error:', e);
-      Alert.alert('Error', 'Could not capture image.');
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      date: new Date().toISOString().split('T')[0],
-      request_id: '',
-      ccr_no: '',
-      project: '',
-      start_time: '',
-      arrived_time: '',
-      mode: '',
-      from_location: '',
-      to_location: '',
-      distance_km: '',
-      user_id: userId || '',
-      call_report_id: null,
-    });
-    setSelectedImage(null);
-  };
-
-  const toHHMM = (iso) => toTimeHHMM(iso);
-
-  const handleSubmit = async () => {
-    if (isSubmitting) return;
-
-    const missing = [];
-    if (!formData.request_id) missing.push('Request ID');
-    if (!formData.ccr_no) missing.push('CCR No');
-    if (!formData.project) missing.push('Project');
-    if (!formData.start_time) missing.push('Start time');
-    if (!formData.arrived_time) missing.push('Arrived time');
-    if (!formData.from_location) missing.push('From location');
-    if (!formData.to_location) missing.push('To location');
-    if (!formData.distance_km) missing.push('Distance (km)');
-
-    const distNum = parseFloat(String(formData.distance_km).replace(',', '.'));
-    if (!isNaN(distNum) && distNum < 0) {
-      Alert.alert('Invalid distance', 'Distance cannot be negative.');
-      return;
-    }
-
-    if (missing.length) {
-      Alert.alert('Missing info', `Please fill: ${missing.join(', ')}`);
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const normalized = {
-        ...formData,
-        start_time: toHHMM(formData.start_time),
-        arrived_time: toHHMM(formData.arrived_time),
-      };
-
-      const payload = new FormData();
-      Object.entries(normalized).forEach(([key, val]) => {
-        if (val === null || val === '') return;
-        payload.append(`tour_conveyance[${key}]`, String(val));
-      });
-
-      if (selectedImage) {
-        payload.append('tour_conveyance[image]', {
-          uri: selectedImage.uri,
-          type: selectedImage.mime || mimeFromUri(selectedImage.uri),
-          name: selectedImage.name || filenameFromUri(selectedImage.uri),
-        });
+        const pending = await ImagePicker.getPendingResultAsync();
+        if (Array.isArray(pending) && pending.length > 0) {
+          const result = pending[0];
+          if (!result.canceled && result.assets?.[0]) {
+            const file = await processPickedAsset(result.assets[0]);
+            if (mounted && file) setImage(file);
+          }
+        }
+      } catch (err) {
+        console.log('getPendingResultAsync error:', err);
       }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
-      await api.post('/tour_conveyances', payload, {
+  /* ---------- Pickers flow (Android: date -> time chain) ---------- */
+  const openStartPicker = () => setShowStartDate(true);
+  const openArrivePicker = () => setShowArriveDate(true);
+
+  const handleStartDateChange = (event, date) => {
+    setShowStartDate(false);
+    if (date) {
+      const existing = startTime || new Date();
+      const d = new Date(date.getFullYear(), date.getMonth(), date.getDate(), existing.getHours(), existing.getMinutes(), 0, 0);
+      setStartTime(d);
+      setShowStartTime(true);
+    }
+  };
+  const handleStartTimeChange = (event, time) => {
+    setShowStartTime(false);
+    if (time) {
+      const base = startTime || new Date();
+      const d = new Date(base.getFullYear(), base.getMonth(), base.getDate(), time.getHours(), time.getMinutes(), 0, 0);
+      setStartTime(d);
+    }
+  };
+
+  const handleArriveDateChange = (event, date) => {
+    setShowArriveDate(false);
+    if (date) {
+      const existing = arrivedTime || new Date();
+      const d = new Date(date.getFullYear(), date.getMonth(), date.getDate(), existing.getHours(), existing.getMinutes(), 0, 0);
+      setArrivedTime(d);
+      setShowArriveTime(true);
+    }
+  };
+  const handleArriveTimeChange = (event, time) => {
+    setShowArriveTime(false);
+    if (time) {
+      const base = arrivedTime || new Date();
+      const d = new Date(base.getFullYear(), base.getMonth(), base.getDate(), time.getHours(), time.getMinutes(), 0, 0);
+      setArrivedTime(d);
+    }
+  };
+
+  /* ---------- Image processing helpers ---------- */
+  const processPickedAsset = async (asset) => {
+    if (!asset?.uri) return null;
+
+    // Resize & compress to reduce memory usage on low-RAM devices
+    const manipulated = await ImageManipulator.manipulateAsync(
+      asset.uri,
+      [{ resize: { width: 1600 } }], // keep aspect
+      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+    );
+
+    // Enforce size cap
+    const info = await FileSystem.getInfoAsync(manipulated.uri, { size: true });
+    if (info?.size && info.size > MAX_IMAGE_BYTES) {
+      Alert.alert('Image too large', 'Please select an image under 300 MB.');
+      return null;
+    }
+
+    const uri = manipulated.uri;
+    return {
+      uri,
+      name: filenameFromUri(uri),
+      type: 'image/jpeg',
+    };
+  };
+
+  const pickFromLibrary = async () => {
+    try {
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 1,
+        exif: false,
+      });
+      if (!res.canceled && res.assets?.[0]) {
+        const file = await processPickedAsset(res.assets[0]);
+        if (file) setImage(file);
+      }
+    } catch (e) {
+      console.log('Gallery pick error:', e);
+      const msg = e?.response?.data ? JSON.stringify(e.response.data) : (e?.message || 'Failed to open gallery.');
+      Alert.alert('Error', msg);
+    }
+  };
+
+  const captureFromCamera = async () => {
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (perm.status !== 'granted') {
+        Alert.alert('Permission required', 'Camera permission is needed.');
+        return;
+      }
+      const res = await ImagePicker.launchCameraAsync({
+        allowsEditing: false,
+        quality: 1,
+        exif: false,
+      });
+
+      // If Android killed the app, result may come via getPendingResultAsync on resume
+      if (!res) return;
+
+      if (!res.canceled && res.assets?.[0]) {
+        const file = await processPickedAsset(res.assets[0]);
+        if (file) setImage(file);
+      }
+    } catch (e) {
+      console.log('Camera capture error:', e);
+      const msg = e?.response?.data ? JSON.stringify(e.response.data) : (e?.message || 'Failed to capture image.');
+      Alert.alert('Error', msg);
+    }
+  };
+
+  /* ---------- Validation & Submit ---------- */
+  const validate = () => {
+    if (!ccrNo || !callReportId) return 'Please select a CCR (case id).';
+    if (!requestId?.trim()) return 'Request ID is required (auto-filled from Serial Number).';
+    if (!project) return 'Please select a Project.';
+    if (!startTime) return 'Please select Start Time.';
+    if (!arrivedTime) return 'Please select Arrived Time.';
+    if (!mode) return 'Please select Mode.';
+    if (!fromLocation) return 'Please select From Location.';
+    if (!toLocation) return 'Please select To Location.';
+    if (!distanceKm || isNaN(parseFloat(distanceKm))) return 'Please enter a valid Distance (km).';
+    if (!image?.uri) return 'Please attach an Image.';
+    return null;
+  };
+
+ const handleSubmit = async () => {
+  const err = validate();
+  if (err) {
+    Alert.alert('Missing/Invalid Data', err);
+    return;
+  }
+  try {
+    setSubmitting(true);
+    await new Promise((r) => setTimeout(r, 100));
+
+    const userId = await AsyncStorage.getItem('user_id');
+
+    // ✅ Send nested params
+    const fd = new FormData();
+    fd.append('tour_conveyance[request_id]', requestId.trim());
+    fd.append('tour_conveyance[ccr_no]', String(ccrNo));
+    fd.append('tour_conveyance[project]', project);
+    fd.append('tour_conveyance[start_time]', startTime.toISOString());
+    fd.append('tour_conveyance[arrived_time]', arrivedTime.toISOString());
+    fd.append('tour_conveyance[mode]', mode);
+    fd.append('tour_conveyance[from_location]', fromLocation);
+    fd.append('tour_conveyance[to_location]', toLocation);
+    fd.append('tour_conveyance[distance_km]', String(parseFloat(distanceKm)));
+    fd.append('tour_conveyance[call_report_id]', String(callReportId));
+    if (userId) fd.append('tour_conveyance[engineer_id]', String(userId));
+    fd.append('tour_conveyance[image]', {
+      uri: image.uri,
+      name: image.name,
+      type: image.type,
+    });
+
+    console.log('Submitting to:', api?.defaults?.baseURL, '/tour_conveyances');
+
+    // 🚫 Do NOT set Content-Type manually
+    //const res = await api.post('/tour_conveyances', fd);
+
+    const res =  await api.post('/tour_conveyances', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 60000,
       });
 
-      Alert.alert('Success', 'Entry added successfully');
-      resetForm();
-      navigation.goBack();
-    } catch (err) {
-      console.log('Submit Error:', err?.response?.data || err.message);
-      if (err?.response?.status === 422 && err.response?.data?.errors) {
-        const msgs = Array.isArray(err.response.data.errors)
-          ? err.response.data.errors.join('\n')
-          : String(err.response.data.errors);
-        Alert.alert('Validation Error', msgs);
-      } else {
-        Alert.alert('Error', String(err?.response?.data?.error || 'Something went wrong. Please try again.'));
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+
+
+
+    Alert.alert('Success', 'Entry saved successfully.');
+    clearForm();
+          navigation.goBack();
+
+    //if (typeof onSuccess === 'function') onSuccess();
+  } catch (e) {
+    const status  = e?.response?.status;
+    const data    = e?.response?.data;
+    const url     = e?.config?.baseURL ? `${e.config.baseURL}${e.config.url}` : e?.config?.url;
+    const method  = e?.config?.method;
+    const msg     = e?.message;
+
+    console.log('Submit error detail =>', { status, url, method, data, msg });
+
+    let alertMsg = '';
+    if (status) alertMsg += `HTTP ${status}\n`;
+    if (url) alertMsg += `${method?.toUpperCase() || 'REQUEST'} ${url}\n`;
+    if (data) alertMsg += `${typeof data === 'string' ? data : JSON.stringify(data)}`;
+    if (!alertMsg) alertMsg = msg || 'Unknown network failure';
+    Alert.alert('Network Error', alertMsg);
+  } finally {
+    setSubmitting(false);
+  }
+};
+
+  const clearForm = () => {
+    setRequestId('');
+    setCcrNo('');
+    setCallReportId(null);
+    setProject('');
+    setStartTime(null);
+    setArrivedTime(null);
+    setMode('');
+    setFromLocation('');
+    setToLocation('');
+    setDistanceKm('');
+    setImage(null);
   };
 
+  /* ---------- CCR pick side-effect ---------- */
+  const handlePickCCR = (item) => {
+    setCcrNo(String(item.case_id || ''));
+    setCallReportId(item.id || null);
+    const sn = item.serial_number || '';
+    setRequestId(sn ? String(sn) : '');
+  };
+
+  if (loadingLists) {
+    return (
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator />
+        <Text style={{ marginTop: 8, color: '#475569' }}>Loading form…</Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={[S.screen, S.screenPadTop]}>
-      <KeyboardAvoidingView
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: '#f7f9fc' }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={insets.top + 8}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
-        <ScrollView
-          style={{ flex: 1, backgroundColor: colors.bg }}
-          contentContainerStyle={[S.formContent, { paddingBottom: footerH + 8 }]}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          contentInsetAdjustmentBehavior="automatic"
-          overScrollMode="always"
-          stickyHeaderIndices={[0]}
-        >
-          {/* Sticky header */}
-          <View style={S.titleRow}>
-            <View style={S.titleIconWrap}>
-              <Ionicons name="receipt-outline" size={18} color={colors.primary} />
-            </View>
-            <Text style={[S.title, { color: colors.text }]}>Add Local Conveyance</Text>
-          </View>
+        <Text style={styles.title}>Add Local Conveyance</Text>
 
-          {/* Fields card */}
-          <View style={S.card}>
-            <FieldLabel icon="pricetag-outline" text="Request ID / SO No." colors={colors} />
-            <LabeledInput
-              icon="pricetag-outline"
-              fieldKey="request_id"
-              value={formData.request_id}
-              onChangeText={(v) => setFormData({ ...formData, request_id: v })}
-              placeholder="Enter Request No"
-              autoCapitalize="characters"
-              focusedKey={focusedKey}
-              setFocusedKey={setFocusedKey}
-              colors={colors}
-            />
+        {/* CCR (Case ID) */}
+        <Label>CCR No (Case ID)</Label>
+        <FieldButton
+          value={ccrNo}
+          placeholder="Select Case ID"
+          onPress={() => setShowCcr(true)}
+        />
 
-            <FieldLabel icon="document-text-outline" text="CCR NO" colors={colors} />
-            <DropdownButton
-              label="CCR NO"
-              value={formData.ccr_no || ''}
-              onPress={() => openDropdown('ccr_no')}
-              colors={colors}
-            />
+        {/* Request ID (auto from serial_number) */}
+        <Label>Request ID / SO No.</Label>
+        <Input
+          value={requestId}
+          onChangeText={setRequestId}
+          placeholder="Auto-filled from Serial Number"
+          autoCapitalize="characters"
+          returnKeyType="next"
+        />
 
-            <FieldLabel icon="briefcase-outline" text="PROJECT" colors={colors} />
-            <DropdownButton
-              label="PROJECT"
-              value={formData.project || (defaultValues.project || '')}
-              onPress={() => openDropdown('project')}
-              colors={colors}
-            />
+        {/* Project */}
+        <Label>Project</Label>
+        <FieldButton
+          value={project}
+          placeholder="Select Project"
+          onPress={() => setShowProject(true)}
+        />
 
-            <DateTimeField
-              label="Start Time"
-              value={formData.start_time}
-              onChange={(v) => setFormData({ ...formData, start_time: v })}
-              colors={colors}
-            />
+        {/* Start Time */}
+        <Label>Start Time (12-hr)</Label>
+        <FieldButton
+          value={startTimeLabel}
+          placeholder="Select Start Date & Time"
+          onPress={openStartPicker}
+        />
 
-            <DateTimeField
-              label="Arrived Time"
-              value={formData.arrived_time}
-              onChange={(v) => setFormData({ ...formData, arrived_time: v })}
-              colors={colors}
-            />
+        {/* Arrived Time */}
+        <Label>Arrived Time (12-hr)</Label>
+        <FieldButton
+          value={arrivedTimeLabel}
+          placeholder="Select Arrived Date & Time"
+          onPress={openArrivePicker}
+        />
 
-            <FieldLabel icon="car-outline" text="MODE" colors={colors} />
-            <DropdownButton
-              label="MODE"
-              value={formData.mode || (defaultValues.mode || '')}
-              onPress={() => openDropdown('mode')}
-              colors={colors}
-            />
+        {/* Mode */}
+        <Label>Mode</Label>
+        <FieldButton
+          value={mode}
+          placeholder="Select Mode"
+          onPress={() => setShowMode(true)}
+        />
 
-            <FieldLabel icon="location-outline" text="FROM LOCATION" colors={colors} />
-            <DropdownButton
-              label="FROM LOCATION"
-              value={formData.from_location || (defaultValues.from_location || '')}
-              onPress={() => openDropdown('from_location')}
-              colors={colors}
-            />
+        {/* From Location */}
+        <Label>From Location</Label>
+        <FieldButton
+          value={fromLocation}
+          placeholder="Select From City"
+          onPress={() => setShowFromCity(true)}
+        />
 
-            <FieldLabel icon="flag-outline" text="TO LOCATION" colors={colors} />
-            <DropdownButton
-              label="TO LOCATION"
-              value={formData.to_location || (defaultValues.to_location || '')}
-              onPress={() => openDropdown('to_location')}
-              colors={colors}
-            />
+        {/* To Location */}
+        <Label>To Location</Label>
+        <FieldButton
+          value={toLocation}
+          placeholder="Select To City"
+          onPress={() => setShowToCity(true)}
+        />
 
-            <FieldLabel icon="map-outline" text="Distance (km)" colors={colors} />
-            <LabeledInput
-              icon="map-outline"
-              fieldKey="distance_km"
-              value={formData.distance_km}
-              onChangeText={(v) => setFormData({ ...formData, distance_km: v })}
-              placeholder="e.g. 12.5"
-              keyboardType="numeric"
-              focusedKey={focusedKey}
-              setFocusedKey={setFocusedKey}
-              colors={colors}
-            />
-          </View>
+        {/* Distance KM */}
+        <Label>Distance (km)</Label>
+        <Input
+          value={distanceKm}
+          onChangeText={setDistanceKm}
+          placeholder="e.g., 12.5"
+          keyboardType="decimal-pad"
+          returnKeyType="done"
+        />
 
-          {/* Media card */}
-          <View style={S.card}>
-            <View style={S.row}>
-              <Pressable
-                onPress={pickImage}
-                style={({ pressed }) => [
-                  S.actionBtn,
-                  { borderColor: colors.border, backgroundColor: pressed ? '#eef4ff' : colors.card },
-                ]}
-                android_ripple={{ color: '#e6eefc' }}
-              >
-                <Ionicons name="images-outline" size={18} color={colors.primary} style={{ marginRight: 8 }} />
-                <Text style={[S.actionText, { color: colors.text }]} numberOfLines={1}>Gallery</Text>
-              </Pressable>
+        {/* Image */}
+        <Label>Image (max 300 MB)</Label>
+        <View style={styles.row}>
+          <SecondaryButton title="Gallery" onPress={pickFromLibrary} />
+          <View style={{ width: 12 }} />
+          <SecondaryButton title="Camera" onPress={captureFromCamera} />
+        </View>
 
-              <View style={{ width: 10 }} />
-
-              <Pressable
-                onPress={captureImage}
-                style={({ pressed }) => [
-                  S.actionBtn,
-                  { borderColor: colors.border, backgroundColor: pressed ? '#fff1f2' : colors.card },
-                ]}
-                android_ripple={{ color: '#fde2e2' }}
-              >
-                <Ionicons name="camera-outline" size={18} color="#e11d48" style={{ marginRight: 8 }} />
-                <Text style={[S.actionText, { color: colors.text }]} numberOfLines={1}>Camera</Text>
-              </Pressable>
-            </View>
-
-            {selectedImage ? (
-              <View style={S.previewWrap}>
-                <Image source={{ uri: selectedImage.uri }} style={S.previewImg} resizeMode="cover" />
+        {/* 🔎 Tiny image preview + remove/replace */}
+        {image?.uri ? (
+          <View style={styles.previewRow}>
+            <TouchableOpacity
+              onPress={() => setImage(null)}
+              activeOpacity={0.85}
+              style={styles.previewWrap}
+            >
+              <Image source={{ uri: image.uri }} style={styles.preview} />
+            </TouchableOpacity>
+            <View style={{ width: 10 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.note} numberOfLines={2}>Selected: {image.name}</Text>
+              <View style={{ height: 8 }} />
+              <View style={{ flexDirection: 'row' }}>
+                <SecondaryButton title="Replace" onPress={pickFromLibrary} />
+                <View style={{ width: 8 }} />
+                <SecondaryButton title="Remove" onPress={() => setImage(null)} />
               </View>
-            ) : null}
+            </View>
           </View>
+        ) : (
+          <Text style={styles.note}>No image selected.</Text>
+        )}
 
-          {/* Dropdown modal */}
-          <ModalDropdown
-            visible={!!activeDropdown && FIELDS.find((f) => f.key === activeDropdown)?.type === 'dropdown'}
-            title={FIELDS.find((f) => f.key === activeDropdown)?.label}
-            options={buildOptions(activeDropdown)}
-            selectedValue={formData[activeDropdown] ?? null}
-            defaultValue={defaultValues[activeDropdown] ?? null}
-            onSelect={(item) => handleSelect(activeDropdown, item)}
-            onClose={closeDropdown}
-            searchEnabled={activeDropdown === 'to_location'}
-            searchValue={activeDropdown === 'to_location' ? dropdownSearch : ''}
-            onSearchChange={setDropdownSearch}
-            searchPlaceholder="Search area"
-            allowFreeText={activeDropdown === 'to_location'}
-          />
-        </ScrollView>
+        <View style={{ height: 16 }} />
 
-        {/* Sticky footer in SafeAreaView so it's above nav bar */}
-        <SafeAreaView
-          edges={['bottom']}
-          style={[S.actionBar, styles.footerBar, { paddingBottom: Math.max(insets.bottom, 12) }]}
-          onLayout={(e) => setFooterH(e.nativeEvent.layout.height)}
-        >
-          <View style={S.bottomBar}>
-            <Pressable
-              onPress={handleSubmit}
-              disabled={isSubmitting}
-              style={({ pressed }) => [
-                S.ctaBtn,
-                { backgroundColor: colors.primary, opacity: isSubmitting ? 0.6 : pressed ? 0.95 : 1, marginRight: 10 },
-              ]}
-              android_ripple={{ color: '#c7d7fe' }}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="checkmark-circle" size={18} color="#fff" style={{ marginRight: 8 }} />
-                  <Text style={[S.ctaText, { color: '#fff' }]}>Submit</Text>
-                </>
-              )}
-            </Pressable>
+        <PrimaryButton title="Submit" onPress={handleSubmit} loading={submitting} />
+        <View style={{ height: 10 }} />
+        <SecondaryButton title="Clear Form" onPress={clearForm} />
 
-            <Pressable
-              onPress={() => navigation.goBack()}
-              style={({ pressed }) => [
-                S.cancelBtn,
-                { borderColor: colors.border, backgroundColor: pressed ? '#f3f4f6' : 'transparent' },
-              ]}
-              android_ripple={{ color: '#e5e7eb' }}
-            >
-              <Ionicons name="close-circle-outline" size={18} color={colors.danger} style={{ marginRight: 8 }} />
-              <Text style={[S.cancelText, { color: colors.danger }]}>Cancel</Text>
-            </Pressable>
-          </View>
-        </SafeAreaView>
-      </KeyboardAvoidingView>
-    </View>
+        <View style={{ height: 32 }} />
+      </ScrollView>
+
+      {/* Date/Time pickers */}
+      {showStartDate && (
+        <DateTimePicker
+          value={startTime || new Date()}
+          mode="date"
+          display="default"
+          onChange={handleStartDateChange}
+        />
+      )}
+      {showStartTime && (
+        <DateTimePicker
+          value={startTime || new Date()}
+          mode="time"
+          is24Hour={false}
+          display="default"
+          onChange={handleStartTimeChange}
+        />
+      )}
+      {showArriveDate && (
+        <DateTimePicker
+          value={arrivedTime || new Date()}
+          mode="date"
+          display="default"
+          onChange={handleArriveDateChange}
+        />
+      )}
+      {showArriveTime && (
+        <DateTimePicker
+          value={arrivedTime || new Date()}
+          mode="time"
+          is24Hour={false}
+          display="default"
+          onChange={handleArriveTimeChange}
+        />
+      )}
+
+      {/* Dropdown modals */}
+      <SimpleDropdown
+        visible={showCcr}
+        onClose={() => setShowCcr(false)}
+        title="Select Case ID (CCR)"
+        options={ccrList}
+        keyExtractor={(it) => String(it.id)}
+        renderLabel={(it) => {
+          const name =
+            it?.customer_detail?.name ||
+            it?.customer_detail?.customer_name ||
+            'Customer';
+          return `${it.case_id || '-'}  •  ${name}`;
+        }}
+        onSelect={handlePickCCR}
+      />
+      <SimpleDropdown
+        visible={showProject}
+        onClose={() => setShowProject(false)}
+        title="Select Project"
+        options={projectList}
+        renderLabel={(v) => String(v)}
+        onSelect={(v) => setProject(String(v))}
+      />
+      <SimpleDropdown
+        visible={showMode}
+        onClose={() => setShowMode(false)}
+        title="Select Mode"
+        options={modeList}
+        renderLabel={(v) => String(v)}
+        onSelect={(v) => setMode(String(v))}
+      />
+      <SimpleDropdown
+        visible={showFromCity}
+        onClose={() => setShowFromCity(false)}
+        title="Select From City"
+        options={cityList}
+        renderLabel={(v) => String(v)}
+        onSelect={(v) => setFromLocation(String(v))}
+      />
+      <SimpleDropdown
+        visible={showToCity}
+        onClose={() => setShowToCity(false)}
+        title="Select To City"
+        options={cityList}
+        renderLabel={(v) => String(v)}
+        onSelect={(v) => setToLocation(String(v))}
+      />
+    </KeyboardAvoidingView>
   );
 }
 
-/* ----------------------- Local styles ----------------------- */
+/* ----------------------- Styles (uniform sizes) ----------------------- */
 
 const styles = StyleSheet.create({
-  footerBar: {
-    zIndex: 50,
-    ...Platform.select({ android: { elevation: 8 } }),
+  container: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 12,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  input: {
+    height: 48,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+  },
+  inputText: {
+    fontSize: 16,
+    color: '#0f172a',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  btnPrimary: {
+    height: 48,
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnPrimaryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  btnSecondary: {
+    height: 48,
+    backgroundColor: '#eef2ff',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  btnSecondaryText: {
+    color: '#1d4ed8',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  note: {
+    color: '#64748b',
+    fontSize: 12,
+    marginTop: 6,
+  },
+  loadingWrap: {
+    flex: 1,
+    backgroundColor: '#f7f9fc',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  /* Modal dropdown */
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  modalCard: {
+    width: '100%',
+    maxHeight: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 12,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  modalItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  modalItemText: {
+    fontSize: 16,
+    color: '#0f172a',
+  },
+  modalDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#e2e8f0',
+  },
+  /* 🔎 preview */
+  previewRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  previewWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#fff',
+  },
+  preview: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
 });
-
-/* ----------------------- Dropdown Button (local) ----------------------- */
-
-function DropdownButton({ label, value, onPress, colors }) {
-  return (
-    <View style={{ marginBottom: 12 }}>
-      <View style={[S.inputWrap, { backgroundColor: 'white', borderColor: '#e5e7eb' }]}>
-        <MaterialCommunityIcons name="form-select" size={18} color={colors.subtext} style={S.leftIcon} />
-        <Pressable onPress={onPress} style={{ flex: 1, paddingVertical: 2 }}>
-          <Text style={{ color: value ? colors.text : colors.subtext, fontSize: 15 }} numberOfLines={1}>
-            {value || `Select ${label.toLowerCase()}`}
-          </Text>
-        </Pressable>
-        <Ionicons name="chevron-down" size={18} color={colors.subtext} />
-      </View>
-    </View>
-  );
-}
 
