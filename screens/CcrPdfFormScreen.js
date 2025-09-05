@@ -399,23 +399,37 @@ export default function CcrPdfFormScreen({ route }) {
           <Text style={styles.label}>Action Taken</Text>
 
           {/* Preset dropdown */}
-          <View style={styles.pickerWrap}>
-            <Picker
-              selectedValue={actionTakenPreset}
-              onValueChange={(v) => setActionTakenPreset(v)}
-              prompt="Select Action Taken"
-              mode="dropdown"
-              style={styles.picker}
-              itemStyle={styles.pickerItem}
-              dropdownIconColor="#0f172a"
-            >
-              <Picker.Item label="Select (optional)" value="" color="#64748b" />
-              <Picker.Item label="Ram has been replaced" value="Ram has been replaced" />
-              <Picker.Item label="Motherboard has been replaced" value="Motherboard has been replaced" />
-              <Picker.Item label="Processor has been replaced" value="Processor has been replaced" />
-              <Picker.Item label="Hard Disk/SSD has been replaced" value="Hard Disk/SSD has been replaced" />
-            </Picker>
-          </View>
+{/* Preset dropdown */}
+<View
+  style={{
+    height: 48,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    overflow: 'hidden',
+    justifyContent: 'center',
+  }}
+>
+  <Picker
+    selectedValue={actionTakenPreset}
+    onValueChange={(v) => setActionTakenPreset(v)}
+    prompt="Select Action Taken"
+    mode="dropdown"
+    style={[
+      { width: '100%', height: 58, color: '#0f172a' },                 // selected value color
+      Platform.OS === 'android' ? { paddingHorizontal: 8 } : { marginLeft: -6 } // platform tweaks
+    ]}
+    itemStyle={{ color: '#0f172a', fontSize: 16 }}                      // iOS item text
+    dropdownIconColor="#0f172a"
+  >
+    <Picker.Item label="Select (optional)" value="" color="#64748b" />
+    <Picker.Item label="Ram has been replaced" value="Ram has been replaced" color="#0f172a" />
+    <Picker.Item label="Motherboard has been replaced" value="Motherboard has been replaced" color="#0f172a" />
+    <Picker.Item label="Processor has been replaced" value="Processor has been replaced" color="#0f172a" />
+    <Picker.Item label="Hard Disk/SSD has been replaced" value="Hard Disk/SSD has been replaced" color="#0f172a" />
+  </Picker>
+</View>
 
           {actionTakenPreset ? (
             <TouchableOpacity onPress={() => setActionTakenPreset('')} style={{ alignSelf: 'flex-start', marginTop: 6 }}>
