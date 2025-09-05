@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, ActivityIndicator, Alert,
-  ScrollView, Platform, TouchableOpacity,
+  ScrollView, Platform, TouchableOpacity, StyleSheet,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as FileSystem from 'expo-file-system';
@@ -10,10 +10,7 @@ import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api } from '../utils/api'; // ✅ use shared client (token auto-added)
-import S from '../styles/AppStyles';   // ← created once & cached
-
-// NOTE: removed API_URL and axios
+import { api } from '../utils/api'; // token auto-added
 
 export default function CcrPdfFormScreen({ route }) {
   const insets = useSafeAreaInsets();
@@ -25,6 +22,7 @@ export default function CcrPdfFormScreen({ route }) {
   const [report, setReport] = useState(incomingReport);
   const [actionTakenPreset, setActionTakenPreset] = useState('');
   const [engineerName, setEngineerName] = useState('');
+
   // Form fields (text)
   const [caseId, setCaseId] = useState(incomingReport?.case_id || '');
   const [problemReported, setProblemReported] = useState('');
@@ -50,8 +48,11 @@ export default function CcrPdfFormScreen({ route }) {
     (async () => {
       if (incomingReport) preset(incomingReport);
       try {
-        const n = await AsyncStorage.getItem('user_name');
-        if (n) setEngineerName(n);
+        const first = (await AsyncStorage.getItem('first_name')) || '';
+        const last  = (await AsyncStorage.getItem('last_name')) || '';
+        const user  = (await AsyncStorage.getItem('user_name')) || '';
+        const full  = `${first} ${last}`.trim();
+        setEngineerName(full || user || '');
       } catch {}
       setLoading(false);
     })();
@@ -76,7 +77,6 @@ export default function CcrPdfFormScreen({ route }) {
   };
   const onAndroidDateChange = (event, selected) => {
     const { field } = androidPicker;
-    setAndroidPicker((s) => ({ ...s, step: null }));
     if (event.type === 'dismissed' || !selected) { setAndroidPicker({ field: null, step: null }); return; }
     const base = new Date(getFieldDate(field));
     base.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
@@ -131,23 +131,19 @@ export default function CcrPdfFormScreen({ route }) {
         engineer_name: engineerName,
       };
 
-      // ✅ token auto-attached by api
       const resp = await api.post(`/call_reports/${idForUrl}/generate_pdf`, payload);
-
       const pdfUrl = resp?.data?.pdf_url;
       if (!pdfUrl) return Alert.alert('Error', 'Backend did not return a pdf_url.');
 
       const filename = `CCR_${caseId || idForUrl}.pdf`;
       const localUri = FileSystem.documentDirectory + filename;
 
-      // 🔐 Add Authorization header to download in case the URL is protected
       const token = await AsyncStorage.getItem('api_token');
       const downloadOpts = token ? { headers: { Authorization: `Token token=${token}` } } : undefined;
 
       const dl = await FileSystem.downloadAsync(pdfUrl, localUri, downloadOpts);
       if (dl.status !== 200) return Alert.alert('Download Failed', `HTTP ${dl.status}`);
 
-      // ANDROID: save to previously chosen folder without re-prompting
       if (Platform.OS === 'android') {
         try {
           let dirUri = await AsyncStorage.getItem(SAF_DIR_KEY);
@@ -162,7 +158,7 @@ export default function CcrPdfFormScreen({ route }) {
               Alert.alert('Saved', 'PDF saved to your chosen folder.');
               return;
             } catch (e) {
-              console.log('Write to persisted folder failed, will re-prompt once:', e);
+              console.log('Persisted folder write failed, reprompting…', e);
               await AsyncStorage.removeItem(SAF_DIR_KEY);
               dirUri = null;
             }
@@ -204,7 +200,7 @@ export default function CcrPdfFormScreen({ route }) {
 
   if (loading) {
     return (
-      <View style={S.center}>
+      <View style={styles.center}>
         <ActivityIndicator />
         <Text style={{ marginTop: 8 }}>Loading…</Text>
       </View>
@@ -216,96 +212,93 @@ export default function CcrPdfFormScreen({ route }) {
   return (
     <>
       {/* Top header */}
-      <View style={[S.header, { paddingTop: insets.top + 8 }]}>
-        <Text style={S.h1}>Call Completion Report</Text>
-        <Text style={S.sub}>Generate and download PDF</Text>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <Text style={styles.h1}>Call Completion Report</Text>
+        <Text style={styles.sub}>Generate and download PDF</Text>
       </View>
 
       <ScrollView
-        style={S.flex}
-        contentContainerStyle={[
-          S.content,
-          { paddingBottom: insets.bottom + 96 }
-        ]}
+        style={styles.flex}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 96 }]}
         keyboardShouldPersistTaps="handled"
       >
         {/* Hidden Case ID input (kept for binding) */}
-        <Text style={S.srOnly}>Case ID *</Text>
-        <TextInput style={S.srOnly} value={caseId} onChangeText={setCaseId} />
+        <Text style={styles.srOnly}>Case ID *</Text>
+        <TextInput style={styles.srOnly} value={caseId} onChangeText={setCaseId} />
 
         {/* Case details */}
-        <View style={S.card}>
-          <Text style={S.cardTitle}>Case Details</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Case Details</Text>
 
-          <View style={S.kvRow}>
-            <Text style={S.kvK}>Case ID</Text>
-            <Text style={S.kvV}>{report?.case_id || report?.id || '-'}</Text>
+          <View style={styles.kvRow}>
+            <Text style={styles.kvK}>Case ID</Text>
+            <Text style={styles.kvV}>{report?.case_id || report?.id || '-'}</Text>
           </View>
 
           {report?.serial_number ? (
-            <View style={S.kvRow}>
-              <Text style={S.kvK}>Serial #</Text>
-              <Text style={S.kvV}>{report.serial_number}</Text>
+            <View style={styles.kvRow}>
+              <Text style={styles.kvK}>Serial #</Text>
+              <Text style={styles.kvV}>{report.serial_number}</Text>
             </View>
           ) : null}
 
           {cd?.customer_name ? (
-            <View style={S.kvRow}>
-              <Text style={S.kvK}>Customer</Text>
-              <Text style={S.kvV}>{cd.customer_name}</Text>
+            <View style={styles.kvRow}>
+              <Text style={styles.kvK}>Customer</Text>
+              <Text style={styles.kvV}>{cd.customer_name}</Text>
             </View>
           ) : null}
 
           {(cd?.mobile_number || cd?.phone_number) ? (
-            <View style={S.kvRow}>
-              <Text style={S.kvK}>Phone</Text>
-              <Text style={S.kvV}>{cd?.mobile_number || cd?.phone_number}</Text>
+            <View style={styles.kvRow}>
+              <Text style={styles.kvK}>Phone</Text>
+              <Text style={styles.kvV}>{cd?.mobile_number || cd?.phone_number}</Text>
             </View>
           ) : null}
 
           {(report?.address || cd?.address) ? (
-            <View style={S.kvRow}>
-              <Text style={S.kvK}>Address</Text>
-              <Text style={S.kvV}>
+            <View style={styles.kvRow}>
+              <Text style={styles.kvK}>Address</Text>
+              <Text style={styles.kvV}>
                 {report?.address || cd?.address}{cd?.city ? `, ${cd.city}` : ''}
               </Text>
             </View>
           ) : null}
 
-          <View style={S.kvRow}>
-            <Text style={S.kvK}>Engineer</Text>
-            <Text style={S.kvV}>{engineerName || '-'}</Text>
+          <View style={styles.kvRow}>
+            <Text style={styles.kvK}>Engineer</Text>
+            <Text style={styles.kvV}>{engineerName || '-'}</Text>
           </View>
         </View>
 
         {/* Form */}
-        <View style={S.card}>
-          <Text style={S.cardTitle}>Fill for PDF</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Fill for PDF</Text>
 
-          <Text style={S.label}>Problem Reported</Text>
+          <Text style={styles.label}>Problem Reported</Text>
           <TextInput
-            style={S.input}
+            style={styles.input}
             placeholder="Describe the problem"
             value={problemReported}
             onChangeText={setProblemReported}
             multiline
           />
 
-          <View style={S.divider} />
+          <View style={styles.divider} />
 
-          <Text style={S.label}>Call Log Time</Text>
-          <TouchableOpacity style={S.chip} onPress={() => openPicker('call')}>
-            <Text style={S.chipText}>{formatDateTime(callLogTime)}</Text>
+          <Text style={styles.label}>Call Log Time</Text>
+          <TouchableOpacity style={styles.chip} onPress={() => openPicker('call')}>
+            <Text style={styles.chipText}>{formatDateTime(callLogTime)}</Text>
           </TouchableOpacity>
 
-          <Text style={[S.label, { marginTop: 12 }]}>Arrival Time</Text>
-          <TouchableOpacity style={S.chip} onPress={() => openPicker('arrival')}>
-            <Text style={S.chipText}>{formatDateTime(arrivalTime)}</Text>
+          <Text style={[styles.label, { marginTop: 12 }]}>Arrival Time</Text>
+          <TouchableOpacity style={styles.chip} onPress={() => openPicker('arrival')}>
+            <Text style={styles.chipText}>{formatDateTime(arrivalTime)}</Text>
           </TouchableOpacity>
 
-          <Text style={[S.label, { marginTop: 12 }]}>Closure Time</Text>
-          <TouchableOpacity style={S.chip} onPress={() => openPicker('closure')}>
-            <Text style={S.chipText}>{formatDateTime(closureTime)}</Text>
+          <Text style={[styles.label, { marginTop: 12 }]}>Closure Time</Text>
+          <TouchableOpacity style={styles.chip} onPress={() => openPicker('closure')}>
+            <Text style={styles.chipText}>{formatDateTime(closureTime)}</Text>
           </TouchableOpacity>
 
           {/* iOS picker */}
@@ -336,62 +329,62 @@ export default function CcrPdfFormScreen({ route }) {
             />
           )}
 
-          <View style={S.divider} />
+          <View style={styles.divider} />
 
-          <Text style={S.label}>Condition of Machine</Text>
+          <Text style={styles.label}>Condition of Machine</Text>
           <TextInput
-            style={S.input}
+            style={styles.input}
             placeholder="Condition of machine"
             value={conditionOfMachine}
             onChangeText={setConditionOfMachine}
             multiline
           />
 
-          <Text style={S.label}>Defective Part Description</Text>
+          <Text style={styles.label}>Defective Part Description</Text>
           <TextInput
-            style={S.input}
+            style={styles.input}
             placeholder="Defective part details"
             value={defectivePartDescription}
             onChangeText={setDefectivePartDescription}
             multiline
           />
 
-          <Text style={S.label}>Part Number</Text>
+          <Text style={styles.label}>Part Number</Text>
           <TextInput
-            style={S.input}
+            style={styles.input}
             placeholder="Part number"
             value={partNumber}
             onChangeText={setPartNumber}
           />
 
-          <Text style={S.label}>Replace Part Description</Text>
+          <Text style={styles.label}>Replace Part Description</Text>
           <TextInput
-            style={S.input}
+            style={styles.input}
             placeholder="Replacement part details"
             value={replacePartDescription}
             onChangeText={setReplacePartDescription}
             multiline
           />
 
-          <Text style={S.label}>Replace Part Number</Text>
+          <Text style={styles.label}>Replace Part Number</Text>
           <TextInput
-            style={S.input}
+            style={styles.input}
             placeholder="Replacement part number"
             value={replacePartNumber}
             onChangeText={setReplacePartNumber}
           />
 
-          <Text style={S.label}>Action Taken</Text>
+          <Text style={styles.label}>Action Taken</Text>
 
           {/* Preset dropdown */}
-          <View style={S.pickerWrap}>
+          <View style={styles.pickerWrap}>
             <Picker
               selectedValue={actionTakenPreset}
               onValueChange={(v) => setActionTakenPreset(v)}
               prompt="Select Action Taken"
               mode="dropdown"
-              style={S.picker}
-              itemStyle={S.pickerItem}
+              style={styles.picker}
+              itemStyle={styles.pickerItem}
               dropdownIconColor="#0f172a"
             >
               <Picker.Item label="Select (optional)" value="" color="#64748b" />
@@ -409,9 +402,9 @@ export default function CcrPdfFormScreen({ route }) {
           ) : null}
 
           {/* Custom text fallback */}
-          <Text style={[S.label, { marginTop: 10 }]}>Or type a custom action</Text>
+          <Text style={[styles.label, { marginTop: 10 }]}>Or type a custom action</Text>
           <TextInput
-            style={[S.input, actionTakenPreset ? { opacity: 0.6 } : null]}
+            style={[styles.input, actionTakenPreset ? { opacity: 0.6 } : null]}
             placeholder="Action taken (custom)"
             value={actionTaken}
             onChangeText={setActionTaken}
@@ -419,9 +412,9 @@ export default function CcrPdfFormScreen({ route }) {
             multiline
           />
 
-          <Text style={S.label}>Customer Signature (text)</Text>
+          <Text style={styles.label}>Customer Signature (text)</Text>
           <TextInput
-            style={S.input}
+            style={styles.input}
             placeholder="Enter customer signature text"
             value={customerSignature}
             onChangeText={setCustomerSignature}
@@ -431,13 +424,13 @@ export default function CcrPdfFormScreen({ route }) {
       </ScrollView>
 
       {/* Sticky bottom action bar */}
-      <View style={[S.actionBar, { paddingBottom: Math.max(12, insets.bottom + 8) }]}>
+      <View style={[styles.actionBar, { paddingBottom: Math.max(12, insets.bottom + 8) }]}>
         <TouchableOpacity
-          style={[S.primaryBtn, submitting && S.btnDisabled]}
+          style={[styles.primaryBtn, submitting && styles.btnDisabled]}
           onPress={onSubmit}
           disabled={submitting}
         >
-          <Text style={S.primaryBtnText}>
+          <Text style={styles.primaryBtnText}>
             {submitting ? 'Submitting…' : 'Submit & Download PDF'}
           </Text>
         </TouchableOpacity>
@@ -445,4 +438,128 @@ export default function CcrPdfFormScreen({ route }) {
     </>
   );
 }
+
+/* ----------------------- Styles ----------------------- */
+const styles = StyleSheet.create({
+  /* Layout & containers */
+  flex: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  header: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    backgroundColor: '#f7f9fc',
+  },
+  h1: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
+  sub: { marginTop: 4, fontSize: 12, color: '#64748b' },
+
+  content: { backgroundColor: '#f7f9fc', paddingHorizontal: 16, paddingTop: 8 },
+
+  /* Cards */
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#eef2f7',
+  },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 8 },
+
+  /* Key/Value rows */
+  kvRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  kvK: { fontSize: 12, color: '#475569', fontWeight: '700' },
+  kvV: {
+    fontSize: 14, color: '#0f172a', fontWeight: '600',
+    marginLeft: 12, flexShrink: 1, textAlign: 'right'
+  },
+
+  /* Forms */
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  input: {
+    height: 48,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+  },
+
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#e2e8f0',
+    marginVertical: 12,
+  },
+
+  /* “Chip” button for date/time fields */
+  chip: {
+    height: 48,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+  },
+  chipText: { fontSize: 16, color: '#0f172a' },
+
+  /* Picker wrapper */
+  pickerWrap: {
+    height: 48,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    overflow: 'hidden',
+    justifyContent: 'center',
+  },
+  picker: { width: '100%', height: 58 },
+  pickerItem: {},
+
+  /* Sticky bottom bar */
+  actionBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    backgroundColor: '#f7f9fc',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#e2e8f0',
+  },
+  primaryBtn: {
+    height: 48,
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  btnDisabled: { opacity: 0.6 },
+
+  /* Utilities */
+  srOnly: {
+    position: 'absolute',
+    left: -10000,
+    width: 1,
+    height: 1,
+    opacity: 0,
+  },
+});
 
