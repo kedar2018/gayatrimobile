@@ -146,23 +146,39 @@ export default function LeaveScreen() {
       {/* Form */}
       <View style={S.form}>
         <Text style={S.label}>Leave Type</Text>
-        <View style={S.pickerWrap}>
-          <Picker
-            selectedValue={leaveType}
-            onValueChange={(v) => setLeaveType(v)}
-            enabled={!loadingLT && leaveTypes.length > 0}
-            dropdownIconColor="#111"
-          >
-            <Picker.Item
-              label={loadingLT ? 'Loading…' : (leaveTypes.length ? 'Select leave type' : 'No types available')}
-              value=""
-              color="#64748b"
-            />
-            {leaveTypes.map((t) => (
-              <Picker.Item key={t.value} label={t.label} value={t.value} />
-            ))}
-          </Picker>
-        </View>
+
+<View
+  style={{
+    height: 48,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    overflow: 'hidden',
+    justifyContent: 'center',
+  }}
+>
+  <Picker
+    selectedValue={leaveType}
+    onValueChange={(v) => setLeaveType(v)}
+    enabled={!loadingLT && leaveTypes.length > 0}
+    dropdownIconColor="#111"
+    style={[
+      { width: '100%', height: 58, color: '#0f172a' },                // selected value color
+      Platform.OS === 'android' ? { paddingHorizontal: 8 } : { marginLeft: -6 } // platform tweaks
+    ]}
+    itemStyle={{ color: '#0f172a', fontSize: 16 }}                     // iOS item text
+  >
+    <Picker.Item
+      label={loadingLT ? 'Loading…' : (leaveTypes.length ? 'Select leave type' : 'No types available')}
+      value=""
+      color="#64748b"
+    />
+    {leaveTypes.map((t) => (
+      <Picker.Item key={t.value} label={t.label} value={t.value} color="#0f172a" />
+    ))}
+  </Picker>
+</View>
 
         <Text style={S.label}>From Date</Text>
         <TouchableOpacity onPress={() => setShowFromPicker(true)} style={S.dateBtn}>
