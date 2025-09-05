@@ -36,16 +36,31 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarIcon: ({ color, size }) => {
+        tabBarIcon: ({ color, size, focused }) => {
           let iconName;
-         // if (route.name === 'CallReportsDropdown') iconName = 'assignment';
-        //  else if (route.name === 'History') iconName = 'history';
-        //  else if (route.name === 'Profile') iconName = 'person';
-        //  return <MaterialIcons name={iconName} size={size} color={color} />;
-          if (route.name === 'Leave') iconName = 'event';
-          else if (route.name === 'Attendance') iconName = 'schedule';
-          else if (route.name === 'Local Conveyance') iconName = 'directions-car';
-          else if (route.name === 'Profile') iconName = 'person';
+
+          switch (route.name) {
+            case 'Call Reports':
+              iconName = focused ? 'assignment-turned-in' : 'assignment';
+              // If you prefer a PDF vibe instead:
+              // iconName = 'picture-as-pdf';
+              break;
+            case 'Local Conveyance':
+              iconName = 'directions-car';
+              break;
+            case 'Leave':
+              iconName = 'event';
+              break;
+            case 'Attendance':
+              iconName = 'schedule';
+              break;
+            case 'Profile':
+              iconName = 'person';
+              break;
+            default:
+              iconName = 'insert-drive-file';
+          }
+
           return <MaterialIcons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#004080',
@@ -54,15 +69,9 @@ function MainTabs() {
     >
       <Tab.Screen name="Call Reports" component={CallReportsCardListScreen} />
       <Tab.Screen name="Local Conveyance" component={LocalConveyanceListScreen} />
-      {/*<Tab.Screen name="CallReports" component={CallReportsScreen} />*/}
-      {/*<Tab.Screen name="CallReportsDropdown" component={CallReportsDropdownScreen}/>*/}
       <Tab.Screen name="Leave" component={LeaveScreen} />
-	    <Tab.Screen name="Attendance" component={AttendanceScreen} />
-      {/*<Tab.Screen name="RequestPart" component={RequestPartScreen} options={{ tabBarButton: () => null, tabBarVisible: false }} />
-      <Tab.Screen name="PartRequestList" component={PartRequestList} options={{ tabBarButton: () => null, tabBarVisible: false }} />
-     */}	
+      <Tab.Screen name="Attendance" component={AttendanceScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
-
     </Tab.Navigator>
   );
 }
