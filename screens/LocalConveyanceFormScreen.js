@@ -795,7 +795,7 @@ const upsertCityLocal = (name) => {
             it?.customer_detail?.name ||
             it?.customer_detail?.customer_name ||
             'Customer';
-          return `${it.case_id || '-'}  •  ${name}`;
+          return `${it.case_id || '-'} `;
         }}
         onSelect={handlePickCCR}
       />

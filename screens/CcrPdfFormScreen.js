@@ -495,15 +495,18 @@ const styles = StyleSheet.create({
   /* Key/Value rows */
   kvRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start', 
     paddingVertical: 6,
   },
-  kvK: { fontSize: 12, color: '#475569', fontWeight: '700' },
+  kvK: { fontSize: 12, color: '#475569', fontWeight: '700', minWidth: 100 },
   kvV: {
-    fontSize: 14, color: '#0f172a', fontWeight: '600',
-    marginLeft: 12, flexShrink: 1, textAlign: 'right'
+    fontSize: 14,
+    color: '#0f172a',
+    fontWeight: '600',
+    marginLeft: 12,
+    flex: 1,                    // let value take remaining width
+    textAlign: 'left',          // ← left align
   },
-
   /* Forms */
   label: {
     fontSize: 12,
