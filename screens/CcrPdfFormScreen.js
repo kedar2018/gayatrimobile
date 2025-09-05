@@ -12,6 +12,28 @@ import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../utils/api'; // token auto-added
 
+
+/* 12-hour formatter with AM/PM, e.g. "05-Sep-2025 03:25 PM" */
+
+const fmt2 = (n) => (n < 10 ? `0${n}` : `${n}`);
+const monthShort = (i) =>
+  ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i];
+
+function formatDateTime12(d) {
+  if (!d) return '';
+  const day = fmt2(d.getDate());
+  const mon = monthShort(d.getMonth());
+  const yr = d.getFullYear();
+  let hh = d.getHours();
+  const mm = fmt2(d.getMinutes());
+  const ampm = hh >= 12 ? 'PM' : 'AM';
+  hh = hh % 12;
+  if (hh === 0) hh = 12;
+  return `${day}-${mon}-${yr} ${fmt2(hh)}:${mm} ${ampm}`;
+}
+
+
+
 export default function CcrPdfFormScreen({ route }) {
   const insets = useSafeAreaInsets();
   const SAF_DIR_KEY = '@preferred_pdf_dir';
@@ -311,24 +333,24 @@ export default function CcrPdfFormScreen({ route }) {
             />
           )}
           {/* Android pickers (two-step) */}
-          {Platform.OS === 'android' && androidPicker.step === 'date' && (
-            <DateTimePicker
-              value={getFieldDate(androidPicker.field)}
-              mode="date"
-              display="default"
-              onChange={onAndroidDateChange}
-            />
-          )}
-          {Platform.OS === 'android' && androidPicker.step === 'time' && (
-            <DateTimePicker
-              value={getFieldDate(androidPicker.field)}
-              mode="time"
-              display="default"
-              is24Hour
-              onChange={onAndroidTimeChange}
-            />
-          )}
 
+{Platform.OS === 'android' && androidPicker.step === 'date' && (
+  <DateTimePicker
+    value={getFieldDate(androidPicker.field) || new Date()}
+    mode="date"
+    display="default"
+    onChange={onAndroidDateChange}
+  />
+)}
+{Platform.OS === 'android' && androidPicker.step === 'time' && (
+  <DateTimePicker
+    value={getFieldDate(androidPicker.field) || new Date()}
+    mode="time"
+    display="default"
+    is24Hour={false}            // ⬅️ 12-hour clock
+    onChange={onAndroidTimeChange}
+  />
+)}
           <View style={styles.divider} />
 
           <Text style={styles.label}>Condition of Machine</Text>
@@ -562,4 +584,5 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
 });
+
 
