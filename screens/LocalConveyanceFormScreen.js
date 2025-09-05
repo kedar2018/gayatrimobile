@@ -91,6 +91,131 @@ function SecondaryButton({ title, onPress }) {
   );
 }
 
+
+
+
+
+
+/* ---------- Search & list helpers ---------- */
+const norm = (s) => String(s || '').trim();
+const uniq = (arr) => Array.from(new Set(arr.map((v) => norm(v))));
+
+function filterAndSortCities(options = [], query = '') {
+  const q = norm(query).toLowerCase();
+  const base = uniq(options).filter(Boolean);
+  if (!q) return base.sort((a, b) => a.localeCompare(b));
+  // rank: startsWith > includes
+  const starts = [];
+  const includes = [];
+  for (const c of base) {
+    const lc = c.toLowerCase();
+    if (lc.startsWith(q)) starts.push(c);
+    else if (lc.includes(q)) includes.push(c);
+  }
+  return [...starts.sort((a, b) => a.localeCompare(b)), ...includes.sort((a, b) => a.localeCompare(b))];
+}
+
+
+
+/* Searchable city picker with "Add new" affordance */
+function SearchableCityPicker({
+  visible,
+  title = 'Select City',
+  options = [],
+  onClose,
+  onPick,          // (name) => void
+  onAddRequested,  // (name) => Promise<void> | void  -> persist to backend
+}) {
+  const [query, setQuery] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const data = useMemo(() => filterAndSortCities(options, query), [options, query]);
+  const canAdd = norm(query).length > 0 && !options.map(norm).includes(norm(query));
+
+  const addCity = async () => {
+    const name = norm(query);
+    if (!name) return;
+    try {
+      setBusy(true);
+      // optimistic: notify parent first so UI updates immediately
+      onPick && onPick(name);
+      // try to persist (best-effort)
+      if (onAddRequested) await onAddRequested(name);
+      onClose && onClose();
+    } catch (e) {
+      // rollback is not necessary since it's harmless to keep it in local list;
+      // surface the error to the user instead:
+      Alert.alert('Could not save city', e?.message || 'Unknown error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>{title}</Text>
+
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search or type to add…"
+            placeholderTextColor="#9aa5b1"
+            style={[styles.input, { marginBottom: 10 }]}
+            autoCorrect={false}
+            autoCapitalize="words"
+          />
+
+          {canAdd && (
+            <TouchableOpacity
+              onPress={addCity}
+              disabled={busy}
+              activeOpacity={0.85}
+              style={[styles.btnSecondary, { marginBottom: 8 }]}
+            >
+              {busy ? (
+                <ActivityIndicator />
+              ) : (
+                <Text style={styles.btnSecondaryText}>➕ Add “{norm(query)}”</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
+          <FlatList
+            data={data}
+            keyExtractor={(item, idx) => `${item}-${idx}`}
+            ItemSeparatorComponent={() => <View style={styles.modalDivider} />}
+            style={{ maxHeight: '60%' }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                onPress={() => {
+                  onPick && onPick(String(item));
+                  onClose && onClose();
+                }}
+                style={styles.modalItem}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalItemText}>{item}</Text>
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={
+              !canAdd ? (
+                <Text style={[styles.note, { paddingHorizontal: 8 }]}>
+                  No matches. Type a name above to add it.
+                </Text>
+              ) : null
+            }
+          />
+
+          <SecondaryButton title="Cancel" onPress={onClose} />
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+
 /* Simple modal dropdown (consistent size with inputs) */
 function SimpleDropdown({ visible, onClose, title, options = [], keyExtractor, renderLabel, onSelect }) {
   return (
@@ -165,6 +290,7 @@ export default function LocalConveyanceFormScreen({ navigation }) {
 
   const startTimeLabel = useMemo(() => formatDateTime12(startTime), [startTime]);
   const arrivedTimeLabel = useMemo(() => formatDateTime12(arrivedTime), [arrivedTime]);
+
 
   /* ---------- Fetch lists ---------- */
   useEffect(() => {
@@ -260,6 +386,49 @@ export default function LocalConveyanceFormScreen({ navigation }) {
       setArrivedTime(d);
     }
   };
+
+
+// Persist a new city to the server (adjust endpoint/params to your Rails setup).
+// Tries /areas first; if you store locations in StaticOption, use the fallback.
+const persistNewCity = async (name) => {
+  const cityName = norm(name);
+  if (!cityName) return;
+
+  try {
+    // Option A: AreasController
+    // Expecting controller to accept { name: 'City' } or { city: 'City' }.
+    // Choose one and keep the other commented out.
+    await api.post('/areas', { name: cityName });            // <-- if your API is like this
+    // await api.post('/areas', { city: cityName });         // <-- or like this
+
+  } catch (e1) {
+    // Option B (fallback): StaticOptionsController with category=location
+    try {
+      await api.post('/static_options', {
+        category: 'location',
+        value: cityName,
+      });
+    } catch (e2) {
+      // Bubble the most meaningful error
+      const msg =
+        e2?.response?.data
+          ? JSON.stringify(e2.response.data)
+          : e1?.response?.data
+          ? JSON.stringify(e1.response.data)
+          : (e2?.message || e1?.message || 'Failed to save city');
+      throw new Error(msg);
+    }
+  }
+};
+
+// After successfully adding/picking a city, ensure it’s in local list
+const upsertCityLocal = (name) => {
+  const n = norm(name);
+  if (!n) return;
+  setCityList((prev) => uniq([...(prev || []), n]));
+};
+
+
 
   /* ---------- Image processing helpers ---------- */
   const processPickedAsset = async (asset) => {
@@ -646,22 +815,41 @@ export default function LocalConveyanceFormScreen({ navigation }) {
         renderLabel={(v) => String(v)}
         onSelect={(v) => setMode(String(v))}
       />
-      <SimpleDropdown
-        visible={showFromCity}
-        onClose={() => setShowFromCity(false)}
-        title="Select From City"
-        options={cityList}
-        renderLabel={(v) => String(v)}
-        onSelect={(v) => setFromLocation(String(v))}
-      />
-      <SimpleDropdown
-        visible={showToCity}
-        onClose={() => setShowToCity(false)}
-        title="Select To City"
-        options={cityList}
-        renderLabel={(v) => String(v)}
-        onSelect={(v) => setToLocation(String(v))}
-      />
+      <SearchableCityPicker
+  visible={showFromCity}
+  title="Select From City"
+  options={cityList}
+  onClose={() => setShowFromCity(false)}
+  onPick={(name) => {
+    const n = norm(name);
+    setFromLocation(n);
+    upsertCityLocal(n);
+  }}
+  onAddRequested={async (name) => {
+    await persistNewCity(name);
+    // refresh from API if you prefer authoritative list:
+    // const areaRes = await api.get('/areas');
+    // const cities = areaRes.data?.cities || [];
+    // setCityList(Array.isArray(cities) ? cities : []);
+  }}
+/>
+
+<SearchableCityPicker
+  visible={showToCity}
+  title="Select To City"
+  options={cityList}
+  onClose={() => setShowToCity(false)}
+  onPick={(name) => {
+    const n = norm(name);
+    setToLocation(n);
+    upsertCityLocal(n);
+  }}
+  onAddRequested={async (name) => {
+    await persistNewCity(name);
+    // Optionally refetch cities here too (same as above)
+  }}
+/>
+
     </KeyboardAvoidingView>
   );
 }
@@ -794,4 +982,5 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
 });
+
 
