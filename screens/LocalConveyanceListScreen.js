@@ -130,29 +130,27 @@ export default function LocalConveyanceListScreen({ navigation }) {
     fetchEntries(page + 1, false);
   }, [initialLoading, loadingMore, hasMore, page, fetchEntries]);
 
-  const renderItem = ({ item }) => (
+const renderItem = ({ item }) => {
+  const isApproved  = item?.approved === true || item?.approved === 1 || item?.approved === 'true';
+  const statusLabel = isApproved ? 'Approved' : 'Pending';
+  const statusIcon  = isApproved ? '✅' : '⏳';
+
+  return (
     <TouchableOpacity
       style={S.card}
       activeOpacity={0.85}
       onPress={() => console.log('Tapped:', item.request_id)}
       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
     >
-      {/* Header */}
-      <View style={S.cardHeaderRow}>
-        <View style={[S.chip, S.chipPrimary]}>
-          <Text style={S.chipText}>📅 {item.date || '—'}</Text>
-        </View>
-        <View style={S.spacer} />
-        <View style={[S.chip, S.chipNeutral]}>
-          <Text style={S.chipText}>🆔 {item.request_id || '—'}</Text>
-        </View>
-      </View>
+      {/* header stays the same, but remove the status chip from there */}
 
       <Text style={S.cardTitle} numberOfLines={1}>
         🧾 CCR {item.ccr_no || '—'} • 🏗 {item.project || '—'}
       </Text>
 
-      <View style={S.infoRow}>
+      {/* ... your info rows ... */}
+
+ <View style={S.infoRow}>
         <Text style={S.infoLabel}>Time</Text>
         <Text style={S.infoValue} numberOfLines={1}>
           {item.start_time || '—'} → {item.arrived_time || '—'}
@@ -176,17 +174,28 @@ export default function LocalConveyanceListScreen({ navigation }) {
           {item.from_location || '—'} → {item.to_location || '—'}
         </Text>
       </View>
-
+      {/* FOOTER: distance • expense • status */}
       <View style={S.cardFooter}>
         <View style={[S.badge, S.badgeMeasure]}>
           <Text style={S.badgeText}>📏 {item.distance_km ?? '—'} km</Text>
         </View>
+
+        <View style={{ width: 8 }} />
+
         <View style={[S.badge, S.badgeMoney]}>
           <Text style={S.badgeText}>💰 ₹{item.expense_rs ?? '—'}</Text>
+        </View>
+
+        <View style={{ width: 8 }} />
+
+        <View style={[S.badge, isApproved ? S.badgeSuccess : S.badgeWarning]}>
+          <Text style={S.badgeText}>{statusIcon} {statusLabel}</Text>
         </View>
       </View>
     </TouchableOpacity>
   );
+};
+
 
   const ListEmpty = () => {
     if (initialLoading) return null;

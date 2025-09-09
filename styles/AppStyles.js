@@ -37,6 +37,9 @@ const STATUSBAR_GAP = Platform.select({
  * Global, merged styles
  */
 const S = StyleSheet.create({
+badgeSuccess: { backgroundColor: '#16a34a' }, // green
+badgeWarning: { backgroundColor: '#f59e0b' }, // amber
+
   // Layout
   flex: { flex: 1 },
   screen: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: spacing.xl, paddingTop: spacing.md },

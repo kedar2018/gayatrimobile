@@ -27,8 +27,16 @@ export default function AttendanceScreen() {
 
   const pad = (n) => (n < 10 ? `0${n}` : n);
   const fmtDate = useCallback((d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, []);
-  const fmtTimeVal = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  const fmtTimeDisplay = (d) => {
+  //const fmtTimeVal = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const fmtTimeVal = (d) => {
+  if (!d) return '--:-- AM';
+  const h24 = d.getHours();
+  const h12 = h24 % 12 || 12;
+  const m   = String(d.getMinutes()).padStart(2, '0');
+  const ampm = h24 >= 12 ? 'PM' : 'AM';
+  return `${h12}:${m} ${ampm}`;
+}; 
+ const fmtTimeDisplay = (d) => {
     try {
       return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch { return fmtTimeVal(d); }
@@ -228,7 +236,7 @@ export default function AttendanceScreen() {
           <DateTimePicker
             value={startAt}
             mode="time"
-            is24Hour
+            is24Hour={false}
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={(e, d) => {
               setShowStartPicker(false);
@@ -245,7 +253,7 @@ export default function AttendanceScreen() {
           <DateTimePicker
             value={endAt}
             mode="time"
-            is24Hour
+            is24Hour={false}
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={(e, d) => {
               setShowEndPicker(false);
