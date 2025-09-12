@@ -2,19 +2,18 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, ActivityIndicator, Alert,
-  ScrollView, Platform, TouchableOpacity, StyleSheet,
+  ScrollView, Platform, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Dropdown } from "react-native-element-dropdown";
+
 import { api } from '../utils/api'; // token auto-added
 
-
-/* 12-hour formatter with AM/PM, e.g. "05-Sep-2025 03:25 PM" */
-
+/* ---------------- Date Formatter ---------------- */
 const fmt2 = (n) => (n < 10 ? `0${n}` : `${n}`);
 const monthShort = (i) =>
   ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i];
@@ -32,8 +31,6 @@ function formatDateTime12(d) {
   return `${day}-${mon}-${yr} ${fmt2(hh)}:${mm} ${ampm}`;
 }
 
-
-
 export default function CcrPdfFormScreen({ route }) {
   const insets = useSafeAreaInsets();
   const SAF_DIR_KEY = '@preferred_pdf_dir';
@@ -42,8 +39,9 @@ export default function CcrPdfFormScreen({ route }) {
   const [loading, setLoading] = useState(!incomingReport);
   const [submitting, setSubmitting] = useState(false);
   const [report, setReport] = useState(incomingReport);
-  const [actionTakenPreset, setActionTakenPreset] = useState('');
   const [engineerName, setEngineerName] = useState('');
+  const [actionTakenPreset, setActionTakenPreset] = useState('');
+  const [options, setOptions] = useState([]);
 
   // Form fields (text)
   const [caseId, setCaseId] = useState(incomingReport?.case_id || '');
@@ -51,7 +49,6 @@ export default function CcrPdfFormScreen({ route }) {
   const [conditionOfMachine, setConditionOfMachine] = useState('');
   const [defectivePartDescription, setDefectivePartDescription] = useState('');
   const [partNumber, setPartNumber] = useState('');
-  const [actionTaken, setActionTaken] = useState('');
   const [replacePartDescription, setReplacePartDescription] = useState('');
   const [replacePartNumber, setReplacePartNumber] = useState('');
   const [customerSignature, setCustomerSignature] = useState('');
@@ -60,11 +57,24 @@ export default function CcrPdfFormScreen({ route }) {
   const [callLogTime, setCallLogTime] = useState(new Date());
   const [arrivalTime, setArrivalTime] = useState(new Date());
   const [closureTime, setClosureTime] = useState(new Date());
-
-  // iOS: which field is open
   const [iosPickerFor, setIosPickerFor] = useState(null);
-  // Android two-step state
-  const [androidPicker, setAndroidPicker] = useState({ field: null, step: null }); // step: 'date' | 'time'
+  const [androidPicker, setAndroidPicker] = useState({ field: null, step: null });
+
+  // Fetch dropdown options
+  useEffect(() => {
+    const fetchOptions = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get("/action_taken_presets"); // backend endpoint
+        setOptions(res.data.map((item) => ({ label: item, value: item })));
+      } catch (err) {
+        console.error("Failed to load presets:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOptions();
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -119,7 +129,6 @@ export default function CcrPdfFormScreen({ route }) {
     if (event.type === 'dismissed' || !selected) return;
     setFieldDate(field, selected);
   };
-
   const formatDateTime = (d) => {
     try {
       const date = d.toLocaleDateString();
@@ -135,8 +144,6 @@ export default function CcrPdfFormScreen({ route }) {
 
     setSubmitting(true);
     try {
-      const actionTakenFinal = actionTakenPreset || actionTaken.trim();
-
       const payload = {
         case_id: caseId,
         problem_reported: problemReported,
@@ -146,7 +153,7 @@ export default function CcrPdfFormScreen({ route }) {
         condition_of_machine: conditionOfMachine,
         defective_part_description: defectivePartDescription,
         part_number: partNumber,
-        action_taken: actionTakenFinal,
+        action_taken: actionTakenPreset,
         replace_part_description: replacePartDescription,
         replace_part_number: replacePartNumber,
         customer_signature: customerSignature,
@@ -162,49 +169,8 @@ export default function CcrPdfFormScreen({ route }) {
 
       const token = await AsyncStorage.getItem('api_token');
       const downloadOpts = token ? { headers: { Authorization: `Token token=${token}` } } : undefined;
-
       const dl = await FileSystem.downloadAsync(pdfUrl, localUri, downloadOpts);
       if (dl.status !== 200) return Alert.alert('Download Failed', `HTTP ${dl.status}`);
-
-      if (Platform.OS === 'android') {
-        try {
-          let dirUri = await AsyncStorage.getItem(SAF_DIR_KEY);
-
-          if (dirUri) {
-            try {
-              const base64 = await FileSystem.readAsStringAsync(dl.uri, { encoding: FileSystem.EncodingType.Base64 });
-              const destUri = await FileSystem.StorageAccessFramework.createFileAsync(
-                dirUri, filename, 'application/pdf'
-              );
-              await FileSystem.writeAsStringAsync(destUri, base64, { encoding: FileSystem.EncodingType.Base64 });
-              Alert.alert('Saved', 'PDF saved to your chosen folder.');
-              return;
-            } catch (e) {
-              console.log('Persisted folder write failed, reprompting…', e);
-              await AsyncStorage.removeItem(SAF_DIR_KEY);
-              dirUri = null;
-            }
-          }
-
-          if (!dirUri) {
-            const perm = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-            if (perm.granted) {
-              dirUri = perm.directoryUri;
-              await AsyncStorage.setItem(SAF_DIR_KEY, dirUri);
-
-              const base64 = await FileSystem.readAsStringAsync(dl.uri, { encoding: FileSystem.EncodingType.Base64 });
-              const destUri = await FileSystem.StorageAccessFramework.createFileAsync(
-                dirUri, filename, 'application/pdf'
-              );
-              await FileSystem.writeAsStringAsync(destUri, base64, { encoding: FileSystem.EncodingType.Base64 });
-              Alert.alert('Saved', 'PDF saved to your chosen folder.');
-              return;
-            }
-          }
-        } catch (e) {
-          console.log('SAF save error:', e);
-        }
-      }
 
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(dl.uri);
@@ -233,7 +199,6 @@ export default function CcrPdfFormScreen({ route }) {
 
   return (
     <>
-      {/* Top header */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Text style={styles.h1}>Call Completion Report</Text>
         <Text style={styles.sub}>Generate and download PDF</Text>
@@ -244,53 +209,19 @@ export default function CcrPdfFormScreen({ route }) {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 96 }]}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Hidden Case ID input (kept for binding) */}
+        {/* Hidden Case ID input */}
         <Text style={styles.srOnly}>Case ID *</Text>
         <TextInput style={styles.srOnly} value={caseId} onChangeText={setCaseId} />
 
         {/* Case details */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Case Details</Text>
-
-          <View style={styles.kvRow}>
-            <Text style={styles.kvK}>Case ID</Text>
-            <Text style={styles.kvV}>{report?.case_id || report?.id || '-'}</Text>
-          </View>
-
-          {report?.serial_number ? (
-            <View style={styles.kvRow}>
-              <Text style={styles.kvK}>Serial #</Text>
-              <Text style={styles.kvV}>{report.serial_number}</Text>
-            </View>
-          ) : null}
-
-          {cd?.customer_name ? (
-            <View style={styles.kvRow}>
-              <Text style={styles.kvK}>Customer</Text>
-              <Text style={styles.kvV}>{cd.customer_name}</Text>
-            </View>
-          ) : null}
-
-          {(cd?.mobile_number || cd?.phone_number) ? (
-            <View style={styles.kvRow}>
-              <Text style={styles.kvK}>Phone</Text>
-              <Text style={styles.kvV}>{cd?.mobile_number || cd?.phone_number}</Text>
-            </View>
-          ) : null}
-
-          {(report?.address || cd?.address) ? (
-            <View style={styles.kvRow}>
-              <Text style={styles.kvK}>Address</Text>
-              <Text style={styles.kvV}>
-                {report?.address || cd?.address}{cd?.city ? `, ${cd.city}` : ''}
-              </Text>
-            </View>
-          ) : null}
-
-          <View style={styles.kvRow}>
-            <Text style={styles.kvK}>Engineer</Text>
-            <Text style={styles.kvV}>{engineerName || '-'}</Text>
-          </View>
+          <View style={styles.kvRow}><Text style={styles.kvK}>Case ID</Text><Text style={styles.kvV}>{report?.case_id || report?.id || '-'}</Text></View>
+          {report?.serial_number ? <View style={styles.kvRow}><Text style={styles.kvK}>Serial #</Text><Text style={styles.kvV}>{report.serial_number}</Text></View> : null}
+          {cd?.customer_name ? <View style={styles.kvRow}><Text style={styles.kvK}>Customer</Text><Text style={styles.kvV}>{cd.customer_name}</Text></View> : null}
+          {(cd?.mobile_number || cd?.phone_number) ? <View style={styles.kvRow}><Text style={styles.kvK}>Phone</Text><Text style={styles.kvV}>{cd?.mobile_number || cd?.phone_number}</Text></View> : null}
+          {(report?.address || cd?.address) ? <View style={styles.kvRow}><Text style={styles.kvK}>Address</Text><Text style={styles.kvV}>{report?.address || cd?.address}{cd?.city ? `, ${cd.city}` : ''}</Text></View> : null}
+          <View style={styles.kvRow}><Text style={styles.kvK}>Engineer</Text><Text style={styles.kvV}>{engineerName || '-'}</Text></View>
         </View>
 
         {/* Form */}
@@ -298,177 +229,80 @@ export default function CcrPdfFormScreen({ route }) {
           <Text style={styles.cardTitle}>Fill for PDF</Text>
 
           <Text style={styles.label}>Problem Reported</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Describe the problem"
-            value={problemReported}
-            onChangeText={setProblemReported}
-            multiline
-          />
+          <TextInput style={styles.input} placeholder="Describe the problem" value={problemReported} onChangeText={setProblemReported} multiline />
 
           <View style={styles.divider} />
 
           <Text style={styles.label}>Call Log Time</Text>
-          <TouchableOpacity style={styles.chip} onPress={() => openPicker('call')}>
-            <Text style={styles.chipText}>{formatDateTime(callLogTime)}</Text>
-          </TouchableOpacity>
+          <TouchableOpacity style={styles.chip} onPress={() => openPicker('call')}><Text style={styles.chipText}>{formatDateTime(callLogTime)}</Text></TouchableOpacity>
 
           <Text style={[styles.label, { marginTop: 12 }]}>Arrival Time</Text>
-          <TouchableOpacity style={styles.chip} onPress={() => openPicker('arrival')}>
-            <Text style={styles.chipText}>{formatDateTime(arrivalTime)}</Text>
-          </TouchableOpacity>
+          <TouchableOpacity style={styles.chip} onPress={() => openPicker('arrival')}><Text style={styles.chipText}>{formatDateTime(arrivalTime)}</Text></TouchableOpacity>
 
           <Text style={[styles.label, { marginTop: 12 }]}>Closure Time</Text>
-          <TouchableOpacity style={styles.chip} onPress={() => openPicker('closure')}>
-            <Text style={styles.chipText}>{formatDateTime(closureTime)}</Text>
-          </TouchableOpacity>
+          <TouchableOpacity style={styles.chip} onPress={() => openPicker('closure')}><Text style={styles.chipText}>{formatDateTime(closureTime)}</Text></TouchableOpacity>
 
           {/* iOS picker */}
           {Platform.OS === 'ios' && iosPickerFor && (
-            <DateTimePicker
-              value={getFieldDate(iosPickerFor)}
-              mode="datetime"
-              display="spinner"
-              onChange={onIOSChange}
-            />
+            <DateTimePicker value={getFieldDate(iosPickerFor)} mode="datetime" display="spinner" onChange={onIOSChange} />
           )}
-          {/* Android pickers (two-step) */}
 
-{Platform.OS === 'android' && androidPicker.step === 'date' && (
-  <DateTimePicker
-    value={getFieldDate(androidPicker.field) || new Date()}
-    mode="date"
-    display="default"
-    onChange={onAndroidDateChange}
-  />
-)}
-{Platform.OS === 'android' && androidPicker.step === 'time' && (
-  <DateTimePicker
-    value={getFieldDate(androidPicker.field) || new Date()}
-    mode="time"
-    display="default"
-    is24Hour={false}            // ⬅️ 12-hour clock
-    onChange={onAndroidTimeChange}
-  />
-)}
+          {/* Android pickers */}
+          {Platform.OS === 'android' && androidPicker.step === 'date' && (
+            <DateTimePicker value={getFieldDate(androidPicker.field) || new Date()} mode="date" display="default" onChange={onAndroidDateChange} />
+          )}
+          {Platform.OS === 'android' && androidPicker.step === 'time' && (
+            <DateTimePicker value={getFieldDate(androidPicker.field) || new Date()} mode="time" display="default" is24Hour={false} onChange={onAndroidTimeChange} />
+          )}
+
           <View style={styles.divider} />
 
           <Text style={styles.label}>Condition of Machine</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Condition of machine"
-            value={conditionOfMachine}
-            onChangeText={setConditionOfMachine}
-            multiline
-          />
+          <TextInput style={styles.input} placeholder="Condition of machine" value={conditionOfMachine} onChangeText={setConditionOfMachine} multiline />
 
           <Text style={styles.label}>Defective Part Description</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Defective part details"
-            value={defectivePartDescription}
-            onChangeText={setDefectivePartDescription}
-            multiline
-          />
+          <TextInput style={styles.input} placeholder="Defective part details" value={defectivePartDescription} onChangeText={setDefectivePartDescription} multiline />
 
           <Text style={styles.label}>Part Number</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Part number"
-            value={partNumber}
-            onChangeText={setPartNumber}
-          />
+          <TextInput style={styles.input} placeholder="Part number" value={partNumber} onChangeText={setPartNumber} />
 
           <Text style={styles.label}>Replace Part Description</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Replacement part details"
-            value={replacePartDescription}
-            onChangeText={setReplacePartDescription}
-            multiline
-          />
+          <TextInput style={styles.input} placeholder="Replacement part details" value={replacePartDescription} onChangeText={setReplacePartDescription} multiline />
 
           <Text style={styles.label}>Replace Part Number</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Replacement part number"
-            value={replacePartNumber}
-            onChangeText={setReplacePartNumber}
-          />
+          <TextInput style={styles.input} placeholder="Replacement part number" value={replacePartNumber} onChangeText={setReplacePartNumber} />
 
           <Text style={styles.label}>Action Taken</Text>
-
-          {/* Preset dropdown */}
-{/* Preset dropdown */}
-<View
-  style={{
-    height: 48,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    overflow: 'hidden',
-    justifyContent: 'center',
-  }}
->
-  <Picker
-    selectedValue={actionTakenPreset}
-    onValueChange={(v) => setActionTakenPreset(v)}
-    prompt="Select Action Taken"
-    mode="dropdown"
-    style={[
-      { width: '100%', height: 58, color: '#0f172a' },                 // selected value color
-      Platform.OS === 'android' ? { paddingHorizontal: 8 } : { marginLeft: -6 } // platform tweaks
-    ]}
-    itemStyle={{ color: '#0f172a', fontSize: 16 }}                      // iOS item text
-    dropdownIconColor="#0f172a"
-  >
-    <Picker.Item label="Select (optional)" value="" color="#64748b" />
-    <Picker.Item label="Ram has been replaced" value="Ram has been replaced" color="#0f172a" />
-    <Picker.Item label="Motherboard has been replaced" value="Motherboard has been replaced" color="#0f172a" />
-    <Picker.Item label="Processor has been replaced" value="Processor has been replaced" color="#0f172a" />
-    <Picker.Item label="Hard Disk/SSD has been replaced" value="Hard Disk/SSD has been replaced" color="#0f172a" />
-  </Picker>
-</View>
-
-          {actionTakenPreset ? (
-            <TouchableOpacity onPress={() => setActionTakenPreset('')} style={{ alignSelf: 'flex-start', marginTop: 6 }}>
-              <Text style={{ fontSize: 12, color: '#2563eb' }}>Clear selection (use custom text)</Text>
-            </TouchableOpacity>
-          ) : null}
-
-          {/* Custom text fallback */}
-          <Text style={[styles.label, { marginTop: 10 }]}>Or type a custom action</Text>
-          <TextInput
-            style={[styles.input, actionTakenPreset ? { opacity: 0.6 } : null]}
-            placeholder="Action taken (custom)"
-            value={actionTaken}
-            onChangeText={setActionTaken}
-            editable={!actionTakenPreset}
-            multiline
-          />
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
+            <View style={styles.dropdownWrap}>
+              <Dropdown
+                style={styles.dropdown}
+                placeholderStyle={styles.placeholderStyle}
+                selectedTextStyle={styles.selectedTextStyle}
+                inputSearchStyle={styles.inputSearchStyle}
+                data={options}
+                search
+                keyboardAvoiding={true}
+                maxHeight={300}
+                labelField="label"
+                valueField="value"
+                placeholder="Select Action Taken"
+                searchPlaceholder="Search..."
+                value={actionTakenPreset}
+                onChange={(item) => setActionTakenPreset(item.value)}
+                disable={loading}
+              />
+            </View>
+          </KeyboardAvoidingView>
 
           <Text style={styles.label}>Customer Signature (text)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter customer signature text"
-            value={customerSignature}
-            onChangeText={setCustomerSignature}
-            multiline
-          />
+          <TextInput style={styles.input} placeholder="Enter customer signature text" value={customerSignature} onChangeText={setCustomerSignature} multiline />
         </View>
       </ScrollView>
 
-      {/* Sticky bottom action bar */}
       <View style={[styles.actionBar, { paddingBottom: Math.max(12, insets.bottom + 8) }]}>
-        <TouchableOpacity
-          style={[styles.primaryBtn, submitting && styles.btnDisabled]}
-          onPress={onSubmit}
-          disabled={submitting}
-        >
-          <Text style={styles.primaryBtnText}>
-            {submitting ? 'Submitting…' : 'Submit & Download PDF'}
-          </Text>
+        <TouchableOpacity style={[styles.primaryBtn, submitting && styles.btnDisabled]} onPress={onSubmit} disabled={submitting}>
+          <Text style={styles.primaryBtnText}>{submitting ? 'Submitting…' : 'Submit & Download PDF'}</Text>
         </TouchableOpacity>
       </View>
     </>
@@ -477,21 +311,12 @@ export default function CcrPdfFormScreen({ route }) {
 
 /* ----------------------- Styles ----------------------- */
 const styles = StyleSheet.create({
-  /* Layout & containers */
   flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-
-  header: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    backgroundColor: '#f7f9fc',
-  },
+  header: { paddingHorizontal: 16, paddingBottom: 8, backgroundColor: '#f7f9fc' },
   h1: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
   sub: { marginTop: 4, fontSize: 12, color: '#64748b' },
-
   content: { backgroundColor: '#f7f9fc', paddingHorizontal: 16, paddingTop: 8 },
-
-  /* Cards */
   card: {
     backgroundColor: '#fff',
     borderRadius: 14,
@@ -505,30 +330,10 @@ const styles = StyleSheet.create({
     borderColor: '#eef2f7',
   },
   cardTitle: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 8 },
-
-  /* Key/Value rows */
-  kvRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start', 
-    paddingVertical: 6,
-  },
+  kvRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 6 },
   kvK: { fontSize: 12, color: '#475569', fontWeight: '700', minWidth: 100 },
-  kvV: {
-    fontSize: 14,
-    color: '#0f172a',
-    fontWeight: '600',
-    marginLeft: 12,
-    flex: 1,                    // let value take remaining width
-    textAlign: 'left',          // ← left align
-  },
-  /* Forms */
-  label: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-    marginTop: 12,
-    marginBottom: 6,
-  },
+  kvV: { fontSize: 14, color: '#0f172a', fontWeight: '600', marginLeft: 12, flex: 1, textAlign: 'left' },
+  label: { fontSize: 12, fontWeight: '700', color: '#475569', marginTop: 12, marginBottom: 6 },
   input: {
     height: 48,
     backgroundColor: '#fff',
@@ -538,68 +343,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     justifyContent: 'center',
   },
-
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#e2e8f0',
-    marginVertical: 12,
-  },
-
-  /* “Chip” button for date/time fields */
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#e2e8f0', marginVertical: 12 },
   chip: {
-    height: 48,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    justifyContent: 'center',
+    height: 48, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e2e8f0',
+    borderRadius: 12, paddingHorizontal: 14, justifyContent: 'center',
   },
   chipText: { fontSize: 16, color: '#0f172a' },
-
-  /* Picker wrapper */
-  pickerWrap: {
+  dropdownWrap: {
     height: 48,
-    backgroundColor: '#fff',
+    backgroundColor: "#ffffff",
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: "#e2e8f0",
     borderRadius: 12,
-    overflow: 'hidden',
-    justifyContent: 'center',
+    justifyContent: "center",
+    paddingHorizontal: 8,
+    zIndex: 999,
+    elevation: 0,
   },
-  picker: { width: '100%', height: 58 },
-  pickerItem: {},
-
-  /* Sticky bottom bar */
+  dropdown: { flex: 1 },
+  placeholderStyle: { fontSize: 14, color: "#64748b" },
+  selectedTextStyle: { fontSize: 16, color: "#0f172a" },
+  inputSearchStyle: { height: 40, fontSize: 14, color: "#0f172a" },
   actionBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    backgroundColor: '#f7f9fc',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#e2e8f0',
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    paddingHorizontal: 16, paddingTop: 8, backgroundColor: '#f7f9fc',
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e2e8f0',
   },
-  primaryBtn: {
-    height: 48,
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  primaryBtn: { height: 48, backgroundColor: '#2563eb', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   btnDisabled: { opacity: 0.6 },
-
-  /* Utilities */
-  srOnly: {
-    position: 'absolute',
-    left: -10000,
-    width: 1,
-    height: 1,
-    opacity: 0,
-  },
+  srOnly: { position: 'absolute', left: -10000, width: 1, height: 1, opacity: 0 },
 });
-
 
