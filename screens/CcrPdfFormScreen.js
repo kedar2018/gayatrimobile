@@ -9,11 +9,11 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Dropdown } from "react-native-element-dropdown";
+import { Dropdown, MultiSelect } from 'react-native-element-dropdown';
 
 import { api } from '../utils/api'; // token auto-added
 
-/* ---------------- Date Formatter ---------------- */
+/* 12-hour formatter with AM/PM, e.g. "05-Sep-2025 03:25 PM" */
 const fmt2 = (n) => (n < 10 ? `0${n}` : `${n}`);
 const monthShort = (i) =>
   ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i];
@@ -40,15 +40,14 @@ export default function CcrPdfFormScreen({ route }) {
   const [submitting, setSubmitting] = useState(false);
   const [report, setReport] = useState(incomingReport);
   const [engineerName, setEngineerName] = useState('');
-  const [actionTakenPreset, setActionTakenPreset] = useState('');
-  const [options, setOptions] = useState([]);
 
   // Form fields (text)
   const [caseId, setCaseId] = useState(incomingReport?.case_id || '');
-  const [problemReported, setProblemReported] = useState('');
+  const [problemReported, setProblemReported] = useState([]); // ← MULTI-SELECT (array of strings)
   const [conditionOfMachine, setConditionOfMachine] = useState('');
   const [defectivePartDescription, setDefectivePartDescription] = useState('');
   const [partNumber, setPartNumber] = useState('');
+  const [actionTaken, setActionTaken] = useState(''); // text box
   const [replacePartDescription, setReplacePartDescription] = useState('');
   const [replacePartNumber, setReplacePartNumber] = useState('');
   const [customerSignature, setCustomerSignature] = useState('');
@@ -57,24 +56,14 @@ export default function CcrPdfFormScreen({ route }) {
   const [callLogTime, setCallLogTime] = useState(new Date());
   const [arrivalTime, setArrivalTime] = useState(new Date());
   const [closureTime, setClosureTime] = useState(new Date());
-  const [iosPickerFor, setIosPickerFor] = useState(null);
-  const [androidPicker, setAndroidPicker] = useState({ field: null, step: null });
 
-  // Fetch dropdown options
-  useEffect(() => {
-    const fetchOptions = async () => {
-      setLoading(true);
-      try {
-        const res = await api.get("/action_taken_presets"); // backend endpoint
-        setOptions(res.data.map((item) => ({ label: item, value: item })));
-      } catch (err) {
-        console.error("Failed to load presets:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchOptions();
-  }, []);
+  // iOS / Android datetime picker control
+  const [iosPickerFor, setIosPickerFor] = useState(null);
+  const [androidPicker, setAndroidPicker] = useState({ field: null, step: null }); // step: 'date' | 'time'
+
+  // Problem Reported dropdown options
+  const [problemOptions, setProblemOptions] = useState([]);
+  const [optionsLoading, setOptionsLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -90,31 +79,57 @@ export default function CcrPdfFormScreen({ route }) {
     })();
   }, []);
 
+  // Fetch Problem Reported options (searchable dropdown)
+  useEffect(() => {
+    const fetchOptions = async () => {
+      setOptionsLoading(true);
+      try {
+        // Change this path to your real endpoint
+        const res = await api.get('/action_taken_presets');
+        // Expecting an array of strings; convert to [{label, value}]
+        setProblemOptions(res.data.map((s) => ({ label: s, value: s })));
+      } catch (err) {
+        console.error('Failed to load Problem Reported presets:', err);
+      } finally {
+        setOptionsLoading(false);
+      }
+    };
+    fetchOptions();
+  }, []);
+
   const preset = (r) => {
     setReport(r);
     setCaseId(r?.case_id || '');
   };
 
   // ---- Date/Time helpers
-  const getFieldDate = (field) => (field === 'call' ? callLogTime : field === 'arrival' ? arrivalTime : closureTime);
+  const getFieldDate = (field) =>
+    field === 'call' ? callLogTime : field === 'arrival' ? arrivalTime : closureTime;
+
   const setFieldDate = (field, value) => {
     if (!value) return;
     if (field === 'call') setCallLogTime(value);
     else if (field === 'arrival') setArrivalTime(value);
     else setClosureTime(value);
   };
+
   const openPicker = (field) => {
     if (Platform.OS === 'android') setAndroidPicker({ field, step: 'date' });
     else setIosPickerFor(field);
   };
+
   const onAndroidDateChange = (event, selected) => {
     const { field } = androidPicker;
-    if (event.type === 'dismissed' || !selected) { setAndroidPicker({ field: null, step: null }); return; }
+    if (event.type === 'dismissed' || !selected) {
+      setAndroidPicker({ field: null, step: null });
+      return;
+    }
     const base = new Date(getFieldDate(field));
     base.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
     setFieldDate(field, base);
     setAndroidPicker({ field, step: 'time' });
   };
+
   const onAndroidTimeChange = (event, selected) => {
     const { field } = androidPicker;
     setAndroidPicker({ field: null, step: null });
@@ -123,37 +138,47 @@ export default function CcrPdfFormScreen({ route }) {
     base.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
     setFieldDate(field, base);
   };
+
   const onIOSChange = (event, selected) => {
     const field = iosPickerFor;
     setIosPickerFor(null);
     if (event.type === 'dismissed' || !selected) return;
     setFieldDate(field, selected);
   };
+
   const formatDateTime = (d) => {
     try {
       const date = d.toLocaleDateString();
       const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       return `${date} ${time}`;
-    } catch { return String(d); }
+    } catch {
+      return String(d);
+    }
   };
 
   const onSubmit = async () => {
     const idForUrl = report?.id || caseId;
     if (!idForUrl) return Alert.alert('Missing', 'Report ID / Case ID is required.');
     if (!caseId)   return Alert.alert('Missing', 'Please enter Case ID.');
+    if (!problemReported.length) return Alert.alert('Missing', 'Please select at least one Problem Reported.');
+    if (!actionTaken.trim()) return Alert.alert('Missing', 'Please enter Action Taken.');
 
     setSubmitting(true);
     try {
+      const problemReportedJoined = problemReported.join('; ');
+
       const payload = {
         case_id: caseId,
-        problem_reported: problemReported,
+        // send both forms; keep the one your backend needs
+        problem_reported_list: problemReported,     // ← array
+        problem_reported: problemReportedJoined,    // ← single string (joined)
         call_log_time: callLogTime.toISOString(),
         arrival_time: arrivalTime.toISOString(),
         closure_time: closureTime.toISOString(),
         condition_of_machine: conditionOfMachine,
         defective_part_description: defectivePartDescription,
         part_number: partNumber,
-        action_taken: actionTakenPreset,
+        action_taken: actionTaken,                   // text box
         replace_part_description: replacePartDescription,
         replace_part_number: replacePartNumber,
         customer_signature: customerSignature,
@@ -169,13 +194,51 @@ export default function CcrPdfFormScreen({ route }) {
 
       const token = await AsyncStorage.getItem('api_token');
       const downloadOpts = token ? { headers: { Authorization: `Token token=${token}` } } : undefined;
+
       const dl = await FileSystem.downloadAsync(pdfUrl, localUri, downloadOpts);
       if (dl.status !== 200) return Alert.alert('Download Failed', `HTTP ${dl.status}`);
 
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(dl.uri);
+      if (Platform.OS === 'android') {
+        try {
+          let dirUri = await AsyncStorage.getItem(SAF_DIR_KEY);
+
+          if (dirUri) {
+            try {
+              const base64 = await FileSystem.readAsStringAsync(dl.uri, { encoding: FileSystem.EncodingType.Base64 });
+              const destUri = await FileSystem.StorageAccessFramework.createFileAsync(
+                dirUri, filename, 'application/pdf'
+              );
+              await FileSystem.writeAsStringAsync(destUri, base64, { encoding: FileSystem.EncodingType.Base64 });
+              Alert.alert('Saved', 'PDF saved to your chosen folder.');
+            } catch (e) {
+              console.log('Persisted folder write failed, reprompting…', e);
+              await AsyncStorage.removeItem(SAF_DIR_KEY);
+              dirUri = null;
+            }
+          }
+
+          if (!dirUri) {
+            const perm = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+            if (perm.granted) {
+              const newDir = perm.directoryUri;
+              await AsyncStorage.setItem(SAF_DIR_KEY, newDir);
+              const base64 = await FileSystem.readAsStringAsync(dl.uri, { encoding: FileSystem.EncodingType.Base64 });
+              const destUri = await FileSystem.StorageAccessFramework.createFileAsync(
+                newDir, filename, 'application/pdf'
+              );
+              await FileSystem.writeAsStringAsync(destUri, base64, { encoding: FileSystem.EncodingType.Base64 });
+              Alert.alert('Saved', 'PDF saved to your chosen folder.');
+            }
+          }
+        } catch (e) {
+          console.log('SAF save error:', e);
+        }
       } else {
-        Alert.alert('Downloaded', `Saved to app files:\n${dl.uri}`);
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(dl.uri);
+        } else {
+          Alert.alert('Downloaded', `Saved to app files:\n${dl.uri}`);
+        }
       }
 
     } catch (err) {
@@ -199,6 +262,7 @@ export default function CcrPdfFormScreen({ route }) {
 
   return (
     <>
+      {/* Top header */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Text style={styles.h1}>Call Completion Report</Text>
         <Text style={styles.sub}>Generate and download PDF</Text>
@@ -209,100 +273,220 @@ export default function CcrPdfFormScreen({ route }) {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 96 }]}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Hidden Case ID input */}
+        {/* Hidden Case ID input (kept for binding) */}
         <Text style={styles.srOnly}>Case ID *</Text>
         <TextInput style={styles.srOnly} value={caseId} onChangeText={setCaseId} />
 
         {/* Case details */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Case Details</Text>
-          <View style={styles.kvRow}><Text style={styles.kvK}>Case ID</Text><Text style={styles.kvV}>{report?.case_id || report?.id || '-'}</Text></View>
-          {report?.serial_number ? <View style={styles.kvRow}><Text style={styles.kvK}>Serial #</Text><Text style={styles.kvV}>{report.serial_number}</Text></View> : null}
-          {cd?.customer_name ? <View style={styles.kvRow}><Text style={styles.kvK}>Customer</Text><Text style={styles.kvV}>{cd.customer_name}</Text></View> : null}
-          {(cd?.mobile_number || cd?.phone_number) ? <View style={styles.kvRow}><Text style={styles.kvK}>Phone</Text><Text style={styles.kvV}>{cd?.mobile_number || cd?.phone_number}</Text></View> : null}
-          {(report?.address || cd?.address) ? <View style={styles.kvRow}><Text style={styles.kvK}>Address</Text><Text style={styles.kvV}>{report?.address || cd?.address}{cd?.city ? `, ${cd.city}` : ''}</Text></View> : null}
-          <View style={styles.kvRow}><Text style={styles.kvK}>Engineer</Text><Text style={styles.kvV}>{engineerName || '-'}</Text></View>
+
+          <View style={styles.kvRow}>
+            <Text style={styles.kvK}>Case ID</Text>
+            <Text style={styles.kvV}>{report?.case_id || report?.id || '-'}</Text>
+          </View>
+
+          {report?.serial_number ? (
+            <View style={styles.kvRow}>
+              <Text style={styles.kvK}>Serial #</Text>
+              <Text style={styles.kvV}>{report.serial_number}</Text>
+            </View>
+          ) : null}
+
+          {cd?.customer_name ? (
+            <View style={styles.kvRow}>
+              <Text style={styles.kvK}>Customer</Text>
+              <Text style={styles.kvV}>{cd.customer_name}</Text>
+            </View>
+          ) : null}
+
+          {(cd?.mobile_number || cd?.phone_number) ? (
+            <View style={styles.kvRow}>
+              <Text style={styles.kvK}>Phone</Text>
+              <Text style={styles.kvV}>{cd?.mobile_number || cd?.phone_number}</Text>
+            </View>
+          ) : null}
+
+          {(report?.address || cd?.address) ? (
+            <View style={styles.kvRow}>
+              <Text style={styles.kvK}>Address</Text>
+              <Text style={styles.kvV}>
+                {report?.address || cd?.address}{cd?.city ? `, ${cd.city}` : ''}
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={styles.kvRow}>
+            <Text style={styles.kvK}>Engineer</Text>
+            <Text style={styles.kvV}>{engineerName || '-'}</Text>
+          </View>
         </View>
 
         {/* Form */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Fill for PDF</Text>
 
+          {/* Problem Reported: MULTI-SELECT SEARCHABLE DROPDOWN */}
           <Text style={styles.label}>Problem Reported</Text>
-          <TextInput style={styles.input} placeholder="Describe the problem" value={problemReported} onChangeText={setProblemReported} multiline />
-
-          <View style={styles.divider} />
-
-          <Text style={styles.label}>Call Log Time</Text>
-          <TouchableOpacity style={styles.chip} onPress={() => openPicker('call')}><Text style={styles.chipText}>{formatDateTime(callLogTime)}</Text></TouchableOpacity>
-
-          <Text style={[styles.label, { marginTop: 12 }]}>Arrival Time</Text>
-          <TouchableOpacity style={styles.chip} onPress={() => openPicker('arrival')}><Text style={styles.chipText}>{formatDateTime(arrivalTime)}</Text></TouchableOpacity>
-
-          <Text style={[styles.label, { marginTop: 12 }]}>Closure Time</Text>
-          <TouchableOpacity style={styles.chip} onPress={() => openPicker('closure')}><Text style={styles.chipText}>{formatDateTime(closureTime)}</Text></TouchableOpacity>
-
-          {/* iOS picker */}
-          {Platform.OS === 'ios' && iosPickerFor && (
-            <DateTimePicker value={getFieldDate(iosPickerFor)} mode="datetime" display="spinner" onChange={onIOSChange} />
-          )}
-
-          {/* Android pickers */}
-          {Platform.OS === 'android' && androidPicker.step === 'date' && (
-            <DateTimePicker value={getFieldDate(androidPicker.field) || new Date()} mode="date" display="default" onChange={onAndroidDateChange} />
-          )}
-          {Platform.OS === 'android' && androidPicker.step === 'time' && (
-            <DateTimePicker value={getFieldDate(androidPicker.field) || new Date()} mode="time" display="default" is24Hour={false} onChange={onAndroidTimeChange} />
-          )}
-
-          <View style={styles.divider} />
-
-          <Text style={styles.label}>Condition of Machine</Text>
-          <TextInput style={styles.input} placeholder="Condition of machine" value={conditionOfMachine} onChangeText={setConditionOfMachine} multiline />
-
-          <Text style={styles.label}>Defective Part Description</Text>
-          <TextInput style={styles.input} placeholder="Defective part details" value={defectivePartDescription} onChangeText={setDefectivePartDescription} multiline />
-
-          <Text style={styles.label}>Part Number</Text>
-          <TextInput style={styles.input} placeholder="Part number" value={partNumber} onChangeText={setPartNumber} />
-
-          <Text style={styles.label}>Replace Part Description</Text>
-          <TextInput style={styles.input} placeholder="Replacement part details" value={replacePartDescription} onChangeText={setReplacePartDescription} multiline />
-
-          <Text style={styles.label}>Replace Part Number</Text>
-          <TextInput style={styles.input} placeholder="Replacement part number" value={replacePartNumber} onChangeText={setReplacePartNumber} />
-
-          <Text style={styles.label}>Action Taken</Text>
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
             <View style={styles.dropdownWrap}>
-              <Dropdown
+              <MultiSelect
                 style={styles.dropdown}
                 placeholderStyle={styles.placeholderStyle}
                 selectedTextStyle={styles.selectedTextStyle}
                 inputSearchStyle={styles.inputSearchStyle}
-                data={options}
+                data={problemOptions}
                 search
                 keyboardAvoiding={true}
                 maxHeight={300}
                 labelField="label"
                 valueField="value"
-                placeholder="Select Action Taken"
+                placeholder="Select Problems"
                 searchPlaceholder="Search..."
-                value={actionTakenPreset}
-                onChange={(item) => setActionTakenPreset(item.value)}
-                disable={loading}
+                value={problemReported}                     // array
+                onChange={(items) => setProblemReported(items)} // items is array of values
+                disable={optionsLoading}
+                renderSelectedItem={(item, unSelect) => (
+                  <TouchableOpacity
+                    key={item.value}
+                    onPress={() => unSelect && unSelect(item)}
+                    style={styles.tag}
+                  >
+                    <Text style={styles.tagText} numberOfLines={1}>
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               />
             </View>
           </KeyboardAvoidingView>
 
+          <View style={styles.divider} />
+
+          {/* Date/Time fields */}
+          <Text style={styles.label}>Call Log Time</Text>
+          <TouchableOpacity style={styles.chip} onPress={() => openPicker('call')}>
+            <Text style={styles.chipText}>{formatDateTime(callLogTime)}</Text>
+          </TouchableOpacity>
+
+          <Text style={[styles.label, { marginTop: 12 }]}>Arrival Time</Text>
+          <TouchableOpacity style={styles.chip} onPress={() => openPicker('arrival')}>
+            <Text style={styles.chipText}>{formatDateTime(arrivalTime)}</Text>
+          </TouchableOpacity>
+
+          <Text style={[styles.label, { marginTop: 12 }]}>Closure Time</Text>
+          <TouchableOpacity style={styles.chip} onPress={() => openPicker('closure')}>
+            <Text style={styles.chipText}>{formatDateTime(closureTime)}</Text>
+          </TouchableOpacity>
+
+          {/* iOS picker */}
+          {Platform.OS === 'ios' && iosPickerFor && (
+            <DateTimePicker
+              value={getFieldDate(iosPickerFor)}
+              mode="datetime"
+              display="spinner"
+              onChange={onIOSChange}
+            />
+          )}
+          {/* Android pickers (two-step) */}
+          {Platform.OS === 'android' && androidPicker.step === 'date' && (
+            <DateTimePicker
+              value={getFieldDate(androidPicker.field) || new Date()}
+              mode="date"
+              display="default"
+              onChange={onAndroidDateChange}
+            />
+          )}
+          {Platform.OS === 'android' && androidPicker.step === 'time' && (
+            <DateTimePicker
+              value={getFieldDate(androidPicker.field) || new Date()}
+              mode="time"
+              display="default"
+              is24Hour={false} // 12-hour clock
+              onChange={onAndroidTimeChange}
+            />
+          )}
+
+          <View style={styles.divider} />
+
+          {/* Other fields */}
+          <Text style={styles.label}>Condition of Machine</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Condition of machine"
+            value={conditionOfMachine}
+            onChangeText={setConditionOfMachine}
+            multiline
+          />
+
+          <Text style={styles.label}>Defective Part Description</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Defective part details"
+            value={defectivePartDescription}
+            onChangeText={setDefectivePartDescription}
+            multiline
+          />
+
+          <Text style={styles.label}>Part Number</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Part number"
+            value={partNumber}
+            onChangeText={setPartNumber}
+          />
+
+          <Text style={styles.label}>Replace Part Description</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Replacement part details"
+            value={replacePartDescription}
+            onChangeText={setReplacePartDescription}
+            multiline
+          />
+
+          <Text style={styles.label}>Replace Part Number</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Replacement part number"
+            value={replacePartNumber}
+            onChangeText={setReplacePartNumber}
+          />
+
+          {/* Action Taken: TEXT BOX */}
+          <Text style={styles.label}>Action Taken</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Describe action taken"
+            value={actionTaken}
+            onChangeText={setActionTaken}
+            multiline
+          />
+
           <Text style={styles.label}>Customer Signature (text)</Text>
-          <TextInput style={styles.input} placeholder="Enter customer signature text" value={customerSignature} onChangeText={setCustomerSignature} multiline />
+          <TextInput
+            style={styles.input}
+            placeholder="Enter customer signature text"
+            value={customerSignature}
+            onChangeText={setCustomerSignature}
+            multiline
+          />
         </View>
       </ScrollView>
 
+      {/* Sticky bottom action bar */}
       <View style={[styles.actionBar, { paddingBottom: Math.max(12, insets.bottom + 8) }]}>
-        <TouchableOpacity style={[styles.primaryBtn, submitting && styles.btnDisabled]} onPress={onSubmit} disabled={submitting}>
-          <Text style={styles.primaryBtnText}>{submitting ? 'Submitting…' : 'Submit & Download PDF'}</Text>
+        <TouchableOpacity
+          style={[styles.primaryBtn, submitting && styles.btnDisabled]}
+          onPress={onSubmit}
+          disabled={submitting}
+        >
+          <Text style={styles.primaryBtnText}>
+            {submitting ? 'Submitting…' : 'Submit & Download PDF'}
+          </Text>
         </TouchableOpacity>
       </View>
     </>
@@ -311,12 +495,21 @@ export default function CcrPdfFormScreen({ route }) {
 
 /* ----------------------- Styles ----------------------- */
 const styles = StyleSheet.create({
+  /* Layout & containers */
   flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { paddingHorizontal: 16, paddingBottom: 8, backgroundColor: '#f7f9fc' },
+
+  header: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    backgroundColor: '#f7f9fc',
+  },
   h1: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
   sub: { marginTop: 4, fontSize: 12, color: '#64748b' },
+
   content: { backgroundColor: '#f7f9fc', paddingHorizontal: 16, paddingTop: 8 },
+
+  /* Cards */
   card: {
     backgroundColor: '#fff',
     borderRadius: 14,
@@ -330,11 +523,51 @@ const styles = StyleSheet.create({
     borderColor: '#eef2f7',
   },
   cardTitle: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 8 },
-  kvRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 6 },
+
+  /* Key/Value rows */
+  kvRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 6,
+  },
   kvK: { fontSize: 12, color: '#475569', fontWeight: '700', minWidth: 100 },
-  kvV: { fontSize: 14, color: '#0f172a', fontWeight: '600', marginLeft: 12, flex: 1, textAlign: 'left' },
-  label: { fontSize: 12, fontWeight: '700', color: '#475569', marginTop: 12, marginBottom: 6 },
+  kvV: {
+    fontSize: 14,
+    color: '#0f172a',
+    fontWeight: '600',
+    marginLeft: 12,
+    flex: 1,
+    textAlign: 'left',
+  },
+
+  /* Forms */
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    marginTop: 12,
+    marginBottom: 6,
+  },
   input: {
+    minHeight: 48,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
+    textAlignVertical: 'top',
+  },
+
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#e2e8f0',
+    marginVertical: 12,
+  },
+
+  /* Date/time “chip” button */
+  chip: {
     height: 48,
     backgroundColor: '#fff',
     borderWidth: 1,
@@ -343,35 +576,65 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     justifyContent: 'center',
   },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#e2e8f0', marginVertical: 12 },
-  chip: {
-    height: 48, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e2e8f0',
-    borderRadius: 12, paddingHorizontal: 14, justifyContent: 'center',
-  },
   chipText: { fontSize: 16, color: '#0f172a' },
+
+  /* Dropdown wrapper (zIndex so it stays above keyboard/other views) */
   dropdownWrap: {
-    height: 48,
-    backgroundColor: "#ffffff",
+    minHeight: 48,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: '#e2e8f0',
     borderRadius: 12,
-    justifyContent: "center",
+    justifyContent: 'center',
     paddingHorizontal: 8,
     zIndex: 999,
-    elevation: 0,
+    elevation: 10,
   },
   dropdown: { flex: 1 },
-  placeholderStyle: { fontSize: 14, color: "#64748b" },
-  selectedTextStyle: { fontSize: 16, color: "#0f172a" },
-  inputSearchStyle: { height: 40, fontSize: 14, color: "#0f172a" },
-  actionBar: {
-    position: 'absolute', left: 0, right: 0, bottom: 0,
-    paddingHorizontal: 16, paddingTop: 8, backgroundColor: '#f7f9fc',
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e2e8f0',
+  placeholderStyle: { fontSize: 14, color: '#64748b' },
+  selectedTextStyle: { fontSize: 16, color: '#0f172a' },
+  inputSearchStyle: { height: 40, fontSize: 14, color: '#0f172a' },
+
+  /* Selected tag chip */
+  tag: {
+    backgroundColor: '#e8f0ff',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    margin: 4,
+    alignSelf: 'flex-start',
   },
-  primaryBtn: { height: 48, backgroundColor: '#2563eb', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  tagText: { color: '#1e3a8a', fontSize: 12, fontWeight: '600', maxWidth: 220 },
+
+  /* Sticky bottom bar */
+  actionBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    backgroundColor: '#f7f9fc',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#e2e8f0',
+  },
+  primaryBtn: {
+    height: 48,
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   btnDisabled: { opacity: 0.6 },
-  srOnly: { position: 'absolute', left: -10000, width: 1, height: 1, opacity: 0 },
+
+  /* Utilities */
+  srOnly: {
+    position: 'absolute',
+    left: -10000,
+    width: 1,
+    height: 1,
+    opacity: 0,
+  },
 });
 
