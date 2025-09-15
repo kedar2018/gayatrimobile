@@ -1,5 +1,5 @@
 // screens/LocalConveyanceFormScreen.js
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -48,6 +48,8 @@ function filenameFromUri(uri) {
   return last.includes('.') ? last : `${last}.jpg`;
 }
 
+const norm = (s) => String(s || '').trim();
+
 /* ----------------------- Tiny UI atoms ----------------------- */
 
 const Label = ({ children }) => <Text style={styles.label}>{children}</Text>;
@@ -63,9 +65,7 @@ const Input = (props) => (
 function FieldButton({ value, placeholder, onPress }) {
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={styles.input}>
-      <Text style={[styles.inputText, !value && { color: '#9aa5b1' }]}>
-        {value || placeholder}
-      </Text>
+      <Text style={[styles.inputText, !value && { color: '#9aa5b1' }]}>{value || placeholder}</Text>
     </TouchableOpacity>
   );
 }
@@ -91,102 +91,180 @@ function SecondaryButton({ title, onPress }) {
   );
 }
 
-
-
-
-
-
-/* ---------- Search & list helpers ---------- */
-const norm = (s) => String(s || '').trim();
-const uniq = (arr) => Array.from(new Set(arr.map((v) => norm(v))));
-
-function filterAndSortCities(options = [], query = '') {
-  const q = norm(query).toLowerCase();
-  const base = uniq(options).filter(Boolean);
-  if (!q) return base.sort((a, b) => a.localeCompare(b));
-  // rank: startsWith > includes
-  const starts = [];
-  const includes = [];
-  for (const c of base) {
-    const lc = c.toLowerCase();
-    if (lc.startsWith(q)) starts.push(c);
-    else if (lc.includes(q)) includes.push(c);
-  }
-  return [...starts.sort((a, b) => a.localeCompare(b)), ...includes.sort((a, b) => a.localeCompare(b))];
-}
-
-
-
-/* Searchable city picker with "Add new" affordance */
-function SearchableCityPicker({
+/* ----------------------- Remote search picker ----------------------- */
+/**
+ * Debounced backend search picker (no local list).
+ * Assumes GET /areas?q=<query>&limit=20 returns:
+ *   - ["City A","City B", ...]  OR
+ *   - [{id, name}, ...]
+ */
+/** Debounced backend search picker with optional "Add" action */
+function RemoteSearchPicker({
   visible,
-  title = 'Select City',
-  options = [],
+  title = 'Search Location',
+  minChars = 2,
+  allowCreate = true,
   onClose,
-  onPick,          // (name) => void
-  onAddRequested,  // (name) => Promise<void> | void  -> persist to backend
+  onPick, // (name: string) => void
 }) {
   const [query, setQuery] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(false);     // searching
+  const [busyAdd, setBusyAdd] = useState(false); // adding
+  const [results, setResults] = useState([]);  // string[]
+  const [err, setErr] = useState('');
+  const timer = useRef(null);
+  const lastReq = useRef(0);
+  const cacheRef = useRef(new Map()); // query -> [names]
 
-  const data = useMemo(() => filterAndSortCities(options, query), [options, query]);
-  const canAdd = norm(query).length > 0 && !options.map(norm).includes(norm(query));
+  const qn = String(query || '').trim();
+  const canSearch = qn.length >= minChars;
+  const hasExact = results.some(r => r.toLowerCase() === qn.toLowerCase());
+  const canAdd = allowCreate && canSearch && !hasExact;
 
-  const addCity = async () => {
-    const name = norm(query);
+  const doSearch = async (q) => {
+    const v = String(q || '').trim();
+    if (v.length < minChars) {
+      setResults([]);
+      setErr('');
+      return;
+    }
+    // cache
+    if (cacheRef.current.has(v)) {
+      setResults(cacheRef.current.get(v));
+      setErr('');
+      return;
+    }
+
+    const reqId = Date.now();
+    lastReq.current = reqId;
+    setBusy(true);
+    setErr('');
+
+    try {
+      const res = await api.get('/areas', { params: { q: v, limit: 20 } });
+      let items = res?.data;
+      if (items && items.cities) items = items.cities;
+      if (!Array.isArray(items)) items = [];
+
+      const names = items
+        .map((it) => (typeof it === 'string' ? it : it?.name || it?.city || ''))
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const uniq = Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
+      if (lastReq.current === reqId) {
+        setResults(uniq);
+        cacheRef.current.set(v, uniq);
+      }
+    } catch (e) {
+      if (lastReq.current === reqId) {
+        const msg = e?.response?.data ? JSON.stringify(e.response.data) : (e?.message || 'Search failed');
+        setErr(msg);
+        setResults([]);
+      }
+    } finally {
+      if (lastReq.current === reqId) setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!visible) {
+      setQuery('');
+      setResults([]);
+      setErr('');
+      setBusy(false);
+      setBusyAdd(false);
+      return;
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => doSearch(query), 300);
+    return () => clearTimeout(timer.current);
+  }, [query]);
+
+  const handleAdd = async () => {
+    const name = qn;
     if (!name) return;
     try {
-      setBusy(true);
-      // optimistic: notify parent first so UI updates immediately
-      onPick && onPick(name);
-      // try to persist (best-effort)
-      if (onAddRequested) await onAddRequested(name);
+      setBusyAdd(true);
+      // Try to create; if it already exists (422/409), just select it.
+      const resp = await api.post('/areas', { name });
+      const finalName = resp?.data?.name || name;
+
+      // update cache so it shows up on future searches immediately
+      cacheRef.current.set(name, [finalName]);
+      onPick && onPick(finalName);
       onClose && onClose();
     } catch (e) {
-      // rollback is not necessary since it's harmless to keep it in local list;
-      // surface the error to the user instead:
-      Alert.alert('Could not save city', e?.message || 'Unknown error');
+      const status = e?.response?.status;
+      if (status === 422 || status === 409) {
+        // uniqueness error => already exists: treat as success
+        onPick && onPick(name);
+        onClose && onClose();
+      } else {
+        const msg = e?.response?.data ? JSON.stringify(e.response.data) : (e?.message || 'Could not add');
+        Alert.alert('Add location failed', msg);
+      }
     } finally {
-      setBusy(false);
+      setBusyAdd(false);
     }
   };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
+      <KeyboardAvoidingView
+        style={styles.modalBackdrop}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={styles.modalCard}>
           <Text style={styles.modalTitle}>{title}</Text>
 
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search or type to add…"
+            placeholder={`Type at least ${minChars} letters…`}
             placeholderTextColor="#9aa5b1"
             style={[styles.input, { marginBottom: 10 }]}
             autoCorrect={false}
             autoCapitalize="words"
+            autoFocus
           />
 
-          {canAdd && (
+          {(busy || busyAdd) && (
+            <View style={{ paddingVertical: 8, alignItems: 'center' }}>
+              <ActivityIndicator />
+            </View>
+          )}
+
+          {!!err && (
+            <Text style={[styles.note, { color: '#b91c1c', paddingHorizontal: 8 }]} numberOfLines={3}>
+              {err}
+            </Text>
+          )}
+
+          {canAdd && !busy && (
             <TouchableOpacity
-              onPress={addCity}
-              disabled={busy}
-              activeOpacity={0.85}
+              onPress={handleAdd}
+              activeOpacity={0.9}
               style={[styles.btnSecondary, { marginBottom: 8 }]}
+              disabled={busyAdd}
             >
-              {busy ? (
+              {busyAdd ? (
                 <ActivityIndicator />
               ) : (
-                <Text style={styles.btnSecondaryText}>➕ Add “{norm(query)}”</Text>
+                <Text style={styles.btnSecondaryText}>➕ Add “{qn}”</Text>
               )}
             </TouchableOpacity>
           )}
 
           <FlatList
-            data={data}
+            data={results}
             keyExtractor={(item, idx) => `${item}-${idx}`}
             ItemSeparatorComponent={() => <View style={styles.modalDivider} />}
-            style={{ maxHeight: '60%' }}
+            style={{ maxHeight: '65%' }}
+            keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => (
               <TouchableOpacity
                 onPress={() => {
@@ -200,23 +278,20 @@ function SearchableCityPicker({
               </TouchableOpacity>
             )}
             ListEmptyComponent={
-              !canAdd ? (
-                <Text style={[styles.note, { paddingHorizontal: 8 }]}>
-                  No matches. Type a name above to add it.
-                </Text>
+              !busy && canSearch && !canAdd ? (
+                <Text style={[styles.note, { paddingHorizontal: 8 }]}>No results.</Text>
               ) : null
             }
           />
 
           <SecondaryButton title="Cancel" onPress={onClose} />
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
-
-/* Simple modal dropdown (consistent size with inputs) */
+/* Simple modal dropdown (unchanged) */
 function SimpleDropdown({ visible, onClose, title, options = [], keyExtractor, renderLabel, onSelect }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -256,11 +331,10 @@ export default function LocalConveyanceFormScreen({ navigation }) {
   const [loadingLists, setLoadingLists] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // Lists
-  const [ccrList, setCcrList] = useState([]); // [{id, case_id, serial_number, customer_detail, ...}]
-  const [projectList, setProjectList] = useState([]); // string[]
-  const [modeList, setModeList] = useState([]); // string[]
-  const [cityList, setCityList] = useState([]); // string[]
+  // Lists (we no longer load all cities)
+  const [ccrList, setCcrList] = useState([]);
+  const [projectList, setProjectList] = useState([]);
+  const [modeList, setModeList] = useState([]);
 
   // Modal controls
   const [showCcr, setShowCcr] = useState(false);
@@ -276,9 +350,9 @@ export default function LocalConveyanceFormScreen({ navigation }) {
   const [showArriveTime, setShowArriveTime] = useState(false);
 
   // Form data
-  const [requestId, setRequestId] = useState('');             // text
-  const [ccrNo, setCcrNo] = useState('');                     // display case_id
-  const [callReportId, setCallReportId] = useState(null);     // payload only
+  const [requestId, setRequestId] = useState('');
+  const [ccrNo, setCcrNo] = useState('');
+  const [callReportId, setCallReportId] = useState(null);
   const [project, setProject] = useState('');
   const [startTime, setStartTime] = useState(null);
   const [arrivedTime, setArrivedTime] = useState(null);
@@ -291,19 +365,16 @@ export default function LocalConveyanceFormScreen({ navigation }) {
   const startTimeLabel = useMemo(() => formatDateTime12(startTime), [startTime]);
   const arrivedTimeLabel = useMemo(() => formatDateTime12(arrivedTime), [arrivedTime]);
 
-
-  /* ---------- Fetch lists ---------- */
+  /* ---------- Fetch lists (no city preload) ---------- */
   useEffect(() => {
     (async () => {
       try {
         setLoadingLists(true);
         const userId = await AsyncStorage.getItem('user_id');
 
-        // CCR list
         const ccrRes = await api.get('/fetch_ccr_list', { params: { engineer_id: userId } });
         setCcrList(Array.isArray(ccrRes.data) ? ccrRes.data : []);
 
-        // Static options (project, mode)
         const [projRes, modeRes] = await Promise.all([
           api.get('/static_options', { params: { category: 'project' } }),
           api.get('/static_options', { params: { category: 'mode' } }),
@@ -312,11 +383,6 @@ export default function LocalConveyanceFormScreen({ navigation }) {
         const modes = modeRes.data?.mode || modeRes.data?.modes || modeRes.data || [];
         setProjectList(Array.isArray(proj) ? proj : []);
         setModeList(Array.isArray(modes) ? modes : []);
-
-        // Areas
-        const areaRes = await api.get('/areas');
-        const cities = areaRes.data?.cities || [];
-        setCityList(Array.isArray(cities) ? cities : []);
       } catch (e) {
         console.log('List fetch error:', e);
         const msg = e?.response?.data ? JSON.stringify(e.response.data) : (e?.message || 'Failed to fetch lists');
@@ -387,61 +453,16 @@ export default function LocalConveyanceFormScreen({ navigation }) {
     }
   };
 
-
-// Persist a new city to the server (adjust endpoint/params to your Rails setup).
-// Tries /areas first; if you store locations in StaticOption, use the fallback.
-const persistNewCity = async (name) => {
-  const cityName = norm(name);
-  if (!cityName) return;
-
-  try {
-    // Option A: AreasController
-    // Expecting controller to accept { name: 'City' } or { city: 'City' }.
-    // Choose one and keep the other commented out.
-    await api.post('/areas', { name: cityName });            // <-- if your API is like this
-    // await api.post('/areas', { city: cityName });         // <-- or like this
-
-  } catch (e1) {
-    // Option B (fallback): StaticOptionsController with category=location
-    try {
-      await api.post('/static_options', {
-        category: 'location',
-        value: cityName,
-      });
-    } catch (e2) {
-      // Bubble the most meaningful error
-      const msg =
-        e2?.response?.data
-          ? JSON.stringify(e2.response.data)
-          : e1?.response?.data
-          ? JSON.stringify(e1.response.data)
-          : (e2?.message || e1?.message || 'Failed to save city');
-      throw new Error(msg);
-    }
-  }
-};
-
-// After successfully adding/picking a city, ensure it’s in local list
-const upsertCityLocal = (name) => {
-  const n = norm(name);
-  if (!n) return;
-  setCityList((prev) => uniq([...(prev || []), n]));
-};
-
-
-
   /* ---------- Image processing helpers ---------- */
   const processPickedAsset = async (asset) => {
     if (!asset?.uri) return null;
 
-    // Resize & compress to reduce memory usage on low-RAM devices
     const manipulated = await ImageManipulator.manipulateAsync(
       asset.uri,
-      [{ resize: { width: 1600 } }], // keep aspect
+      [{ resize: { width: 1600 } }],
       { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
     );
 
-    // Enforce size cap
     const info = await FileSystem.getInfoAsync(manipulated.uri, { size: true });
     if (info?.size && info.size > MAX_IMAGE_BYTES) {
       Alert.alert('Image too large', 'Please select an image under 300 MB.');
@@ -449,11 +470,7 @@ const upsertCityLocal = (name) => {
     }
 
     const uri = manipulated.uri;
-    return {
-      uri,
-      name: filenameFromUri(uri),
-      type: 'image/jpeg',
-    };
+    return { uri, name: filenameFromUri(uri), type: 'image/jpeg' };
   };
 
   const pickFromLibrary = async () => {
@@ -486,8 +503,6 @@ const upsertCityLocal = (name) => {
         quality: 1,
         exif: false,
       });
-
-      // If Android killed the app, result may come via getPendingResultAsync on resume
       if (!res) return;
 
       if (!res.canceled && res.assets?.[0]) {
@@ -516,74 +531,63 @@ const upsertCityLocal = (name) => {
     return null;
   };
 
- const handleSubmit = async () => {
-  const err = validate();
-  if (err) {
-    Alert.alert('Missing/Invalid Data', err);
-    return;
-  }
-  try {
-    setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 100));
+  const handleSubmit = async () => {
+    const err = validate();
+    if (err) {
+      Alert.alert('Missing/Invalid Data', err);
+      return;
+    }
+    try {
+      setSubmitting(true);
+      await new Promise((r) => setTimeout(r, 100));
 
-    const userId = await AsyncStorage.getItem('user_id');
+      const userId = await AsyncStorage.getItem('user_id');
 
-    // ✅ Send nested params
-    const fd = new FormData();
-    fd.append('tour_conveyance[request_id]', requestId.trim());
-    fd.append('tour_conveyance[ccr_no]', String(ccrNo));
-    fd.append('tour_conveyance[project]', project);
-    fd.append('tour_conveyance[start_time]', startTime.toISOString());
-    fd.append('tour_conveyance[arrived_time]', arrivedTime.toISOString());
-    fd.append('tour_conveyance[mode]', mode);
-    fd.append('tour_conveyance[from_location]', fromLocation);
-    fd.append('tour_conveyance[to_location]', toLocation);
-    fd.append('tour_conveyance[distance_km]', String(parseFloat(distanceKm)));
-    fd.append('tour_conveyance[call_report_id]', String(callReportId));
-    if (userId) fd.append('tour_conveyance[engineer_id]', String(userId));
-    fd.append('tour_conveyance[image]', {
-      uri: image.uri,
-      name: image.name,
-      type: image.type,
-    });
+      const fd = new FormData();
+      fd.append('tour_conveyance[request_id]', requestId.trim());
+      fd.append('tour_conveyance[ccr_no]', String(ccrNo));
+      fd.append('tour_conveyance[project]', project);
+      fd.append('tour_conveyance[start_time]', startTime.toISOString());
+      fd.append('tour_conveyance[arrived_time]', arrivedTime.toISOString());
+      fd.append('tour_conveyance[mode]', mode);
+      fd.append('tour_conveyance[from_location]', fromLocation);
+      fd.append('tour_conveyance[to_location]', toLocation);
+      fd.append('tour_conveyance[distance_km]', String(parseFloat(distanceKm)));
+      fd.append('tour_conveyance[call_report_id]', String(callReportId));
+      if (userId) fd.append('tour_conveyance[engineer_id]', String(userId));
+      fd.append('tour_conveyance[image]', {
+        uri: image.uri,
+        name: image.name,
+        type: image.type,
+      });
 
-    console.log('Submitting to:', api?.defaults?.baseURL, '/tour_conveyances');
-
-    // 🚫 Do NOT set Content-Type manually
-    //const res = await api.post('/tour_conveyances', fd);
-
-    const res =  await api.post('/tour_conveyances', fd, {
+      const res = await api.post('/tour_conveyances', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 60000,
       });
 
+      Alert.alert('Success', 'Entry saved successfully.');
+      clearForm();
+      navigation.goBack();
+    } catch (e) {
+      const status  = e?.response?.status;
+      const data    = e?.response?.data;
+      const url     = e?.config?.baseURL ? `${e.config.baseURL}${e.config.url}` : e?.config?.url;
+      const method  = e?.config?.method;
+      const msg     = e?.message;
 
+      console.log('Submit error detail =>', { status, url, method, data, msg });
 
-
-    Alert.alert('Success', 'Entry saved successfully.');
-    clearForm();
-          navigation.goBack();
-
-    //if (typeof onSuccess === 'function') onSuccess();
-  } catch (e) {
-    const status  = e?.response?.status;
-    const data    = e?.response?.data;
-    const url     = e?.config?.baseURL ? `${e.config.baseURL}${e.config.url}` : e?.config?.url;
-    const method  = e?.config?.method;
-    const msg     = e?.message;
-
-    console.log('Submit error detail =>', { status, url, method, data, msg });
-
-    let alertMsg = '';
-    if (status) alertMsg += `HTTP ${status}\n`;
-    if (url) alertMsg += `${method?.toUpperCase() || 'REQUEST'} ${url}\n`;
-    if (data) alertMsg += `${typeof data === 'string' ? data : JSON.stringify(data)}`;
-    if (!alertMsg) alertMsg = msg || 'Unknown network failure';
-    Alert.alert('Network Error', alertMsg);
-  } finally {
-    setSubmitting(false);
-  }
-};
+      let alertMsg = '';
+      if (status) alertMsg += `HTTP ${status}\n`;
+      if (url) alertMsg += `${method?.toUpperCase() || 'REQUEST'} ${url}\n`;
+      if (data) alertMsg += `${typeof data === 'string' ? data : JSON.stringify(data)}`;
+      if (!alertMsg) alertMsg = msg || 'Unknown network failure';
+      Alert.alert('Network Error', alertMsg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const clearForm = () => {
     setRequestId('');
@@ -631,11 +635,7 @@ const upsertCityLocal = (name) => {
 
         {/* CCR (Case ID) */}
         <Label>CCR No (Case ID)</Label>
-        <FieldButton
-          value={ccrNo}
-          placeholder="Select Case ID"
-          onPress={() => setShowCcr(true)}
-        />
+        <FieldButton value={ccrNo} placeholder="Select Case ID" onPress={() => setShowCcr(true)} />
 
         {/* Request ID (auto from serial_number) */}
         <Label>Request ID / SO No.</Label>
@@ -649,11 +649,7 @@ const upsertCityLocal = (name) => {
 
         {/* Project */}
         <Label>Project</Label>
-        <FieldButton
-          value={project}
-          placeholder="Select Project"
-          onPress={() => setShowProject(true)}
-        />
+        <FieldButton value={project} placeholder="Select Project" onPress={() => setShowProject(true)} />
 
         {/* Start Time */}
         <Label>Start Time (12-hr)</Label>
@@ -673,17 +669,13 @@ const upsertCityLocal = (name) => {
 
         {/* Mode */}
         <Label>Mode</Label>
-        <FieldButton
-          value={mode}
-          placeholder="Select Mode"
-          onPress={() => setShowMode(true)}
-        />
+        <FieldButton value={mode} placeholder="Select Mode" onPress={() => setShowMode(true)} />
 
         {/* From Location */}
         <Label>From Location</Label>
         <FieldButton
           value={fromLocation}
-          placeholder="Select From City"
+          placeholder="Search From City"
           onPress={() => setShowFromCity(true)}
         />
 
@@ -691,7 +683,7 @@ const upsertCityLocal = (name) => {
         <Label>To Location</Label>
         <FieldButton
           value={toLocation}
-          placeholder="Select To City"
+          placeholder="Search To City"
           onPress={() => setShowToCity(true)}
         />
 
@@ -713,14 +705,10 @@ const upsertCityLocal = (name) => {
           <SecondaryButton title="Camera" onPress={captureFromCamera} />
         </View>
 
-        {/* 🔎 Tiny image preview + remove/replace */}
+        {/* preview */}
         {image?.uri ? (
           <View style={styles.previewRow}>
-            <TouchableOpacity
-              onPress={() => setImage(null)}
-              activeOpacity={0.85}
-              style={styles.previewWrap}
-            >
+            <TouchableOpacity onPress={() => setImage(null)} activeOpacity={0.85} style={styles.previewWrap}>
               <Image source={{ uri: image.uri }} style={styles.preview} />
             </TouchableOpacity>
             <View style={{ width: 10 }} />
@@ -739,11 +727,9 @@ const upsertCityLocal = (name) => {
         )}
 
         <View style={{ height: 16 }} />
-
         <PrimaryButton title="Submit" onPress={handleSubmit} loading={submitting} />
         <View style={{ height: 10 }} />
         <SecondaryButton title="Clear Form" onPress={clearForm} />
-
         <View style={{ height: 32 }} />
       </ScrollView>
 
@@ -790,13 +776,7 @@ const upsertCityLocal = (name) => {
         title="Select Case ID (CCR)"
         options={ccrList}
         keyExtractor={(it) => String(it.id)}
-        renderLabel={(it) => {
-          const name =
-            it?.customer_detail?.name ||
-            it?.customer_detail?.customer_name ||
-            'Customer';
-          return `${it.case_id || '-'} `;
-        }}
+        renderLabel={(it) => `${it.case_id || '-'}`}
         onSelect={handlePickCCR}
       />
       <SimpleDropdown
@@ -815,46 +795,25 @@ const upsertCityLocal = (name) => {
         renderLabel={(v) => String(v)}
         onSelect={(v) => setMode(String(v))}
       />
-      <SearchableCityPicker
-  visible={showFromCity}
-  title="Select From City"
-  options={cityList}
-  onClose={() => setShowFromCity(false)}
-  onPick={(name) => {
-    const n = norm(name);
-    setFromLocation(n);
-    upsertCityLocal(n);
-  }}
-  onAddRequested={async (name) => {
-    await persistNewCity(name);
-    // refresh from API if you prefer authoritative list:
-    // const areaRes = await api.get('/areas');
-    // const cities = areaRes.data?.cities || [];
-    // setCityList(Array.isArray(cities) ? cities : []);
-  }}
-/>
 
-<SearchableCityPicker
-  visible={showToCity}
-  title="Select To City"
-  options={cityList}
-  onClose={() => setShowToCity(false)}
-  onPick={(name) => {
-    const n = norm(name);
-    setToLocation(n);
-    upsertCityLocal(n);
-  }}
-  onAddRequested={async (name) => {
-    await persistNewCity(name);
-    // Optionally refetch cities here too (same as above)
-  }}
-/>
-
+      {/* NEW: Remote search for cities */}
+      <RemoteSearchPicker
+        visible={showFromCity}
+        title="Search From City"
+        onClose={() => setShowFromCity(false)}
+        onPick={(name) => setFromLocation(norm(name))}
+      />
+      <RemoteSearchPicker
+        visible={showToCity}
+        title="Search To City"
+        onClose={() => setShowToCity(false)}
+        onPick={(name) => setToLocation(norm(name))}
+      />
     </KeyboardAvoidingView>
   );
 }
 
-/* ----------------------- Styles (uniform sizes) ----------------------- */
+/* ----------------------- Styles ----------------------- */
 
 const styles = StyleSheet.create({
   container: {
@@ -887,10 +846,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#0f172a',
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  row: { flexDirection: 'row', alignItems: 'center' },
   btnPrimary: {
     height: 48,
     backgroundColor: '#2563eb',
@@ -898,11 +854,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnPrimaryText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  btnPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   btnSecondary: {
     height: 48,
     backgroundColor: '#eef2ff',
@@ -911,23 +863,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 16,
   },
-  btnSecondaryText: {
-    color: '#1d4ed8',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  note: {
-    color: '#64748b',
-    fontSize: 12,
-    marginTop: 6,
-  },
+  btnSecondaryText: { color: '#1d4ed8', fontSize: 15, fontWeight: '600' },
+  note: { color: '#64748b', fontSize: 12, marginTop: 6 },
   loadingWrap: {
-    flex: 1,
-    backgroundColor: '#f7f9fc',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flex: 1, backgroundColor: '#f7f9fc', alignItems: 'center', justifyContent: 'center',
   },
-  /* Modal dropdown */
+
+  /* Modal dropdown / search */
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.28)',
@@ -949,38 +891,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingHorizontal: 4,
   },
-  modalItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-  },
-  modalItemText: {
-    fontSize: 16,
-    color: '#0f172a',
-  },
-  modalDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#e2e8f0',
-  },
-  /* 🔎 preview */
-  previewRow: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  previewWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#fff',
-  },
-  preview: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-});
+  modalItem: { paddingVertical: 12, paddingHorizontal: 8 },
+  modalItemText: { fontSize: 16, color: '#0f172a' },
+  modalDivider: { height: StyleSheet.hairlineWidth, backgroundColor: '#e2e8f0' },
 
+  /* preview */
+  previewRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center' },
+  previewWrap: {
+    width: 80, height: 80, borderRadius: 10, overflow: 'hidden',
+    borderWidth: 1, borderColor: '#e2e8f0', backgroundColor: '#fff',
+  },
+  preview: { width: '100%', height: '100%', resizeMode: 'cover' },
+});
 
