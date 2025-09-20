@@ -25,7 +25,8 @@ import LocalConveyanceFormScreen from './screens/LocalConveyanceFormScreen';
 import CallReportsCardListScreen from './screens/CallReportsCardListScreen';
 import CcrPdfFormScreen from './screens/CcrPdfFormScreen';
 import RegistrationScreen from './screens/RegistrationScreen'
-
+import VendorVoucherListScreen from './screens/VendorVoucherListScreen';
+import VendorVoucherFormScreen from './screens/VendorVoucherFormScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -57,6 +58,9 @@ function MainTabs() {
             case 'Profile':
               iconName = 'person';
               break;
+	    case 'Vouchers':
+              iconName = 'receipt-long';
+              break;
             default:
               iconName = 'insert-drive-file';
           }
@@ -69,6 +73,8 @@ function MainTabs() {
     >
       <Tab.Screen name="Call Reports" component={CallReportsCardListScreen} />
       <Tab.Screen name="Local Conveyance" component={LocalConveyanceListScreen} />
+      <Tab.Screen name="Vouchers" component={VendorVoucherListScreen} />
+
       <Tab.Screen name="Leave" component={LeaveScreen} />
       <Tab.Screen name="Attendance" component={AttendanceScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
@@ -91,6 +97,13 @@ export default function App() {
         <Stack.Screen
           name="LocalConveyanceForm" component={LocalConveyanceFormScreen} options={{ headerShown: true, title: 'Add Entry' }}/>
 	{/*<Stack.Screen name="SubmitCallReport" component={SubmitCallReportScreen} />*/}
+     {/* Vendor Voucher form (create/edit) */}
+          <Stack.Screen
+            name="VendorVoucherForm"
+            component={VendorVoucherFormScreen}
+            options={{ headerShown: true, title: 'Vendor Voucher' }}
+          />
+
 <Stack.Screen
   name="CallReportsCardList"
   component={CallReportsCardListScreen}
