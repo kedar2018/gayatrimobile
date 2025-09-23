@@ -37,7 +37,7 @@ export default function LoginScreen({ navigation }) {
     setSubmitting(true);
     try {
       const res = await axios.post('https://134.199.178.17/gayatri/api/login', { email, password });
-      const { user_id, name, location, api_token, areas } = res.data || {};
+      const { user_id, name, location, api_token, areas, role } = res.data || {};
 
       await AsyncStorage.multiSet([
         ['user_id', String(user_id || '')],
@@ -45,6 +45,7 @@ export default function LoginScreen({ navigation }) {
         ['DEFAULT_FROM_LOCATION', location || ''],
         ['api_token', api_token || ''],
         ['areas', JSON.stringify(areas || [])],
+	['role', role || '']
       ]);
 
       if (api_token) api.defaults.headers.Authorization = `Token token=${api_token}`;
