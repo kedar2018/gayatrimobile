@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, FlatList, RefreshControl, ActivityIndicator,
-  TouchableOpacity, StyleSheet, Platform, Alert,
+  TouchableOpacity, StyleSheet, Platform, Alert, Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -11,7 +11,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { api } from '../utils/api';
 
-const SAF_DIR_KEY = 'safDirUri'; // where we remember the chosen folder
+const SAF_DIR_KEY = 'safDirUri'; // remember Android folder once
 
 export default function CustomerCallReportListScreen() {
   const insets = useSafeAreaInsets();
@@ -64,45 +64,29 @@ export default function CustomerCallReportListScreen() {
       const r = await api.post(`/customer_call_reports/${id}/generate_pdf`);
       const url = r?.data?.url || r?.data?.pdf_url;
       if (url) return url;
-    } catch (_) { /* fallback below */ }
+    } catch (_) {}
     const base = (api.defaults?.baseURL || '').replace(/\/$/, '');
     return `${base}/customer_call_reports/${id}/pdf`;
   };
 
-  /** Ask once, then remember the folder; reuse silently next time */
   const ensureDirectoryPermission = async () => {
     if (Platform.OS !== 'android' || !FileSystem.StorageAccessFramework) return { dirUri: null, granted: false };
-
-    // 1) Use saved folder if present
     let dirUri = await AsyncStorage.getItem(SAF_DIR_KEY);
-    if (dirUri) {
-      return { dirUri, granted: true, fromCache: true };
-    }
-
-    // 2) Ask user to pick a folder ONCE
-    const initialUri = null; // you can pass dirUri here if you want to re-ask pointing to prior folder
-    const perm = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync(initialUri || undefined);
+    if (dirUri) return { dirUri, granted: true, fromCache: true };
+    const perm = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
     if (perm.granted) {
       dirUri = perm.directoryUri;
-
-      // Persist across reboots if supported by current Expo version
       try {
         if (FileSystem.StorageAccessFramework.persistPermissionsAsync) {
           await FileSystem.StorageAccessFramework.persistPermissionsAsync(dirUri);
         }
-      } catch (e) {
-        // Not fatal; the saved URI still works in most cases
-        console.log('persistPermissionsAsync failed:', e?.message);
-      }
-
+      } catch {}
       await AsyncStorage.setItem(SAF_DIR_KEY, dirUri);
       return { dirUri, granted: true, fromCache: false };
     }
-
     return { dirUri: null, granted: false };
   };
 
-  /** Optional helper to let the user change the folder later */
   const changePdfFolder = async () => {
     if (Platform.OS !== 'android' || !FileSystem.StorageAccessFramework) {
       Alert.alert('Not supported', 'Changing a persistent folder is only for Android.');
@@ -122,7 +106,6 @@ export default function CustomerCallReportListScreen() {
   };
 
   const createUniqueFile = async (dirUri, baseName, mime = 'application/pdf') => {
-    // Try base name, then add (1), (2), ...
     const tryCreate = async (name) =>
       await FileSystem.StorageAccessFramework.createFileAsync(dirUri, name, mime);
 
@@ -130,14 +113,9 @@ export default function CustomerCallReportListScreen() {
     const root = extIdx > -1 ? baseName.slice(0, extIdx) : baseName;
     const ext = '.pdf';
 
-    try {
-      return await tryCreate(baseName);
-    } catch (e) {
-      // Try numbered suffixes up to 20 attempts
+    try { return await tryCreate(baseName); } catch (e) {
       for (let i = 1; i <= 20; i++) {
-        try {
-          return await tryCreate(`${root} (${i})${ext}`);
-        } catch {}
+        try { return await tryCreate(`${root} (${i})${ext}`); } catch {}
       }
       throw e;
     }
@@ -154,14 +132,10 @@ export default function CustomerCallReportListScreen() {
       const fileName = `CCR_${item.id}_${sanitize(item.customer_name || 'Report')}_${today}.pdf`;
       const tempPath = FileSystem.documentDirectory + fileName;
 
-      // Download to app storage (silent)
       const dl = await FileSystem.downloadAsync(url, tempPath, { headers });
 
       if (Platform.OS === 'android' && FileSystem.StorageAccessFramework) {
-        // Reuse saved folder (ask once)
         let { dirUri, granted } = await ensureDirectoryPermission();
-
-        // If we somehow lost permission, allow user to re-pick once
         if (!granted) {
           const perm = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
           if (perm.granted) {
@@ -175,9 +149,7 @@ export default function CustomerCallReportListScreen() {
             granted = true;
           }
         }
-
         if (granted && dirUri) {
-          // Write the file into the chosen folder (no prompt if previously granted)
           const b64 = await FileSystem.readAsStringAsync(dl.uri, { encoding: FileSystem.EncodingType.Base64 });
           const safFileUri = await createUniqueFile(dirUri, fileName, 'application/pdf');
           await FileSystem.writeAsStringAsync(safFileUri, b64, { encoding: FileSystem.EncodingType.Base64 });
@@ -186,7 +158,6 @@ export default function CustomerCallReportListScreen() {
         }
       }
 
-      // iOS or if SAF not available / permission denied → Share sheet
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(dl.uri, {
           mimeType: 'application/pdf',
@@ -218,6 +189,14 @@ export default function CustomerCallReportListScreen() {
       <Row label="Started" value={item.started_date} />
       <Row label="Arrived" value={item.arrived_date} />
 
+      {!!item.image_url && (
+        <Image
+          source={{ uri: item.image_url }}
+          style={{ width: 100, height: 100, borderRadius: 8, marginTop: 8, borderWidth: 1, borderColor: '#e5e7eb' }}
+          resizeMode="cover"
+        />
+      )}
+
       {!!item.material_reported && (
         <View style={styles.noteBox}>
           <Text style={styles.noteTitle}>Material Reported</Text>
@@ -246,9 +225,11 @@ export default function CustomerCallReportListScreen() {
           disabled={generatingId === item.id}
           activeOpacity={0.9}
         >
-          {generatingId === item.id
-            ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.btnPdfText}>Generate PDF</Text>}
+          {generatingId === item.id ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.btnPdfText}>Generate PDF</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -257,9 +238,7 @@ export default function CustomerCallReportListScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
-
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          {/* Optional: quick button to change saved folder */}
           {Platform.OS === 'android' && FileSystem.StorageAccessFramework && (
             <TouchableOpacity onPress={changePdfFolder} style={styles.smallBtn} activeOpacity={0.9}>
               <Text style={styles.smallBtnText}>Change PDF Folder</Text>
@@ -285,17 +264,9 @@ export default function CustomerCallReportListScreen() {
           data={items}
           keyExtractor={(it, idx) => String(it.id ?? idx)}
           renderItem={renderItem}
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingBottom: (insets.bottom || 0) + 32,
-          }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: (insets.bottom || 0) + 32 }}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#2563eb"
-              colors={['#2563eb']}
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" colors={['#2563eb']} />
           }
           ListEmptyComponent={
             <View style={{ alignItems: 'center', marginTop: 24 }}>
@@ -362,10 +333,7 @@ const styles = StyleSheet.create({
   noteTitle: { fontSize: 12, color: '#475569', fontWeight: '700', marginBottom: 4 },
   noteText: { fontSize: 14, color: '#0f172a' },
 
-  btn: {
-    height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 14, flex: 1,
-  },
+  btn: { height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, flex: 1 },
   btnSecondary: { backgroundColor: '#e5e7eb' },
   btnSecondaryText: { color: '#111827', fontWeight: '800', letterSpacing: 0.3 },
   btnPdf: { backgroundColor: '#0d9488' },

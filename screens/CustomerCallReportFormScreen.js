@@ -2,12 +2,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ActivityIndicator,
-  StyleSheet, KeyboardAvoidingView, ScrollView, Platform, Alert,
+  StyleSheet, KeyboardAvoidingView, ScrollView, Platform, Alert, Image,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import { api } from '../utils/api';
 
 export default function CustomerCallReportFormScreen() {
@@ -17,7 +18,7 @@ export default function CustomerCallReportFormScreen() {
   const editingId = route.params?.editingId || null;
   const isEditing = !!editingId;
 
-  // refs for next-field focus
+  // refs for next inputs
   const codeRef = useRef(null);
   const branchRef = useRef(null);
   const materialRef = useRef(null);
@@ -34,6 +35,10 @@ export default function CustomerCallReportFormScreen() {
   const [observation, setObservation] = useState('');
   const [engineerId, setEngineerId] = useState(null);
 
+  // image state
+  const [existingImageUrl, setExistingImageUrl] = useState(null); // current server image
+  const [newImage, setNewImage] = useState(null); // { uri, width, height, fileName?, mime? }
+
   const [showCRPicker, setShowCRPicker] = useState(false);
   const [showSTPicker, setShowSTPicker] = useState(false);
   const [showARPicker, setShowARPicker] = useState(false);
@@ -46,12 +51,10 @@ export default function CustomerCallReportFormScreen() {
     const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   };
-
   const parseDate = (val) => {
     if (!val) return new Date();
     if (val instanceof Date) return val;
     if (typeof val === 'string') {
-      // handle "YYYY-MM-DD" safely (local time to avoid tz shift)
       const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(val);
       if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
       const dt = new Date(val);
@@ -65,19 +68,17 @@ export default function CustomerCallReportFormScreen() {
     const d = new Date();
     setCallRecdDate(d); setStartedDate(d); setArrivedDate(d);
     setMaterialReported(''); setObservation('');
+    setExistingImageUrl(null); setNewImage(null);
     setEngineerId(null);
   };
 
-  // Load existing report for editing
+  // Load existing for edit
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      if (!isEditing) {
-        // set current user id as default engineer (optional)
-        const eid = await AsyncStorage.getItem('user_id');
-        setEngineerId(eid);
-        return;
-      }
+      const eid = await AsyncStorage.getItem('user_id');
+      setEngineerId(eid);
+      if (!isEditing) return;
       setLoadingExisting(true);
       try {
         const res = await api.get(`/customer_call_reports/${editingId}`);
@@ -91,7 +92,7 @@ export default function CustomerCallReportFormScreen() {
         setArrivedDate(parseDate(r.arrived_date));
         setMaterialReported(r.material_reported || '');
         setObservation(r.observation_and_action_taken || '');
-        setEngineerId(r.engineer_id ?? (await AsyncStorage.getItem('user_id')));
+        setExistingImageUrl(r.image_url || null);
       } catch (e) {
         Alert.alert('Error', 'Failed to load report for editing.');
       } finally {
@@ -103,46 +104,73 @@ export default function CustomerCallReportFormScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingId]);
 
+  // image helpers
+  const guessMime = (uri) => {
+    const lower = (uri || '').toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    return 'image/jpeg';
+  };
+  const fileNameFromUri = (uri, fallback = 'photo.jpg') => {
+    try { return uri.split('/').pop() || fallback; } catch { return fallback; }
+  };
+
+  const pickImage = async (fromCamera = false) => {
+    const perm = fromCamera
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== 'granted') {
+      Alert.alert('Permission required', 'Please allow access to continue.');
+      return;
+    }
+    const result = fromCamera
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
+    if (!result.canceled && result.assets?.length) {
+      setNewImage(result.assets[0]);
+      // keep existingImageUrl as-is (preview will prefer newImage if present)
+    }
+  };
+
   const submit = async () => {
-    // validations
-    if (!customerName.trim()) {
-      setFlash({ type: 'error', msg: 'Customer name is required.' });
-      return;
-    }
-    if (startedDate < callRecdDate) {
-      setFlash({ type: 'error', msg: 'Started date cannot be before Call received date.' });
-      return;
-    }
-    if (arrivedDate < startedDate) {
-      setFlash({ type: 'error', msg: 'Arrived date cannot be before Started date.' });
-      return;
-    }
+    if (!customerName.trim()) { setFlash({ type: 'error', msg: 'Customer name is required.' }); return; }
+    if (startedDate < callRecdDate) { setFlash({ type: 'error', msg: 'Started date cannot be before Call received date.' }); return; }
+    if (arrivedDate < startedDate) { setFlash({ type: 'error', msg: 'Arrived date cannot be before Started date.' }); return; }
 
     try {
       setSubmitting(true);
       const eid = engineerId || (await AsyncStorage.getItem('user_id'));
-      const payload = {
-        customer_name: customerName.trim(),
-        code: code.trim(),
-        branch_name: branchName.trim(),
-        call_recd_date: fmtDateStr(callRecdDate),
-        started_date: fmtDateStr(startedDate),
-        arrived_date: fmtDateStr(arrivedDate),
-        material_reported: materialReported.trim(),
-        observation_and_action_taken: observation.trim(),
-        engineer_id: eid,
-      };
+
+      const form = new FormData();
+      form.append('customer_name', customerName.trim());
+      form.append('code', code.trim());
+      form.append('branch_name', branchName.trim());
+      form.append('call_recd_date', fmtDateStr(callRecdDate));
+      form.append('started_date', fmtDateStr(startedDate));
+      form.append('arrived_date', fmtDateStr(arrivedDate));
+      form.append('material_reported', materialReported.trim());
+      form.append('observation_and_action_taken', observation.trim());
+      form.append('engineer_id', String(eid || ''));
+
+      // Only send image when NEW image chosen; otherwise keep existing
+      if (newImage?.uri) {
+        const name = fileNameFromUri(newImage.uri);
+        const type = newImage.mime || guessMime(newImage.uri);
+        form.append('image', { uri: newImage.uri, name, type });
+      }
+
+      const config = { headers: { 'Content-Type': 'multipart/form-data' } };
 
       if (isEditing) {
-        await api.patch(`/customer_call_reports/${editingId}`, payload);
+        await api.patch(`/customer_call_reports/${editingId}`, form, config);
         setFlash({ type: 'success', msg: 'Report updated.' });
       } else {
-        await api.post('/customer_call_reports', payload);
+        await api.post('/customer_call_reports', form, config);
         setFlash({ type: 'success', msg: 'Report saved.' });
         resetForm();
       }
 
-      // go back to list (which refetches on focus)
       setTimeout(() => nav.goBack(), 400);
     } catch (e) {
       const msg = e?.response?.data?.errors || e?.response?.data?.error || (isEditing ? 'Update failed' : 'Save failed');
@@ -276,6 +304,44 @@ export default function CustomerCallReportFormScreen() {
                     if (d) setArrivedDate(d);
                   }}
                 />
+              )}
+
+              {/* IMAGE PICK / CAPTURE */}
+              <Text style={styles.label}>Photo (optional)</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity
+                  style={[styles.buttonGhost, { flex: 1 }]}
+                  onPress={() => pickImage(false)}
+                  activeOpacity={0.9}
+                >
+                  <Text style={styles.buttonGhostText}>Pick from Gallery</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.button, { flex: 1, backgroundColor: '#059669' }]}
+                  onPress={() => pickImage(true)}
+                  activeOpacity={0.9}
+                >
+                  <Text style={styles.buttonText}>Use Camera</Text>
+                </TouchableOpacity>
+              </View>
+
+              {(newImage?.uri || existingImageUrl) && (
+                <View style={{ marginTop: 10, alignItems: 'flex-start' }}>
+                  <Image
+                    source={{ uri: newImage?.uri || existingImageUrl }}
+                    style={{ width: 140, height: 140, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb' }}
+                    resizeMode="cover"
+                  />
+                  {newImage ? (
+                    <TouchableOpacity onPress={() => setNewImage(null)} style={{ marginTop: 6 }}>
+                      <Text style={{ color: '#ef4444', fontWeight: '700' }}>Remove selected photo</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity onPress={() => setExistingImageUrl(null)} style={{ marginTop: 6 }}>
+                      <Text style={{ color: '#ef4444', fontWeight: '700' }}>Hide current photo (won’t delete on server)</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               )}
 
               <Text style={styles.label}>Material Reported</Text>
