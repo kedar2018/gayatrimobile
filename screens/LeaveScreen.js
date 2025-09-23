@@ -1,14 +1,21 @@
 // screens/LeaveScreen.js
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, TextInput,  FlatList, ActivityIndicator,
-  TouchableOpacity, RefreshControl, Alert, Platform,
+  View,
+  Text,
+  TextInput,
+  FlatList,
+  ActivityIndicator,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+  Platform,
+  StyleSheet,
 } from 'react-native';
 import { api } from '../utils/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
-import S from '../styles/AppStyles';   // ← created once & cached
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LeaveScreen() {
@@ -54,10 +61,7 @@ export default function LeaveScreen() {
       const res = await api.get('/leave_types', { signal: ctrl.signal });
       const normalized = normalizeLeaveTypes(res.data);
       setLeaveTypes(normalized);
-      // set default selection if empty
-      if (!leaveType && normalized.length > 0) {
-        setLeaveType(normalized[0].value);
-      }
+      if (!leaveType && normalized.length > 0) setLeaveType(normalized[0].value);
     } catch (err) {
       if (err?.name !== 'CanceledError' && err?.code !== 'ERR_CANCELED') {
         console.log('leave_types GET error:', err?.response?.data || err.message);
@@ -72,8 +76,7 @@ export default function LeaveScreen() {
     try {
       setError('');
       setLoading(true);
-      // optional/backward compat; server should use token anyway
-      const engineer_id = await AsyncStorage.getItem('user_id');
+      const engineer_id = await AsyncStorage.getItem('user_id'); // optional
       const res = await api.get('/leave_applications', { params: { engineer_id } });
       const data = Array.isArray(res.data) ? res.data : (res.data?.items || []);
       setItems(data);
@@ -125,64 +128,68 @@ export default function LeaveScreen() {
   };
 
   const renderItem = ({ item }) => (
-    <View style={S.card}>
-      <Text style={S.cardTitle}>
-        {item.leave_type} • {item.from_date} → {item.to_date}
-      </Text>
-      {!!item.remarks && <Text style={S.cardLine}>📝 {item.remarks}</Text>}
-      {!!item.status && (
-        <View style={S.badgeRow}>
-          <Text style={[S.badge, badgeStyle(item.status)]}>{String(item.status).toUpperCase()}</Text>
+    <View style={styles.card}>
+      <View style={styles.cardHeaderRow}>
+        <Text style={styles.cardTitle} numberOfLines={1}>
+          {item.leave_type || '—'}
+        </Text>
+        {!!item.status && <Badge status={item.status} />}
+      </View>
+
+      <View style={styles.cardLineRow}>
+        <Text style={styles.cardLineLabel}>From</Text>
+        <Text style={styles.cardLineValue}>{item.from_date}</Text>
+      </View>
+      <View style={styles.cardLineRow}>
+        <Text style={styles.cardLineLabel}>To</Text>
+        <Text style={styles.cardLineValue}>{item.to_date}</Text>
+      </View>
+
+      {!!item.remarks && (
+        <View style={[styles.pill, styles.notePill]}>
+          <Text style={styles.pillText} numberOfLines={3}>📝 {item.remarks}</Text>
         </View>
       )}
     </View>
   );
 
   return (
-    <SafeAreaView style={S.screen}>
-      <Text style={S.h1}>Leave Applications</Text>
-      {!!error && <Text style={S.errorText}>{error}</Text>}
+    <SafeAreaView style={styles.screen}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.h1}>Leave Applications</Text>
+        {!!error && <Text style={styles.errorText}>{error}</Text>}
+      </View>
 
       {/* Form */}
-      <View style={S.form}>
-        <Text style={S.label}>Leave Type</Text>
+      <View style={styles.form}>
+        <Text style={styles.label}>Leave Type</Text>
+        <View style={styles.selectWrap}>
+          <Picker
+            selectedValue={leaveType}
+            onValueChange={(v) => setLeaveType(v)}
+            enabled={!loadingLT && leaveTypes.length > 0}
+            dropdownIconColor="#111827"
+            style={[
+              styles.picker,
+              Platform.OS === 'android' ? styles.pickerAndroid : styles.pickerIOS,
+            ]}
+            itemStyle={styles.pickerItem}
+          >
+            <Picker.Item
+              label={loadingLT ? 'Loading…' : (leaveTypes.length ? 'Select leave type' : 'No types available')}
+              value=""
+              color="#64748b"
+            />
+            {leaveTypes.map((t) => (
+              <Picker.Item key={t.value} label={t.label} value={t.value} color="#0f172a" />
+            ))}
+          </Picker>
+        </View>
 
-<View
-  style={{
-    height: 48,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    overflow: 'hidden',
-    justifyContent: 'center',
-  }}
->
-  <Picker
-    selectedValue={leaveType}
-    onValueChange={(v) => setLeaveType(v)}
-    enabled={!loadingLT && leaveTypes.length > 0}
-    dropdownIconColor="#111"
-    style={[
-      { width: '100%', height: 58, color: '#0f172a' },                // selected value color
-      Platform.OS === 'android' ? { paddingHorizontal: 8 } : { marginLeft: -6 } // platform tweaks
-    ]}
-    itemStyle={{ color: '#0f172a', fontSize: 16 }}                     // iOS item text
-  >
-    <Picker.Item
-      label={loadingLT ? 'Loading…' : (leaveTypes.length ? 'Select leave type' : 'No types available')}
-      value=""
-      color="#64748b"
-    />
-    {leaveTypes.map((t) => (
-      <Picker.Item key={t.value} label={t.label} value={t.value} color="#0f172a" />
-    ))}
-  </Picker>
-</View>
-
-        <Text style={S.label}>From Date</Text>
-        <TouchableOpacity onPress={() => setShowFromPicker(true)} style={S.dateBtn}>
-          <Text style={S.dateBtnText}>{fmtDate(fromDate)}</Text>
+        <Text style={styles.label}>From Date</Text>
+        <TouchableOpacity onPress={() => setShowFromPicker(true)} style={styles.dateBtn} activeOpacity={0.8}>
+          <Text style={styles.dateBtnText}>{fmtDate(fromDate)}</Text>
         </TouchableOpacity>
         {showFromPicker && (
           <DateTimePicker
@@ -199,9 +206,9 @@ export default function LeaveScreen() {
           />
         )}
 
-        <Text style={S.label}>To Date</Text>
-        <TouchableOpacity onPress={() => setShowToPicker(true)} style={S.dateBtn}>
-          <Text style={S.dateBtnText}>{fmtDate(toDate)}</Text>
+        <Text style={styles.label}>To Date</Text>
+        <TouchableOpacity onPress={() => setShowToPicker(true)} style={styles.dateBtn} activeOpacity={0.8}>
+          <Text style={styles.dateBtnText}>{fmtDate(toDate)}</Text>
         </TouchableOpacity>
         {showToPicker && (
           <DateTimePicker
@@ -215,56 +222,271 @@ export default function LeaveScreen() {
           />
         )}
 
-        <Text style={S.label}>Remarks</Text>
+        <Text style={styles.label}>Remarks</Text>
         <TextInput
-          style={S.input}
+          style={styles.input}
           value={remarks}
           onChangeText={setRemarks}
           placeholder="Optional"
-          placeholderTextColor="#888"
+          placeholderTextColor="#94a3b8"
+          multiline
         />
 
         <TouchableOpacity
-          style={[S.button, (!leaveType || loadingLT) && { opacity: 0.6 }]}
+          style={[styles.button, (!leaveType || loadingLT) && styles.buttonDisabled]}
           onPress={submitLeave}
           disabled={!leaveType || loadingLT}
+          activeOpacity={0.8}
         >
-          <Text style={S.buttonText}>Apply Leave</Text>
+          <Text style={styles.buttonText}>Apply Leave</Text>
         </TouchableOpacity>
       </View>
 
       {/* List */}
       {loading ? (
-        <View style={S.center}>
+        <View style={styles.center}>
           <ActivityIndicator />
-          <Text style={S.loadingText}>Loading…</Text>
+          <Text style={styles.loadingText}>Loading…</Text>
         </View>
       ) : (
         <FlatList
           data={items}
-	  style={{ flex: 1 }}      // 👈 makes the list take remaining height
+          style={{ flex: 1 }}
           keyExtractor={(it, idx) => String(it.id ?? idx)}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 30 }}
+          contentContainerStyle={{ paddingBottom: 28, paddingHorizontal: 16 }}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" colors={['#2563eb']} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#2563eb"
+              colors={['#2563eb']}
+            />
           }
           ListEmptyComponent={
-            <View style={{ alignItems: 'center', marginTop: 40 }}>
-              <Text style={{ color: '#555' }}>No leave records found.</Text>
+            <View style={{ alignItems: 'center', marginTop: 36 }}>
+              <Text style={{ color: '#6b7280' }}>No leave records found.</Text>
             </View>
           }
-	  keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="handled"
         />
       )}
     </SafeAreaView>
   );
 }
 
-function badgeStyle(status) {
+function Badge({ status }) {
   const s = (status || '').toString().toLowerCase();
-  if (s.includes('approved')) return { backgroundColor: '#065f46' };
-  if (s.includes('rejected')) return { backgroundColor: '#7f1d1d' };
-  return { backgroundColor: '#1e3a8a' }; // pending/others
+  let bg = '#1e3a8a'; // pending/others
+  if (s.includes('approved')) bg = '#065f46';
+  if (s.includes('rejected')) bg = '#7f1d1d';
+  return (
+    <View style={[styles.badge, { backgroundColor: bg }]}>
+      <Text style={styles.badgeText}>{String(status).toUpperCase()}</Text>
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 8,
+  },
+  h1: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  errorText: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#b91c1c',
+  },
+
+  form: {
+    backgroundColor: '#ffffff',
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    marginTop: 10,
+    marginBottom: 6,
+  },
+
+  selectWrap: {
+    height: 48,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    overflow: 'hidden',
+    justifyContent: 'center',
+  },
+  picker: {
+    width: '100%',
+    height: 58,
+    color: '#0f172a',
+  },
+  pickerAndroid: {
+    paddingHorizontal: 8,
+  },
+  pickerIOS: {
+    marginLeft: -6,
+  },
+  pickerItem: {
+    color: '#0f172a',
+    fontSize: 16,
+  },
+
+  dateBtn: {
+    height: 48,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+  },
+  dateBtnText: {
+    fontSize: 16,
+    color: '#0f172a',
+  },
+
+  input: {
+    minHeight: 48,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
+    fontSize: 16,
+    color: '#0f172a',
+  },
+
+  button: {
+    marginTop: 14,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#2563eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#2563eb',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+
+  center: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 24,
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#6b7280',
+  },
+
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+    flex: 1,
+    paddingRight: 8,
+  },
+  cardLineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  cardLineLabel: {
+    width: 60,
+    fontSize: 13,
+    color: '#475569',
+    fontWeight: '700',
+  },
+  cardLineValue: {
+    fontSize: 14,
+    color: '#0f172a',
+  },
+
+  pill: {
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginTop: 10,
+  },
+  notePill: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  pillText: {
+    fontSize: 13,
+    color: '#0f172a',
+    lineHeight: 18,
+  },
+
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+});
 
