@@ -11,16 +11,20 @@ import {
   Keyboard,
   Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { MaterialIcons } from '@expo/vector-icons';
+import { CommonActions } from '@react-navigation/native';
 import { api } from '../utils/api';
 
 /* ---------------- Small debounce util (no external deps) ---------------- */
 const debounce = (fn, delay = 300) => {
   let t;
-  return (...args) => {
+  const wrapped = (...args) => {
     clearTimeout(t);
     t = setTimeout(() => fn(...args), delay);
   };
+  wrapped.cancel = () => clearTimeout(t);
+  return wrapped;
 };
 
 /* ---------------- Payment Mode helpers (keys + labels) ---------------- */
@@ -50,6 +54,23 @@ const keyForMaybeLabel = (val) => {
     default:
       return 'other';
   }
+};
+
+/* ---------------- Date helpers ---------------- */
+const pad2 = (n) => (n < 10 ? `0${n}` : `${n}`);
+const toISODate = (d) => {
+  if (!d) return '';
+  const yy = d.getFullYear();
+  const mm = pad2(d.getMonth() + 1);
+  const dd = pad2(d.getDate());
+  return `${yy}-${mm}-${dd}`; // YYYY-MM-DD
+};
+const parseISODate = (str) => {
+  if (!str) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
+  if (!m) return null;
+  const dt = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0);
+  return isNaN(dt.getTime()) ? null : dt;
 };
 
 export default function VendorVoucherFormScreen({ route, navigation }) {
@@ -105,7 +126,11 @@ export default function VendorVoucherFormScreen({ route, navigation }) {
   };
 
   /* ---------------- Voucher fields ---------------- */
-  const [date, setDate] = useState(initial.date || '');
+  // Date: keep both string (for backend) and Date object (for picker)
+  const [dateISO, setDateISO] = useState(initial.date || toISODate(new Date()));
+  const [dateObj, setDateObj] = useState(parseISODate(initial.date) || new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
   const [chequeNo, setChequeNo] = useState(initial.cheque_no || '');
   const [paymentMode, setPaymentMode] = useState(
     keyForMaybeLabel(initial.payment_mode || (initial.cheque_no ? 'cheque' : 'cash'))
@@ -127,6 +152,50 @@ export default function VendorVoucherFormScreen({ route, navigation }) {
   const upd = (idx, key, val) =>
     setItems((arr) => arr.map((r, i) => (i === idx ? { ...r, [key]: val } : r)));
 
+  /* ---------------- Date picker handlers ---------------- */
+  const openDatePicker = () => {
+    Keyboard.dismiss();
+    setShowDatePicker(true);
+  };
+  const onChangeDate = (event, selectedDate) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (event?.type === 'dismissed' || !selectedDate) return;
+    const iso = toISODate(selectedDate);
+    setDateObj(selectedDate);
+    setDateISO(iso);
+  };
+
+  /* ---------------- Save + safe navigation back to Vouchers tab ---------------- */
+  const goToVouchersTab = () => {
+    const refreshAt = Date.now();
+
+    // If possible, just go back (e.g. when we came from Vouchers tab)
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    // Otherwise, route into the nested tab properly
+    navigation.navigate('MainTabs', {
+      screen: 'Vouchers',
+      params: { refreshAt },
+    });
+  };
+
+  const hardResetToVouchers = () => {
+    const refreshAt = Date.now();
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [
+          { name: 'MainTabs', params: { screen: 'Vouchers', params: { refreshAt } } },
+        ],
+      })
+    );
+  };
+
   const onSave = async () => {
     try {
       setVendorDropOpen(false); // ensure closed
@@ -143,8 +212,8 @@ export default function VendorVoucherFormScreen({ route, navigation }) {
       const payload = {
         vendor_voucher: {
           vendor_id: vendorId,
-          date,
-          payment_mode: paymentMode || null, // key
+          date: dateISO,                            // YYYY-MM-DD
+          payment_mode: paymentMode || null,        // key
           cheque_no: paymentMode === 'cheque' ? chequeNo : null,
           items_attributes: items
             .filter((i) => i.particulars?.trim() || i.amount_rs)
@@ -162,7 +231,12 @@ export default function VendorVoucherFormScreen({ route, navigation }) {
       }
 
       Alert.alert('Success', `Voucher ${editing ? 'updated' : 'created'}.`);
-      navigation.goBack();
+      // Try normal nested navigate; if something odd, hard reset.
+      try {
+        goToVouchersTab();
+      } catch {
+        hardResetToVouchers();
+      }
     } catch (e) {
       Alert.alert('Error', e.message);
     }
@@ -274,6 +348,7 @@ export default function VendorVoucherFormScreen({ route, navigation }) {
                   style={styles.option}
                   onPress={() => {
                     setPaymentMode(m.key);
+                    if (m.key !== 'cheque') setChequeNo('');
                     setShowModeDrop(false);
                   }}
                 >
@@ -286,14 +361,28 @@ export default function VendorVoucherFormScreen({ route, navigation }) {
         )}
       </View>
 
-      {/* Date */}
-      <Text style={styles.label}>Date (YYYY-MM-DD)</Text>
-      <TextInput
-        style={styles.input}
-        value={date}
-        onChangeText={setDate}
-        placeholder="2025-09-20"
-      />
+      {/* Date (with native picker) */}
+      <Text style={styles.label}>Date</Text>
+      <TouchableOpacity
+        onPress={openDatePicker}
+        activeOpacity={0.9}
+        style={[styles.input, styles.selectLike]}
+      >
+        <Text style={{ color: dateISO ? '#0f172a' : '#94a3b8' }}>
+          {dateISO || 'Select date'}
+        </Text>
+        <MaterialIcons name="event" size={18} />
+      </TouchableOpacity>
+
+      {showDatePicker && (
+        <DateTimePicker
+          mode="date"
+          display={Platform.OS === 'ios' ? 'inline' : 'default'}
+          value={dateObj || new Date()}
+          onChange={onChangeDate}
+          // maximumDate={new Date()} // uncomment if you want to restrict to today/past
+        />
+      )}
 
       {/* Cheque No (conditional) */}
       {paymentMode === 'cheque' && (
@@ -388,9 +477,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     zIndex: 999,
   },
-  dropdownScroll: {
-    maxHeight: 220,
-  },
+  dropdownScroll: { maxHeight: 220 },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
