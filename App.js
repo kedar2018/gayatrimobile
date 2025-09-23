@@ -1,10 +1,12 @@
 // App.js
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
+import { View, ActivityIndicator } from 'react-native';
+import { NavigationContainer, useFocusEffect } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import SplashScreen from './screens/SplashScreen';
 import LoginScreen from './screens/LoginScreen';
@@ -55,16 +57,49 @@ function CCRStackScreen() {
   );
 }
 
-// Bottom Tabs after login
+// Bottom Tabs after login — role-aware rendering
 function MainTabs() {
+  const [role, setRole] = useState(null);
+  const [loadingRole, setLoadingRole] = useState(true);
+
+  // Read role whenever MainTabs gains focus (after login or returning)
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      (async () => {
+        try {
+          const r = (await AsyncStorage.getItem('role')) || (await AsyncStorage.getItem('user_role'));
+          if (isActive) setRole(r || '');
+        } finally {
+          if (isActive) setLoadingRole(false);
+        }
+      })();
+      return () => { isActive = false; };
+    }, [])
+  );
+
+  if (loadingRole) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  const isNonAcer = role === 'non_acer';
+
   return (
     <Tab.Navigator
-      initialRouteName="CCR" // 👈 start user on CCR; change to 'Call Reports' if you prefer
+      key={`tabs-${isNonAcer ? 'nonacer' : 'acer'}`} // remount when role flips
+      initialRouteName={isNonAcer ? 'CCR' : 'Call Reports'}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarIcon: ({ color, size, focused }) => {
           let iconName;
           switch (route.name) {
+            case 'CCR':
+              iconName = 'assignment';
+              break;
             case 'Call Reports':
               iconName = focused ? 'assignment-turned-in' : 'assignment';
               break;
@@ -93,20 +128,27 @@ function MainTabs() {
         tabBarLabelStyle: { fontSize: 11 },
       })}
     >
-      {/* CCR tab uses its own per-screen icon */}
-      <Tab.Screen
-        name="CCR"
-        component={CCRStackScreen}
-        options={{
-          tabBarLabel: 'CCR',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="assignment" color={color} size={size} />
-          ),
-        }}
-      />
+      {isNonAcer ? (
+        // Show CCR tab, hide Call Reports + Local Conveyance
+        <Tab.Screen
+          name="CCR"
+          component={CCRStackScreen}
+          options={{
+            tabBarLabel: 'CCR',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialIcons name="assignment" color={color} size={size} />
+            ),
+          }}
+        />
+      ) : (
+        // Hide CCR, show Call Reports + Local Conveyance
+        <>
+          <Tab.Screen name="Call Reports" component={CallReportsCardListScreen} />
+          <Tab.Screen name="Local Conveyance" component={LocalConveyanceListScreen} />
+        </>
+      )}
 
-      <Tab.Screen name="Call Reports" component={CallReportsCardListScreen} />
-      <Tab.Screen name="Local Conveyance" component={LocalConveyanceListScreen} />
+      {/* Tabs common to all roles */}
       <Tab.Screen name="Vouchers" component={VendorVoucherListScreen} />
       <Tab.Screen name="Leave" component={LeaveScreen} />
       <Tab.Screen name="Attendance" component={AttendanceScreen} />
@@ -153,3 +195,4 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
