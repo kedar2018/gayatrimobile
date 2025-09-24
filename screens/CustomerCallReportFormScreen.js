@@ -34,7 +34,7 @@ export default function CustomerCallReportFormScreen() {
   const [materialReported, setMaterialReported] = useState('');
   const [observation, setObservation] = useState('');
   const [engineerId, setEngineerId] = useState(null);
-
+const [km, setKm] = useState(''); // keep as string in UI
   // image state
   const [existingImageUrl, setExistingImageUrl] = useState(null); // current server image
   const [newImage, setNewImage] = useState(null); // { uri, width, height, fileName?, mime? }
@@ -93,6 +93,7 @@ export default function CustomerCallReportFormScreen() {
         setMaterialReported(r.material_reported || '');
         setObservation(r.observation_and_action_taken || '');
         setExistingImageUrl(r.image_url || null);
+setKm(r.km != null ? String(r.km) : '');
       } catch (e) {
         Alert.alert('Error', 'Failed to load report for editing.');
       } finally {
@@ -152,6 +153,7 @@ export default function CustomerCallReportFormScreen() {
       form.append('material_reported', materialReported.trim());
       form.append('observation_and_action_taken', observation.trim());
       form.append('engineer_id', String(eid || ''));
+     if (km !== '') form.append('km', km); 
 
       // Only send image when NEW image chosen; otherwise keep existing
       if (newImage?.uri) {
@@ -305,6 +307,23 @@ export default function CustomerCallReportFormScreen() {
                   }}
                 />
               )}
+
+<Text style={styles.label}>KM</Text>
+<TextInput
+  style={styles.input}
+  value={km}
+  onChangeText={(t) => {
+    // allow only digits and one decimal point
+    const cleaned = t.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    const normalized = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
+    setKm(normalized);
+  }}
+  placeholder="e.g., 12.5"
+  placeholderTextColor="#94a3b8"
+  keyboardType="decimal-pad"
+  inputMode="decimal"
+/>
 
               {/* IMAGE PICK / CAPTURE */}
               <Text style={styles.label}>Photo (optional)</Text>

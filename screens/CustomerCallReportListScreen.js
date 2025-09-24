@@ -188,6 +188,8 @@ export default function CustomerCallReportListScreen() {
       <Row label="Call Recd" value={item.call_recd_date} />
       <Row label="Started" value={item.started_date} />
       <Row label="Arrived" value={item.arrived_date} />
+<Row label="KM" value={item.km != null ? String(item.km) : null} />
+<Row label="Expense" value={item.expense != null ? String(item.expense) : null} />
 
       {!!item.image_url && (
         <Image
