@@ -185,11 +185,20 @@ export default function CustomerCallReportListScreen() {
       </View>
 
       <Row label="Branch" value={item.branch_name} />
-      <Row label="Call Recd" value={item.call_recd_date} />
-      <Row label="Started" value={item.started_date} />
-      <Row label="Arrived" value={item.arrived_date} />
-<Row label="KM" value={item.km != null ? String(item.km) : null} />
-<Row label="Expense" value={item.expense != null ? String(item.expense) : null} />
+
+      {/* NEW: From/To locations */}
+      <Row label="From" value={item.from_location} />
+      <Row label="To" value={item.to_location} />
+
+      {/* Removed: Call Recd row */}
+      {/* <Row label="Call Recd" value={item.call_recd_date} /> */}
+
+      {/* Renamed labels only; fields unchanged */}
+      <Row label="Attended" value={item.started_date} />
+      <Row label="Closed" value={item.arrived_date} />
+
+      <Row label="KM" value={item.km != null ? String(item.km) : null} />
+      <Row label="Expense" value={item.expense != null ? String(item.expense) : null} />
 
       {!!item.image_url && (
         <Image

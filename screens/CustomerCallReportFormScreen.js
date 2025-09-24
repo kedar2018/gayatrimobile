@@ -28,18 +28,25 @@ export default function CustomerCallReportFormScreen() {
   const [customerName, setCustomerName] = useState('');
   const [code, setCode] = useState('');
   const [branchName, setBranchName] = useState('');
-  const [callRecdDate, setCallRecdDate] = useState(new Date());
-  const [startedDate, setStartedDate] = useState(new Date());
-  const [arrivedDate, setArrivedDate] = useState(new Date());
+
+  // DATES (labels changed in UI only)
+  const [startedDate, setStartedDate] = useState(new Date()); // Attended Date
+  const [arrivedDate, setArrivedDate] = useState(new Date()); // Closed Date
+
+  // NEW locations
+  const [fromLocation, setFromLocation] = useState('');
+  const [toLocation, setToLocation] = useState('');
+
   const [materialReported, setMaterialReported] = useState('');
   const [observation, setObservation] = useState('');
   const [engineerId, setEngineerId] = useState(null);
-const [km, setKm] = useState(''); // keep as string in UI
+  const [km, setKm] = useState(''); // keep as string in UI
+
   // image state
   const [existingImageUrl, setExistingImageUrl] = useState(null); // current server image
   const [newImage, setNewImage] = useState(null); // { uri, width, height, fileName?, mime? }
 
-  const [showCRPicker, setShowCRPicker] = useState(false);
+  // date pickers (removed call received picker)
   const [showSTPicker, setShowSTPicker] = useState(false);
   const [showARPicker, setShowARPicker] = useState(false);
 
@@ -66,10 +73,12 @@ const [km, setKm] = useState(''); // keep as string in UI
   const resetForm = () => {
     setCustomerName(''); setCode(''); setBranchName('');
     const d = new Date();
-    setCallRecdDate(d); setStartedDate(d); setArrivedDate(d);
+    setStartedDate(d); setArrivedDate(d);
+    setFromLocation(''); setToLocation('');
     setMaterialReported(''); setObservation('');
     setExistingImageUrl(null); setNewImage(null);
     setEngineerId(null);
+    setKm('');
   };
 
   // Load existing for edit
@@ -87,13 +96,15 @@ const [km, setKm] = useState(''); // keep as string in UI
         setCustomerName(r.customer_name || '');
         setCode(r.code || '');
         setBranchName(r.branch_name || '');
-        setCallRecdDate(parseDate(r.call_recd_date));
+        // NOTE: backend fields unchanged; just labels differ in UI
         setStartedDate(parseDate(r.started_date));
         setArrivedDate(parseDate(r.arrived_date));
+        setFromLocation(r.from_location || '');
+        setToLocation(r.to_location || '');
         setMaterialReported(r.material_reported || '');
         setObservation(r.observation_and_action_taken || '');
         setExistingImageUrl(r.image_url || null);
-setKm(r.km != null ? String(r.km) : '');
+        setKm(r.km != null ? String(r.km) : '');
       } catch (e) {
         Alert.alert('Error', 'Failed to load report for editing.');
       } finally {
@@ -136,8 +147,8 @@ setKm(r.km != null ? String(r.km) : '');
 
   const submit = async () => {
     if (!customerName.trim()) { setFlash({ type: 'error', msg: 'Customer name is required.' }); return; }
-    if (startedDate < callRecdDate) { setFlash({ type: 'error', msg: 'Started date cannot be before Call received date.' }); return; }
-    if (arrivedDate < startedDate) { setFlash({ type: 'error', msg: 'Arrived date cannot be before Started date.' }); return; }
+    // Validation: Closed >= Attended
+    if (arrivedDate < startedDate) { setFlash({ type: 'error', msg: 'Closed date cannot be before Attended date.' }); return; }
 
     try {
       setSubmitting(true);
@@ -147,13 +158,15 @@ setKm(r.km != null ? String(r.km) : '');
       form.append('customer_name', customerName.trim());
       form.append('code', code.trim());
       form.append('branch_name', branchName.trim());
-      form.append('call_recd_date', fmtDateStr(callRecdDate));
-      form.append('started_date', fmtDateStr(startedDate));
-      form.append('arrived_date', fmtDateStr(arrivedDate));
+      // Removed: call_recd_date
+      form.append('started_date', fmtDateStr(startedDate)); // Attended
+      form.append('arrived_date', fmtDateStr(arrivedDate)); // Closed
+      form.append('from_location', (fromLocation || '').trim()); // NEW
+      form.append('to_location', (toLocation || '').trim());     // NEW
       form.append('material_reported', materialReported.trim());
       form.append('observation_and_action_taken', observation.trim());
       form.append('engineer_id', String(eid || ''));
-     if (km !== '') form.append('km', km); 
+      if (km !== '') form.append('km', km);
 
       // Only send image when NEW image chosen; otherwise keep existing
       if (newImage?.uri) {
@@ -220,7 +233,7 @@ setKm(r.km != null ? String(r.km) : '');
                 style={styles.input}
                 value={customerName}
                 onChangeText={setCustomerName}
-                placeholder="e.g., Foo Retail Pvt Ltd"
+                placeholder="e.g., Pdcc Pvt Ltd"
                 placeholderTextColor="#94a3b8"
                 returnKeyType="next"
                 blurOnSubmit={false}
@@ -233,7 +246,7 @@ setKm(r.km != null ? String(r.km) : '');
                 style={styles.input}
                 value={code}
                 onChangeText={setCode}
-                placeholder="e.g., FOO-001"
+                placeholder="e.g., 1116"
                 placeholderTextColor="#94a3b8"
                 returnKeyType="next"
                 blurOnSubmit={false}
@@ -250,30 +263,35 @@ setKm(r.km != null ? String(r.km) : '');
                 placeholderTextColor="#94a3b8"
                 returnKeyType="next"
                 blurOnSubmit={false}
-                onSubmitEditing={() => setShowCRPicker(true)}
+                onSubmitEditing={() => setShowSTPicker(true)}
               />
 
-              <Text style={styles.label}>Call Received Date</Text>
-              <TouchableOpacity style={styles.dateBtn} onPress={() => setShowCRPicker(true)} activeOpacity={0.85}>
-                <Text style={styles.dateBtnText}>{fmtDateStr(callRecdDate)}</Text>
-              </TouchableOpacity>
-              {showCRPicker && (
-                <DateTimePicker
-                  value={callRecdDate}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(e, d) => {
-                    setShowCRPicker(false);
-                    if (d) {
-                      setCallRecdDate(d);
-                      if (startedDate < d) setStartedDate(d);
-                      if (arrivedDate < d) setArrivedDate(d);
-                    }
-                  }}
-                />
-              )}
+              {/* NEW: From / To Locations */}
+              <Text style={styles.label}>From Location</Text>
+              <TextInput
+                style={styles.input}
+                value={fromLocation}
+                onChangeText={setFromLocation}
+                placeholder="e.g., Baner, Pune"
+                placeholderTextColor="#94a3b8"
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => {}}
+                autoCorrect={false}
+              />
 
-              <Text style={styles.label}>Started Date</Text>
+              <Text style={styles.label}>To Location</Text>
+              <TextInput
+                style={styles.input}
+                value={toLocation}
+                onChangeText={setToLocation}
+                placeholder="e.g., Hinjewadi, Pune"
+                placeholderTextColor="#94a3b8"
+                autoCorrect={false}
+              />
+
+              {/* DATE FIELDS (labels changed) */}
+              <Text style={styles.label}>Attended Date</Text>
               <TouchableOpacity style={styles.dateBtn} onPress={() => setShowSTPicker(true)} activeOpacity={0.85}>
                 <Text style={styles.dateBtnText}>{fmtDateStr(startedDate)}</Text>
               </TouchableOpacity>
@@ -292,7 +310,7 @@ setKm(r.km != null ? String(r.km) : '');
                 />
               )}
 
-              <Text style={styles.label}>Arrived Date</Text>
+              <Text style={styles.label}>Closed Date</Text>
               <TouchableOpacity style={styles.dateBtn} onPress={() => setShowARPicker(true)} activeOpacity={0.85}>
                 <Text style={styles.dateBtnText}>{fmtDateStr(arrivedDate)}</Text>
               </TouchableOpacity>
@@ -308,22 +326,21 @@ setKm(r.km != null ? String(r.km) : '');
                 />
               )}
 
-<Text style={styles.label}>KM</Text>
-<TextInput
-  style={styles.input}
-  value={km}
-  onChangeText={(t) => {
-    // allow only digits and one decimal point
-    const cleaned = t.replace(/[^0-9.]/g, '');
-    const parts = cleaned.split('.');
-    const normalized = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
-    setKm(normalized);
-  }}
-  placeholder="e.g., 12.5"
-  placeholderTextColor="#94a3b8"
-  keyboardType="decimal-pad"
-  inputMode="decimal"
-/>
+              <Text style={styles.label}>KM</Text>
+              <TextInput
+                style={styles.input}
+                value={km}
+                onChangeText={(t) => {
+                  const cleaned = t.replace(/[^0-9.]/g, '');
+                  const parts = cleaned.split('.');
+                  const normalized = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
+                  setKm(normalized);
+                }}
+                placeholder="e.g., 12.5"
+                placeholderTextColor="#94a3b8"
+                keyboardType="decimal-pad"
+                inputMode="decimal"
+              />
 
               {/* IMAGE PICK / CAPTURE */}
               <Text style={styles.label}>Photo (optional)</Text>
@@ -422,67 +439,30 @@ setKm(r.km != null ? String(r.km) : '');
   );
 }
 
+// Your styles object was referenced in your original file.
+// Keeping it here for completeness if you need to tweak labels.
+// If you already have styles below in your file, you can ignore this part.
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f8fafc' },
-
-  headerRow: {
-    paddingTop: 8, paddingBottom: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-  },
-  h1: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
-  cancelBtn: {
-    height: 36, paddingHorizontal: 12, borderRadius: 10, backgroundColor: '#e5e7eb',
-    alignItems: 'center', justifyContent: 'center',
-  },
+  screen: { flex: 1, backgroundColor: '#fff' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, marginBottom: 8 },
+  h1: { fontSize: 20, fontWeight: '800', color: '#111827' },
+  cancelBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#F3F4F6' },
   cancelText: { color: '#111827', fontWeight: '700' },
-
-  flash: {
-    borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 8,
-    borderWidth: 1,
-  },
-  flashSuccess: { backgroundColor: '#ecfdf5', borderColor: '#a7f3d0' },
-  flashError: { backgroundColor: '#fef2f2', borderColor: '#fecaca' },
-  flashText: { color: '#0f172a' },
-
-  form: {
-    backgroundColor: '#fff',
-    marginTop: 6,
-    marginBottom: 12,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  label: { fontSize: 12, fontWeight: '700', color: '#475569', marginTop: 10, marginBottom: 6 },
-  input: {
-    minHeight: 48, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e2e8f0',
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: '#0f172a',
-  },
-  multiline: { minHeight: 90, textAlignVertical: 'top' },
-
-  dateBtn: {
-    height: 48, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e2e8f0',
-    borderRadius: 12, paddingHorizontal: 14, justifyContent: 'center',
-  },
-  dateBtnText: { fontSize: 16, color: '#0f172a' },
-
+  flash: { padding: 10, borderRadius: 8, marginTop: 8 },
+  flashSuccess: { backgroundColor: '#ECFDF5' },
+  flashError: { backgroundColor: '#FEF2F2' },
+  flashText: { color: '#111827', fontWeight: '600' },
+  form: { marginTop: 8 },
+  label: { fontSize: 13, fontWeight: '700', color: '#374151', marginTop: 10, marginBottom: 6 },
+  input: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: '#111827', backgroundColor: '#fff' },
+  multiline: { minHeight: 96, textAlignVertical: 'top' },
+  dateBtn: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#fff' },
+  dateBtnText: { fontSize: 15, color: '#111827' },
   rowButtons: { flexDirection: 'row', marginTop: 14 },
-
-  button: {
-    height: 48, borderRadius: 12, backgroundColor: '#2563eb',
-    alignItems: 'center', justifyContent: 'center', elevation: 2,
-  },
+  button: { backgroundColor: '#2563EB', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
-
-  buttonGhost: {
-    height: 48, borderRadius: 12, backgroundColor: '#eef2ff',
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#c7d2fe',
-  },
-  buttonGhostText: { color: '#1e3a8a', fontSize: 16, fontWeight: '700' },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  buttonGhost: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  buttonGhostText: { color: '#111827', fontSize: 16, fontWeight: '800' },
 });
 
