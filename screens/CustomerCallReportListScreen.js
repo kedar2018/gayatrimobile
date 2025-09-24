@@ -12,6 +12,7 @@ import * as Sharing from 'expo-sharing';
 import { api } from '../utils/api';
 
 const SAF_DIR_KEY = 'safDirUri'; // remember Android folder once
+const PER_PAGE = 20;
 
 export default function CustomerCallReportListScreen() {
   const insets = useSafeAreaInsets();
@@ -20,30 +21,82 @@ export default function CustomerCallReportListScreen() {
   const [items, setItems] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const [generatingId, setGeneratingId] = useState(null);
 
-  const fetchReports = useCallback(async () => {
+  // helpers
+  const mergeUniqueById = (prev = [], next = []) => {
+    if (!Array.isArray(prev) || !Array.isArray(next)) return next || [];
+    const map = new Map();
+    for (const it of prev) map.set(String(it.id ?? `${Math.random()}`), it);
+    for (const it of next) map.set(String(it.id ?? `${Math.random()}`), it);
+    return Array.from(map.values());
+  };
+
+  const fetchPage = useCallback(async (nextPage = 1, { reset = false } = {}) => {
+    const engineer_id = await AsyncStorage.getItem('user_id');
+
+    // flags
+    if (reset) {
+      setInitialLoading(true);
+      setHasNext(true);
+    } else if (nextPage > 1) {
+      setLoadingMore(true);
+    }
+
     try {
-      const engineer_id = await AsyncStorage.getItem('user_id');
-      const res = await api.get('/customer_call_reports', { params: { engineer_id } });
-      const data = Array.isArray(res.data) ? res.data : (res.data?.items || []);
-      setItems(data);
+      const res = await api.get('/customer_call_reports', {
+        params: {
+          engineer_id: engineer_id || undefined,
+          page: nextPage,
+          per: PER_PAGE,
+        },
+      });
+
+      // Support both {items, meta} and legacy array
+      const payloadItems = Array.isArray(res.data) ? res.data : (res.data?.items || []);
+      const meta = Array.isArray(res.data) ? null : (res.data?.meta || {});
+      const nextExists =
+        meta?.has_next ??
+        (meta?.next_page != null) ??
+        (payloadItems.length === PER_PAGE);
+
+      setItems(prev =>
+        reset || nextPage === 1 ? payloadItems : mergeUniqueById(prev, payloadItems)
+      );
+      setPage(nextPage);
+      setHasNext(!!nextExists);
     } catch (e) {
       console.log('CCR list error:', e?.response?.data || e.message);
       Alert.alert('Error', 'Failed to load reports.');
+      if (!reset && nextPage > 1) {
+        // on pagination failure, don't advance page/hasNext
+      }
     } finally {
       setInitialLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
   }, []);
 
-  useEffect(() => { fetchReports(); }, [fetchReports]);
-  useFocusEffect(useCallback(() => { fetchReports(); }, [fetchReports]));
+  // Initial + refetch on focus
+  useEffect(() => { fetchPage(1, { reset: true }); }, [fetchPage]);
+  useFocusEffect(useCallback(() => { fetchPage(1, { reset: true }); }, [fetchPage]));
 
   const onRefresh = () => {
     if (refreshing) return;
     setRefreshing(true);
-    fetchReports();
+    fetchPage(1, { reset: true });
+  };
+
+  const onEndReached = () => {
+    if (initialLoading || refreshing || loadingMore) return;
+    if (!hasNext) return;
+    fetchPage(page + 1);
   };
 
   const sanitize = (s = '') =>
@@ -185,20 +238,12 @@ export default function CustomerCallReportListScreen() {
       </View>
 
       <Row label="Branch" value={item.branch_name} />
-
-      {/* NEW: From/To locations */}
       <Row label="From" value={item.from_location} />
       <Row label="To" value={item.to_location} />
-
-      {/* Removed: Call Recd row */}
-      {/* <Row label="Call Recd" value={item.call_recd_date} /> */}
-
-      {/* Renamed labels only; fields unchanged */}
       <Row label="Attended" value={item.started_date} />
       <Row label="Closed" value={item.arrived_date} />
-
       <Row label="KM" value={item.km != null ? String(item.km) : null} />
-      <Row label="Expense" value={item.expense != null ? String(item.expense) : null} />
+      <Row label="Expense" value={item.expense != null ? `₹${item.expense}` : null} />
 
       {!!item.image_url && (
         <Image
@@ -246,6 +291,15 @@ export default function CustomerCallReportListScreen() {
     </View>
   );
 
+  const ListFooter = () => {
+    if (!loadingMore) return <View style={{ height: 8 }} />;
+    return (
+      <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+        <ActivityIndicator />
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
@@ -273,7 +327,7 @@ export default function CustomerCallReportListScreen() {
       ) : (
         <FlatList
           data={items}
-          keyExtractor={(it, idx) => String(it.id ?? idx)}
+          keyExtractor={(it, idx) => String(it?.id ?? idx)}
           renderItem={renderItem}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: (insets.bottom || 0) + 32 }}
           refreshControl={
@@ -284,8 +338,11 @@ export default function CustomerCallReportListScreen() {
               <Text style={{ color: '#6b7280' }}>No reports yet.</Text>
             </View>
           }
+          ListFooterComponent={ListFooter}
           removeClippedSubviews={false}
           keyboardShouldPersistTaps="handled"
+          onEndReached={onEndReached}
+          onEndReachedThreshold={0.25}
         />
       )}
     </SafeAreaView>
@@ -350,4 +407,3 @@ const styles = StyleSheet.create({
   btnPdf: { backgroundColor: '#0d9488' },
   btnPdfText: { color: '#fff', fontWeight: '800', letterSpacing: 0.3 },
 });
-
