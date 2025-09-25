@@ -1,0 +1,33 @@
+name: EAS iOS Build
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+    timeout-minutes: 60
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      NODE_VERSION: '18'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+      - run: |
+          yarn install --frozen-lockfile || yarn install
+          npm i -g eas-cli
+      - run: npx expo doctor || true
+      - name: EAS build (iOS, production)
+        run: eas build --platform ios --profile production --non-interactive
+      - name: Download iOS artifact
+        run: |
+          mkdir -p dist
+          eas artifact:download --platform ios --output-dir dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: dist/**
