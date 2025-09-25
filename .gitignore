@@ -35,3 +35,13 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# .gitignore additions
+dist/
+*.ipa
+*.aab
+*.apk
+*.zip
+*.rar
+*.xcarchive
+
